@@ -1,6 +1,5 @@
 (ns xtdb-money.core
-  (:require [clojure.set :refer [rename-keys]]
-            [clojure.walk :refer [postwalk]]
+  (:require [clojure.walk :refer [postwalk]]
             [xtdb.api :as xt])
   (:gen-class))
 
@@ -11,22 +10,32 @@
   [node & docs]
   {:pre [(seq docs)]}
 
-  (clojure.pprint/pprint {::put docs})
-
   (xt/submit-tx node (->> docs
                           (map #(vector ::xt/put %))
                           (into [])))
   (xt/sync node))
 
+(defn- two-count?
+  [coll]
+  (= 2 (count coll)))
+
+(defn- f-keyword?
+  [[x]]
+  (keyword? x))
+
+(def map-tuple?
+  (every-pred vector?
+              two-count?
+              f-keyword?))
+
 (defn- ->xt-map
   [m model-type]
   (postwalk (fn [x]
-              (if (and (vector? x)
-                       (keyword? (first x))
-                       (= 2 (count x)))
+              (if (map-tuple? x)
                 (if (= :id (first x))
                   (assoc-in x [0] :xt/id)
-                  (update-in x [0] #(keyword (name model-type) (name %))))
+                  (update-in x [0] #(keyword (name model-type)
+                                             (name %))))
                 x))
             m))
 
