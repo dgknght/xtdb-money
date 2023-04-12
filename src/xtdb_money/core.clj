@@ -28,16 +28,25 @@
               two-count?
               f-keyword?))
 
+(defmulti ^:private ->xt*
+  (fn [x _]
+    (when (map-tuple? x)
+      :tuple)))
+
+(defmethod ->xt* :default
+  [x _]
+  x)
+
+(defmethod ->xt* :tuple
+  [x model-type]
+  (if (= :id (first x))
+    (assoc-in x [0] :xt/id)
+    (update-in x [0] #(keyword (name model-type)
+                               (name %)))))
+
 (defn- ->xt-map
   [m model-type]
-  (postwalk (fn [x]
-              (if (map-tuple? x)
-                (if (= :id (first x))
-                  (assoc-in x [0] :xt/id)
-                  (update-in x [0] #(keyword (name model-type)
-                                             (name %))))
-                x))
-            m))
+  (postwalk #(->xt* % model-type) m))
 
 (defn accounts []
   (map
