@@ -38,15 +38,26 @@
   x)
 
 (defmethod ->xt* :tuple
-  [x model-type]
+  [x model-type-name]
   (if (= :id (first x))
     (assoc-in x [0] :xt/id)
-    (update-in x [0] #(keyword (name model-type)
+    (update-in x [0] #(keyword model-type-name
                                (name %)))))
+
+(defn- ->xt-keys
+  [m model-type]
+  (postwalk #(->xt* % (name model-type)) m))
+
+(defn- make-id
+  [id]
+  (if id id (java.util.UUID/randomUUID)))
 
 (defn- ->xt-map
   [m model-type]
-  (postwalk #(->xt* % model-type) m))
+  (-> m
+      (update-in [:id] make-id)
+      (->xt-keys model-type)
+      (assoc :type model-type)))
 
 (defn accounts []
   (map
@@ -58,13 +69,6 @@
                     [id :account/name name]
                     [id :account/type type]]})))
 
-(defn- make-id
-  [id]
-  (if id id (java.util.UUID/randomUUID)))
-
 (defn create-account
   [account]
-  (put node (-> account
-                (update-in [:id] make-id)
-                (->xt-map :account)
-                (assoc :type :account))))
+  (put node (->xt-map account :account)))
