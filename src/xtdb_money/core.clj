@@ -1,10 +1,17 @@
 (ns xtdb-money.core
   (:require [clojure.walk :refer [postwalk]]
+            [clojure.spec.alpha :as s]
             [xtdb.api :as xt])
   (:gen-class))
 
 
-(def ^:private node (xt/start-node {}))
+(defonce ^:private node (atom nil))
+
+(defn start []
+  (reset! node (xt/start-node {})))
+
+(defn stop []
+  (reset! node nil))
 
 (defn- put
   [node & docs]
@@ -63,12 +70,31 @@
   (map
     #(zipmap [:id :name :type]
               %)
-    (xt/q (xt/db node)
+    (xt/q (xt/db @node)
           '{:find [id name type]
             :where [[id :type :account]
                     [id :account/name name]
                     [id :account/type type]]})))
 
+(defn find-account-by-name
+  [account-name]
+  (first (map
+           #(zipmap [:id :name :type]
+                    %)
+           (xt/q (xt/db @node)
+                 '{:find [id name type]
+                   :where [[id :type :account]
+                           [id :account/name name]
+                           [id :account/type type]]
+                   :in [name]}
+                 account-name))))
+
+(s/def ::name string?)
+(s/def ::type #{:asset :liability :equity :income :expense})
+(s/def ::account (s/keys :req-un [::name
+                                  ::type]))
+
 (defn create-account
   [account]
-  (put node (->xt-map account :account)))
+  {:key [(s/valid? ::account account)]}
+  (put @node (->xt-map account :account)))
