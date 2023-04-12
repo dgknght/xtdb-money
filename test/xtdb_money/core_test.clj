@@ -9,11 +9,10 @@
                       (mny/stop)))
 
 (deftest create-an-account
-  (let [account {:id (java.util.UUID/randomUUID)
-                 :name "Checking"
+  (let [account {:name "Checking"
                  :type :asset}]
     (mny/create-account account)
-    (is (= [account]
+    (is (seq-of-maps-like? [account]
            (mny/accounts))
         "A saved account can be retrieved")))
 
