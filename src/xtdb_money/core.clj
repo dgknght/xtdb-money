@@ -17,10 +17,11 @@
   [node & docs]
   {:pre [(seq docs)]}
 
-  (xt/submit-tx node (->> docs
-                          (map #(vector ::xt/put %))
-                          (into [])))
-  (xt/sync node))
+  (let [n @node]
+    (xt/submit-tx n (->> docs
+                         (map #(vector ::xt/put %))
+                         (into [])))
+    (xt/sync n)))
 
 (defn- two-count?
   [coll]
@@ -68,33 +69,80 @@
 
 (defn accounts []
   (map
-    #(zipmap [:id :name :type]
+    #(zipmap [:id :name :type :balance]
               %)
     (xt/q (xt/db @node)
-          '{:find [id name type]
+          '{:find [id name type balance]
             :where [[id :type :account]
                     [id :account/name name]
-                    [id :account/type type]]})))
+                    [id :account/type type]
+                    [id :account/balance balance]]})))
+
+(defn find-account
+  [id]
+  (first (map
+           #(zipmap [:id :name :type :balance]
+                    %)
+           (xt/q (xt/db @node)
+                 '{:find [id name type balance]
+                   :where [[id :type :account]
+                           [id :account/name name]
+                           [id :account/type type]
+                           [id :account/balance balance]]
+                   :in [id]}
+                 id))))
 
 (defn find-account-by-name
   [account-name]
   (first (map
-           #(zipmap [:id :name :type]
+           #(zipmap [:id :name :type :balance]
                     %)
            (xt/q (xt/db @node)
-                 '{:find [id name type]
+                 '{:find [id name type balance]
                    :where [[id :type :account]
                            [id :account/name name]
-                           [id :account/type type]]
+                           [id :account/type type]
+                           [id :account/balance balance]]
                    :in [name]}
                  account-name))))
 
 (s/def ::name string?)
 (s/def ::type #{:asset :liability :equity :income :expense})
+(s/def ::balance decimal?)
 (s/def ::account (s/keys :req-un [::name
-                                  ::type]))
+                                  ::type]
+                         :opt-un [::balance]))
 
-(defn create-account
+(defn put-account
   [account]
-  {:key [(s/valid? ::account account)]}
-  (put @node (->xt-map account :account)))
+  {:pre [(s/valid? ::account account)]}
+  (put node (-> account
+                (update-in [:balance] (fnil identity 0M))
+                (->xt-map :account))))
+
+(defn- left-side?
+  [{:keys [type]}]
+  (#{:asset :expense} type))
+
+(defn- debit-account
+  [account amount]
+  (let [f (if (left-side? account) + -)]
+    (update-in account [:balance] f amount)))
+
+(defn- credit-account
+  [account amount]
+  (let [f (if (left-side? account) - +)]
+    (update-in account [:balance] f amount)))
+
+(defn create-transaction
+  [{:keys [debit-account-id credit-account-id amount] :as trx}]
+  (let [d-account (find-account debit-account-id)
+        c-account (find-account credit-account-id)]
+    (put node
+         (->xt-map trx :transaction)
+         (-> d-account
+             (debit-account amount)
+             (->xt-map :account))
+         (-> c-account
+             (credit-account amount)
+             (->xt-map :account)))))
