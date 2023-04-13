@@ -51,11 +51,7 @@
 
 (defn- ->xt-map
   [m]
-  #_{:pre [(-> m meta :model-type)]}
-
-  (when-not (-> m meta :model-type)
-    (clojure.pprint/pprint {::no-model-type m})
-    (throw (ex-info "Missing model type" {:model m})))
+  {:pre [(-> m meta :model-type)]}
 
   (let [model-type (-> m meta :model-type)]
     (-> m
@@ -79,4 +75,6 @@
    (xt/q (xt/db @node)
          query))
   ([query param]
-   (xt/q (xt/db @node) query param)))
+   (xt/q (xt/db @node)
+         query
+         param)))

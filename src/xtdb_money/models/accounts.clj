@@ -16,40 +16,27 @@
       (zipmap [:id :name :type :balance] m)
       (vary-meta m assoc :model-type :account)))
 
-(defn select []
-  (map ->model
-       (mny/select
-         '{:find [id name type balance]
-           :where [[id :type :account]
-                   [id :account/name name]
-                   [id :account/type type]
-                   [id :account/balance balance]]})))
+(defn select
+  ([] (select {}))
+  ([{:keys [name id]}]
+   (let [query (cond-> {:find '[id name type balance]
+                        :where '[[id :type :account]
+                                 [id :account/name name]
+                                 [id :account/type type]
+                                 [id :account/balance balance]]}
+                 name (assoc :in '[name])
+                 id (assoc :in '[id]))]
+     (map ->model (if-let [param (or name id)]
+                    (mny/select query param)
+                    (mny/select query))))))
 
 (defn find
   [id]
-  (->> (mny/select
-                 '{:find [id name type balance]
-                   :where [[id :type :account]
-                           [id :account/name name]
-                           [id :account/type type]
-                           [id :account/balance balance]]
-                   :in [id]}
-                 id)
-       (map ->model)
-       first))
+  (first (select {:id id})))
 
 (defn find-by-name
   [account-name]
-  (->> (mny/select
-                 '{:find [id name type balance]
-                   :where [[id :type :account]
-                           [id :account/name name]
-                           [id :account/type type]
-                           [id :account/balance balance]]
-                   :in [name]}
-                 account-name)
-       (map ->model)
-       first))
+  (first (select {:name account-name})))
 
 (defn put
   [account]
