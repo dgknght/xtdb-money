@@ -63,12 +63,14 @@
   [& docs]
   {:pre [(seq docs)]}
 
-  (let [n @node]
-    (xt/submit-tx n (->> docs
-                         (map (comp #(vector ::xt/put %)
-                                    ->xt-map))
-                         (into [])))
-    (xt/sync n)))
+  (let [n @node
+        prepped (->> docs
+                     (map (comp #(vector ::xt/put %)
+                                ->xt-map))
+                     (into []))]
+    (xt/submit-tx n prepped)
+    (xt/sync n)
+    (map #(get-in % [1 :xt/id]) prepped)))
 
 (defn select
   ([query]

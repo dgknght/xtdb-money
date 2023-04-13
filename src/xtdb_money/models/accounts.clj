@@ -38,13 +38,18 @@
   [account-name]
   (first (select {:name account-name})))
 
+(defn- find-first
+  [[id]] (find id))
+
 (defn put
   [account]
   {:pre [(s/valid? ::account account)]}
+
   (-> account
       (update-in [:balance] (fnil identity 0M))
       (vary-meta assoc :model-type :account)
-      (mny/put)))
+      (mny/put)
+      find-first))
 
 (defn- left-side?
   [{:keys [type]}]
