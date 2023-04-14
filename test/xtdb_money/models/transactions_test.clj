@@ -112,4 +112,6 @@
              (rpts/income-statement (:id entity)))
           "A correct income statement is produced"))))
 
-  ; TODO: find transactions by account
+; TODO: find transactions by account, they should be in order and reflect the transaction amount and reulsing blance
+; TODO: add a transaction to the start or middle of a list of existing transactions
+; TODO: add a complex transaction, like a paycheck, with taxes, etc.
