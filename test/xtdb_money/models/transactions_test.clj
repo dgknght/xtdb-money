@@ -2,6 +2,7 @@
   (:require [clojure.test :refer [deftest is use-fixtures]]
             [dgknght.app-lib.test-assertions]
             [xtdb-money.test-context :refer [with-context
+                                             find-entity
                                              find-account]]
             [xtdb-money.helpers :refer [reset-db]]
             [xtdb-money.models.accounts :as acts]
@@ -11,9 +12,11 @@
 
 (deftest create-a-simple-transaction
   (with-context
-    (let [checking (find-account "Checking")
+    (let [entity (find-entity "Personal")
+          checking (find-account "Checking")
           salary (find-account "Salary")]
-      (trxs/put {:credit-account-id (:id salary)
+      (trxs/put {:entity-id (:id entity)
+                 :credit-account-id (:id salary)
                  :debit-account-id (:id checking)
                  :amount 1000M})
       (is (= 1000M (:balance (acts/find (:id checking))))
@@ -23,13 +26,16 @@
 
 (deftest create-multiple-transactions
   (with-context
-    (let [checking (find-account "Checking")
+    (let [entity (find-entity "Personal")
+          checking (find-account "Checking")
           salary (find-account "Salary")
           rent (find-account "Rent")]
-      (trxs/put {:credit-account-id (:id salary)
+      (trxs/put {:entity-id (:id entity)
+                 :credit-account-id (:id salary)
                  :debit-account-id (:id checking)
                  :amount 1000M})
-      (trxs/put {:credit-account-id (:id checking)
+      (trxs/put {:entity-id (:id entity)
+                 :credit-account-id (:id checking)
                  :debit-account-id (:id rent)
                  :amount 500M})
       (is (= 500M (:balance (acts/find-by-name "Checking")))

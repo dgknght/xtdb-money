@@ -1,42 +1,75 @@
 (ns xtdb-money.test-context
-  (:require [xtdb-money.models.accounts :as acts]
+  (:require [xtdb-money.models.entities :as ents]
+            [xtdb-money.models.accounts :as acts]
             [xtdb-money.models.transactions :as trxs]))
 
 (defonce ^:dynamic *context* nil)
 
 (def basic-context
-  {:accounts [{:name "Checking"
+  {:entities [{:name "Personal"}]
+   :accounts [{:entity-id "Personal"
+               :name "Checking"
                :type :asset}
-              {:name "Credit Card"
+              {:entity-id "Personal"
+               :name "Credit Card"
                :type :liability}
-              {:name "Salary"
+              {:entity-id "Personal"
+               :name "Salary"
                :type :income}
-              {:name "Rent"
+              {:entity-id "Personal"
+               :name "Rent"
                :type :expense}
-              {:name "Groceries"
+              {:entity-id "Personal"
+               :name "Groceries"
                :type :expense}]})
+
+(defn- find-model
+  [coll k v]
+  (->> coll
+       (filter #(= v (get-in % [k])))
+       first))
+
+(defn find-entity
+  ([entity-name] (find-entity entity-name *context*))
+  ([entity-name {:keys [entities]}]
+   (find-model entities :name entity-name)))
 
 (defn find-account
   ([account-name] (find-account account-name *context*))
   ([account-name {:keys [accounts]}]
-   (->> accounts
-        (filter #(= account-name (:name %)))
-        first)))
+   (find-model accounts :name account-name)))
+
+(defn- resolve-entity
+  ([model ctx] (resolve-entity model ctx :entity-id))
+  ([model ctx k]
+   (update-in model [k] (comp :id find-entity) ctx)))
+
+(defn- realize-entity
+  [entity _ctx]
+  (ents/put entity))
+
+(defn- realize-entities
+  [ctx]
+  (update-in ctx [:entities] (fn [entities]
+                               (mapv #(realize-entity % ctx)
+                                     entities))))
 
 (defn- resolve-account
   ([model ctx] (resolve-account model ctx :account-id))
   ([model ctx k]
-   (update-in model [k] find-account ctx)))
+   (update-in model [k] (comp :id find-account) ctx)))
 
 (defn- realize-account
-  [account _ctx]
-  (acts/put account))
+  [account ctx]
+  (-> account
+      (resolve-entity ctx)
+      (acts/put)))
 
 (defn- realize-accounts
   [ctx]
   (update-in ctx [:accounts] (fn [accounts]
-                               (map #(realize-account % ctx)
-                                    accounts))))
+                               (mapv #(realize-account % ctx)
+                                     accounts))))
 
 (defn- realize-transaction
   [trx ctx]
@@ -48,18 +81,19 @@
 (defn- realize-transactions
   [ctx]
   (update-in ctx [:transactions] (fn [transactions]
-                                   (map #(realize-transaction % ctx)
-                                        transactions))))
+                                   (mapv #(realize-transaction % ctx)
+                                         transactions))))
 
 (defn realize
   [ctx]
   (-> ctx
+      realize-entities
       realize-accounts
       realize-transactions))
 
 (defmacro with-context
   [& [a1 :as args]]
-  (let [[ctx & body] (if (map? a1)
+  (let [[ctx & body] (if (symbol? a1)
                        args
                        (cons basic-context args))]
     `(binding [*context* (realize ~ctx)]
