@@ -75,6 +75,41 @@
       (is (= 1000M (:balance (acts/find-by-name "Salary")))
           "The salary account balance is updated correctly")
       (is (= 500M (:balance (acts/find-by-name "Rent")))
-          "The rend account balance is updated correctly"))))
+          "The rend account balance is updated correctly")
+      (is (= [{:style :header
+               :label "Asset"
+               :value 500M}
+              {:style :data
+               :depth 0
+               :label "Checking"
+               :value 500M}
+              {:style :header
+               :label "Liability"
+               :value 0M}
+              {:style :header
+               :label "Equity"
+               :value 500M}
+              {:style :data
+               :depth 0
+               :label "Retained Earnings"
+               :value 500M}]
+             (rpts/balance-sheet (:id entity)))
+          "A correct balance sheet is produced")
+      (is (= [{:style :header
+               :label "Income"
+               :value 1000M}
+              {:style :data
+               :depth 0
+               :label "Salary"
+               :value 1000M}
+              {:style :header
+               :label "Expense"
+               :value 500M}
+              {:style :data
+               :depth 0
+               :label "Rent"
+               :value 500M}]
+             (rpts/income-statement (:id entity)))
+          "A correct income statement is produced"))))
 
   ; TODO: find transactions by account
