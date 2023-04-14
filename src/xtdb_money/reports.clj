@@ -30,38 +30,29 @@
                                                          (reduce + 0M))])))))))
          (into {}))))
 
+(defn- group->rows
+  [type transactions]
+  (let [by-type (transactions type)]
+      (cons {:style :header
+             :label (string/capitalize (name type))
+             :value (->> by-type
+                         (map second)
+                         (reduce + 0M))}
+            (map (fn [[account total]]
+                   {:style :data
+                    :depth 0
+                    :value total
+                    :label (:name account)})
+                 by-type))))
+
 (defn balance-sheet
   [entity-id]
   (let [transactions (summarized-transactions entity-id)]
     (->> [:asset :liability :equity]
-         (mapcat (fn [type]
-                   (let [by-type (transactions type)]
-                     (cons {:style :header
-                            :label (string/capitalize (name type))
-                            :value (->> by-type
-                                        (map second)
-                                        (reduce + 0M))}
-                           (map (fn [[account total]]
-                                  {:style :data
-                                   :depth 0
-                                   :value total
-                                   :label (:name account)})
-                                by-type))))))))
+         (mapcat #(group->rows % transactions)))))
 
 (defn income-statement
   [entity-id]
   (let [transactions (summarized-transactions entity-id)]
     (->> [:income :expense]
-         (mapcat (fn [type]
-                   (let [by-type (transactions type)]
-                     (cons {:style :header
-                            :label (string/capitalize (name type))
-                            :value (->> by-type
-                                        (map second)
-                                        (reduce + 0M))}
-                           (map (fn [[account total]]
-                                  {:style :data
-                                   :depth 0
-                                   :value total
-                                   :label (:name account)})
-                                by-type))))))))
+         (mapcat #(group->rows % transactions)))))
