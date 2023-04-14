@@ -9,16 +9,8 @@
 
 (use-fixtures :each reset-db)
 
-(def ^:private trx-context
-  {:accounts [{:name "Checking"
-               :type :asset}
-              {:name "Salary"
-               :type :income}
-              {:name "Rent"
-              :type :expense}]})
-
 (deftest create-a-simple-transaction
-  (with-context trx-context
+  (with-context
     (let [checking (find-account "Checking")
           salary (find-account "Salary")]
       (trxs/put {:credit-account-id (:id salary)
@@ -30,7 +22,7 @@
           "The salary account balance is updated correctly"))))
 
 (deftest create-multiple-transactions
-  (with-context trx-context
+  (with-context
     (let [checking (find-account "Checking")
           salary (find-account "Salary")
           rent (find-account "Rent")]

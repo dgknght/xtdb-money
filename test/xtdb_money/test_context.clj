@@ -4,6 +4,18 @@
 
 (defonce ^:dynamic *context* nil)
 
+(def basic-context
+  {:accounts [{:name "Checking"
+               :type :asset}
+              {:name "Credit Card"
+               :type :liability}
+              {:name "Salary"
+               :type :income}
+              {:name "Rent"
+               :type :expense}
+              {:name "Groceries"
+               :type :expense}]})
+
 (defn find-account
   ([account-name] (find-account account-name *context*))
   ([account-name {:keys [accounts]}]
@@ -46,6 +58,9 @@
       realize-transactions))
 
 (defmacro with-context
-  [ctx & body]
-  `(binding [*context* (realize ~ctx)]
-    ~@body))
+  [& [a1 :as args]]
+  (let [[ctx & body] (if (map? a1)
+                       args
+                       (cons basic-context args))]
+    `(binding [*context* (realize ~ctx)]
+       ~@body)))
