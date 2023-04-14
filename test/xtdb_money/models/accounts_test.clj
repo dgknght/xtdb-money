@@ -8,11 +8,11 @@
 
 (use-fixtures :each reset-db)
 
-(def ^:private account-ctx
+(def ^:private create-ctx
   {:entities [{:name "Personal"}]})
 
 (deftest create-an-account
-  (with-context account-ctx
+  (with-context create-ctx
     (let [entity (find-entity "Personal")
           account {:entity-id (:id entity)
                    :name "Checking"
@@ -22,10 +22,22 @@
                              (acts/select))
           "A saved account can be retrieved"))))
 
-; TODO: Change this select-by-entity-id
-(deftest find-an-account-by-name
-  (with-context
-    (is (comparable? {:name "Salary"
-                      :type :income}
-                     (acts/find-by-name "Salary"))
+(def ^:private find-ctx
+  (assoc create-ctx
+         :accounts [{:entity-id "Personal"
+                     :name "Salary"
+                     :type :income}
+                    {:entity-id "Personal"
+                     :name "Checking"
+                     :type :asset}]))
+
+(deftest find-by-entity
+  (with-context find-ctx
+    (is (= #{{:name "Salary"
+              :type :income}
+             {:name "Checking"
+              :type :asset}}
+           (->> (acts/select {:entity-id (:id (find-entity "Personal"))})
+                (map #(select-keys % [:name :type]))
+                (into #{})))
         "The account with the specified name is returned")))

@@ -26,3 +26,23 @@
     (mny/put (vary-meta trx assoc :model-type :transaction)
              (acts/debit d-account amount)
              (acts/credit c-account amount))))
+
+(defn- ->model
+  [model]
+  (as-> model m
+      (zipmap [:id :entity-id :debit-account-id :credit-account-id :amount] m)
+      (vary-meta m assoc :model-type :account)))
+
+(defn select
+  ([] (select {}))
+  ([{:keys [entity-id]}]
+
+   (let [query (cond-> {:find '[id entity-id debit-account-id credit-account-id amount]
+                        :where '[[id :type :transaction]
+                                 [id :transaction/amount amount]
+                                 [id :transaction/debit-account-id debit-account-id]
+                                 [id :transaction/credit-account-id credit-account-id]]}
+                 entity-id (assoc :in '[entity-id]))]
+     (map ->model (if entity-id
+                    (mny/select query entity-id)
+                    (mny/select query))))))

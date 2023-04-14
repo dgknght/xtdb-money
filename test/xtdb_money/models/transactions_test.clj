@@ -6,7 +6,8 @@
                                              find-account]]
             [xtdb-money.helpers :refer [reset-db]]
             [xtdb-money.models.accounts :as acts]
-            [xtdb-money.models.transactions :as trxs]))
+            [xtdb-money.models.transactions :as trxs]
+            [xtdb-money.reports :as rpts]))
 
 (use-fixtures :each reset-db)
 
@@ -22,7 +23,38 @@
       (is (= 1000M (:balance (acts/find (:id checking))))
           "The checking account balance is updated correctly")
       (is (= 1000M (:balance (acts/find (:id salary))))
-          "The salary account balance is updated correctly"))))
+          "The salary account balance is updated correctly")
+      (is (= [{:style :header
+               :label "Assets"
+               :value 1000M}
+              {:style :data
+               :depth 0
+               :label "Checking"
+               :value 1000M}
+              {:style :header
+               :label "Liabilities"
+               :value 0M}
+              {:style :header
+               :label "Equity"
+               :value 1000M}
+              {:style :data
+               :depth 0
+               :label "Retained Earnings"
+               :value 1000M}]
+             (rpts/balance-sheet (:id entity)))
+          "A correct balance sheet is produced")
+      (is (= [{:style :header
+               :label "Income"
+               :value 1000M}
+              {:style :data
+               :depth 0
+               :label "Salary"
+               :value 1000M}
+              {:style :header
+               :label "Expense"
+               :value 0M}]
+             (rpts/income-statement (:id entity)))
+          "A correct income statement is produced"))))
 
 (deftest create-multiple-transactions
   (with-context
