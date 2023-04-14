@@ -5,6 +5,9 @@
             [xtdb-money.accounts :refer [polarize]]))
 
 (defn- summarized-transactions
+  "Yields a map where the keys are account types and the values are
+  a collection of tuples with an account in the first position and
+  the total for the account in the second."
   [entity-id]
   (let [accounts (->> (acts/select {:entity-id entity-id})
                       (map (juxt :id identity))
@@ -47,9 +50,21 @@
 
 (defn balance-sheet
   [entity-id]
-  (let [transactions (summarized-transactions entity-id)]
+  (let [transactions (summarized-transactions entity-id)
+        [inc-total exp-total] (->> [:income :expense]
+                                   (map #(->> (transactions %)
+                                              (map second)
+                                              (reduce + 0M))))
+        prepped (update-in transactions
+                           [:equity]
+                           (fnil
+                             (fn [group]
+                               (conj group [{:name "Retained Earnings"}
+                                            (- inc-total
+                                               exp-total)]))
+                             []))]
     (->> [:asset :liability :equity]
-         (mapcat #(group->rows % transactions)))))
+         (mapcat #(group->rows % prepped)))))
 
 (defn income-statement
   [entity-id]

@@ -25,14 +25,14 @@
       (is (= 1000M (:balance (acts/find (:id salary))))
           "The salary account balance is updated correctly")
       (is (= [{:style :header
-               :label "Assets"
+               :label "Asset"
                :value 1000M}
               {:style :data
                :depth 0
                :label "Checking"
                :value 1000M}
               {:style :header
-               :label "Liabilities"
+               :label "Liability"
                :value 0M}
               {:style :header
                :label "Equity"
