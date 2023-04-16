@@ -1,5 +1,6 @@
 (ns xtdb-money.models.transactions-test
   (:require [clojure.test :refer [deftest is use-fixtures]]
+            [clj-time.core :as t]
             [dgknght.app-lib.test-assertions]
             [xtdb-money.test-context :refer [with-context
                                              find-entity
@@ -15,11 +16,15 @@
   (with-context
     (let [entity (find-entity "Personal")
           checking (find-account "Checking")
-          salary (find-account "Salary")]
-      (trxs/put {:entity-id (:id entity)
+          salary (find-account "Salary")
+          attr {:transaction-date (t/local-date 2000 1 1)
+                 :entity-id (:id entity)
                  :credit-account-id (:id salary)
                  :debit-account-id (:id checking)
-                 :amount 1000M})
+                 :amount 1000M}
+          result (trxs/put attr)]
+      (is (comparable? attr result)
+          "The correct attributes are returned")
       (is (= 1000M (:balance (acts/find (:id checking))))
           "The checking account balance is updated correctly")
       (is (= 1000M (:balance (acts/find (:id salary))))
@@ -63,10 +68,12 @@
           salary (find-account "Salary")
           rent (find-account "Rent")]
       (trxs/put {:entity-id (:id entity)
+                 :transaction-date (t/local-date 2000 1 1)
                  :credit-account-id (:id salary)
                  :debit-account-id (:id checking)
                  :amount 1000M})
       (trxs/put {:entity-id (:id entity)
+                 :transaction-date (t/local-date 2000 1 2)
                  :credit-account-id (:id checking)
                  :debit-account-id (:id rent)
                  :amount 500M})
