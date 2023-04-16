@@ -68,17 +68,18 @@
   transactions, return report rows."
   [type transactions]
   (let [by-type (transactions type)]
-      (cons {:style :header
-             :label (string/capitalize (name type))
-             :value (->> by-type
-                         (map second)
-                         (reduce + 0M))}
-            (map (fn [[account total]]
-                   {:style :data
-                    :depth 0
-                    :value total
-                    :label (:name account)})
-                 by-type))))
+    (cons {:style :header
+           :label (string/capitalize (name type))
+           :value (->> by-type
+                       (map second)
+                       (reduce + 0M))}
+          (->> by-type
+               (map (fn [[account total]]
+                      {:style :data
+                       :depth 0
+                       :value total
+                       :label (:name account)}))
+               (sort-by :label)))))
 
 (defn- extract-totals
   "Given a transaction summary map and a list of types,

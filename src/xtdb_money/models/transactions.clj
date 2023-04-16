@@ -31,7 +31,7 @@
 
 (defn select
   ([] (select {}))
-  ([{:keys [entity-id id]}]
+  ([{:keys [entity-id id account-id]}]
 
    (let [query (cond-> {:find '[id entity-id transaction-date debit-account-id credit-account-id amount]
                         :where '[[id :type :transaction]
@@ -41,8 +41,9 @@
                                  [id :transaction/debit-account-id debit-account-id]
                                  [id :transaction/credit-account-id credit-account-id]]}
                  id        (assoc :in '[id])
-                 entity-id (assoc :in '[entity-id]))]
-     (map ->model (if-let [param (or id entity-id)]
+                 entity-id (assoc :in '[entity-id])
+                 account-id (assoc :in '[account-id]))]
+     (map ->model (if-let [param (or id entity-id account-id)]
                     (mny/select query param)
                     (mny/select query))))))
 

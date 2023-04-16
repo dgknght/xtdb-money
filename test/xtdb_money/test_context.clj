@@ -74,6 +74,7 @@
 (defn- realize-transaction
   [trx ctx]
   (-> trx
+      (resolve-entity ctx)
       (resolve-account ctx :debit-account-id)
       (resolve-account ctx :credit-account-id)
       (trxs/put)))
