@@ -82,7 +82,7 @@
       (is (= 1000M (:balance (acts/find-by-name "Salary")))
           "The salary account balance is updated correctly")
       (is (= 500M (:balance (acts/find-by-name "Rent")))
-          "The rend account balance is updated correctly")
+          "The rent account balance is updated correctly")
       (is (= [{:style :header
                :label "Asset"
                :value 500M}
