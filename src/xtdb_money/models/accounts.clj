@@ -13,33 +13,26 @@
                                   ::type]
                          :opt-un [::balance]))
 
-(defn- ->model
-  [model]
-  (as-> model m
-      (zipmap [:id :entity-id :name :type :balance] m)
-      (vary-meta m assoc :model-type :account)))
-
-(s/def ::criteria (s/keys :req-un [::models/entity-id]
-                          :opt-un [::name
-                                   ::models/id]))
+(defn- after-read
+  [account]
+  (with-meta account {:model-type :account}))
 
 (defn select
-  ([] (select {}))
-  ([{:keys [name id entity-id] :as criteria}]
-   {:per [(s/valid? ::criteria criteria)]}
+  [{:keys [id entity-id] :as criteria}]
+  {:per [(or (uuid? (:id criteria))
+             (uuid? (:entity-id criteria)))]}
 
-   (let [query (cond-> {:find '[id entity-id name type balance]
-                        :where '[[id :type :account]
-                                 [id :account/entity-id entity-id]
-                                 [id :account/name name]
-                                 [id :account/type type]
-                                 [id :account/balance balance]]}
-                 entity-id (assoc :in '[entity-id])
-                 name (assoc :in '[name])
-                 id (assoc :in '[id]))]
-     (map ->model (if-let [param (or name id entity-id)]
-                    (mny/select query param)
-                    (mny/select query))))))
+  (let [fields '[id entity-id name type balance]
+        query (cond-> {:find fields
+                       :keys fields
+                       :where '[[id :account/entity-id entity-id]
+                                [id :account/name name]
+                                [id :account/type type]
+                                [id :account/balance balance]]}
+                entity-id (assoc :in '[entity-id])
+                id (assoc :in '[id]))]
+    (map after-read
+         (mny/select query (or id entity-id)))))
 
 (defn find
   [id]
@@ -50,7 +43,8 @@
   (first (select {:name account-name})))
 
 (defn- find-first
-  [[id]] (find id))
+  [[id]]
+  (find id))
 
 (defn put
   [account]

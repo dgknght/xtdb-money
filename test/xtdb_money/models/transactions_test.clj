@@ -100,11 +100,11 @@
 (deftest create-multiple-transactions
   (with-context multi-context
     (testing "account balances are set"
-      (is (= 500M (:balance (acts/find-by-name "Checking")))
+      (is (= 500M (:balance (acts/find (:id (find-account "Checking")))))
           "The checking account balance is updated correctly")
-      (is (= 1000M (:balance (acts/find-by-name "Salary")))
+      (is (= 1000M (:balance (acts/find (:id (find-account "Salary")))))
           "The salary account balance is updated correctly")
-      (is (= 500M (:balance (acts/find-by-name "Rent")))
+      (is (= 500M (:balance (acts/find (:id (find-account "Rent")))))
           "The rent account balance is updated correctly"))
 
     (testing "transactions can be retrieved by account"

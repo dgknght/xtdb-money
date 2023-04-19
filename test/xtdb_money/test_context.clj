@@ -44,6 +44,10 @@
   ([model ctx k]
    (update-in model [k] (comp :id find-entity) ctx)))
 
+(defn- throw-on-failure
+  [m]
+  (if m m (throw (RuntimeException. "Unable to create the model"))))
+
 (defn- realize-entity
   [entity _ctx]
   (ents/put entity))
@@ -51,7 +55,8 @@
 (defn- realize-entities
   [ctx]
   (update-in ctx [:entities] (fn [entities]
-                               (mapv #(realize-entity % ctx)
+                               (mapv (comp throw-on-failure
+                                           #(realize-entity % ctx))
                                      entities))))
 
 (defn- resolve-account
@@ -68,7 +73,8 @@
 (defn- realize-accounts
   [ctx]
   (update-in ctx [:accounts] (fn [accounts]
-                               (mapv #(realize-account % ctx)
+                               (mapv (comp throw-on-failure
+                                           #(realize-account % ctx))
                                      accounts))))
 
 (defn- realize-transaction
@@ -82,7 +88,8 @@
 (defn- realize-transactions
   [ctx]
   (update-in ctx [:transactions] (fn [transactions]
-                                   (mapv #(realize-transaction % ctx)
+                                   (mapv (comp throw-on-failure
+                                               #(realize-transaction % ctx))
                                          transactions))))
 
 (defn realize

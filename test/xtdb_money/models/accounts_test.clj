@@ -19,7 +19,7 @@
                    :type :asset}]
       (acts/put account)
       (is (seq-of-maps-like? [account]
-                             (acts/select))
+                             (acts/select {:entity-id (:id entity)}))
           "A saved account can be retrieved"))))
 
 (def ^:private find-ctx
