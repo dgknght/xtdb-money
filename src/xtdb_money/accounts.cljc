@@ -11,5 +11,7 @@
     (if (= :credit action) 1M -1M)))
 
 (defn polarize
-  [amount action account]
-  (* amount (polarizer action account)))
+  ([{:keys [amount action account]}]
+   (polarize amount action account))
+  ([amount action account]
+   (* amount (polarizer action account))))

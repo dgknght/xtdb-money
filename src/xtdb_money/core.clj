@@ -57,6 +57,7 @@
     (-> m
         (update-in [:id] make-id)
         (->xt-keys model-type)
+        ; TODO: Try removing this and relying on model-specific keys
         (assoc :type model-type))))
 
 (defn put

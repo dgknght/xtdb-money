@@ -1,5 +1,6 @@
 (ns xtdb-money.reports
   (:require [clojure.string :as string]
+            [clj-time.core :as t]
             [xtdb-money.models.transactions :as trxs]
             [xtdb-money.models.accounts :as acts]
             [xtdb-money.accounts :refer [polarize]]))
@@ -52,11 +53,13 @@
   "Yields a map where the keys are account types and the values are
   a collection of tuples with an account in the first position and
   the total for the account in the second."
-  [entity-id]
+  [entity-id start-date end-date]
   (let [accounts (->> (acts/select {:entity-id entity-id})
                       (map (juxt :id identity))
                       (into {}))]
-    (->> (trxs/select {:entity-id entity-id})
+    (->> (trxs/select {:entity-id entity-id
+                       :start-date start-date
+                       :end-date end-date})
          (lookup-accounts accounts)
          (split-actions)
          (group-by #(get-in % [:account :type]))
@@ -102,8 +105,10 @@
                [])))
 
 (defn balance-sheet
-  [entity-id]
-  (let [transactions (summarized-transactions entity-id)
+  [{:keys [entity-id as-of]}]
+  (let [transactions (summarized-transactions entity-id
+                                              (t/local-date 2000 1 1)
+                                              (t/plus as-of (t/days 1)))
         [inc-total exp-total] (extract-totals transactions
                                               :income
                                               :expense)
@@ -116,7 +121,9 @@
          (mapcat #(->rows % prepped)))))
 
 (defn income-statement
-  [entity-id]
-  (let [transactions (summarized-transactions entity-id)]
+  [{:keys [entity-id start-date end-date]}]
+  (let [transactions (summarized-transactions entity-id
+                                              start-date
+                                              end-date)]
     (->> [:income :expense]
          (mapcat #(->rows % transactions)))))
