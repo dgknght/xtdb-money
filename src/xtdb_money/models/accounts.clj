@@ -32,10 +32,6 @@
   [id]
   (first (select {:id id})))
 
-(defn find-by-name
-  [account-name]
-  (first (select {:name account-name})))
-
 (defn- find-first
   [[id]]
   (find id))
