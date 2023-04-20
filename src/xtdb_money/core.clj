@@ -79,3 +79,16 @@
    (xt/q (xt/db @node)
          query
          param)))
+
+(defmacro query-map
+  [model-type & fields]
+  {:pre [(keyword? model-type)
+         (every? symbol? fields)]}
+
+  (let [type (name model-type)
+        flds (cons 'id fields)]
+    `{:find (quote ~(vec flds))
+      :keys (quote ~(vec flds))
+      :where (quote ~(mapv (fn [field]
+                             ['id (keyword type (name field)) field])
+                           fields))}))

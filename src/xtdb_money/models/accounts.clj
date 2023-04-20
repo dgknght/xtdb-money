@@ -22,13 +22,7 @@
   {:per [(or (uuid? (:id criteria))
              (uuid? (:entity-id criteria)))]}
 
-  (let [fields '[id entity-id name type balance]
-        query (cond-> {:find fields
-                       :keys fields
-                       :where '[[id :account/entity-id entity-id]
-                                [id :account/name name]
-                                [id :account/type type]
-                                [id :account/balance balance]]}
+  (let [query (cond-> (mny/query-map :account entity-id name type balance)
                 entity-id (assoc :in '[entity-id])
                 id (assoc :in '[id]))]
     (map after-read

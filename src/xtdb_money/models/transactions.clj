@@ -100,17 +100,6 @@
     limit (assoc :limit limit)
     offset (assoc :offset offset)))
 
-(def ^:private base-query
-  (let [fields '[id entity-id transaction-date debit-account-id credit-account-id amount]]
-    {:find fields
-     :keys fields
-     :where [['id :transaction/entity-id 'entity-id]
-             ['id :transaction/transaction-date 'transaction-date]
-             ['id :transaction/amount 'amount]
-             ['id :transaction/debit-account-id 'debit-account-id]
-             ['id :transaction/credit-account-id 'credit-account-id]]
-     :order-by ['[transaction-date :asc]]}))
-
 (defn- after-read
   [trx]
   (update-in trx [:transaction-date] <-storable-date))
@@ -121,7 +110,13 @@
   ([criteria options]
    {:pre [(s/valid? ::criteria criteria)
           (s/valid? ::options options)]}
-   (let [[query param] (-> base-query
+   (let [[query param] (-> (mny/query-map :transaction
+                                          entity-id
+                                          transaction-date
+                                          debit-account-id
+                                          credit-account-id
+                                          amount)
+                           (assoc :order-by [['transaction-date :asc]])
                            (apply-options options)
                            (apply-criteria criteria))]
      (map after-read (mny/select query param)))))
