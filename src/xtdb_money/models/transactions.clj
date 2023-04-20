@@ -4,7 +4,7 @@
             [xtdb-money.util :refer [->storable-date
                                      <-storable-date]]
             [xtdb-money.core :as mny]
-            [xtdb-money.accounts :refer [polarize]]
+            [xtdb-money.accounts :as a]
             [xtdb-money.models :as mdls]
             [xtdb-money.models.accounts :as acts])
   (:import org.joda.time.LocalDate))
@@ -144,7 +144,7 @@
        (mapcat split)
        (filter #(= (:id account)
                    (:account-id %)))
-       (map (comp #(assoc % :amount (polarize %))
+       (map (comp #(assoc % :amount (a/polarize %))
                   #(assoc % :account account)))))
 
 (defn find
@@ -168,6 +168,6 @@
                (apply =)
                assert)
         [id] (mny/put (before-save trx)
-                      (acts/debit d-account amount)
-                      (acts/credit c-account amount))]
+                      (a/debit d-account amount)
+                      (a/credit c-account amount))]
     (find id)))

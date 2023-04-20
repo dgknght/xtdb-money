@@ -15,3 +15,11 @@
    (polarize amount action account))
   ([amount action account]
    (* amount (polarizer action account))))
+
+(defn debit
+  [account amount]
+  (update-in account [:balance] + (polarize amount :debit account)))
+
+(defn credit
+  [account amount]
+  (update-in account [:balance] + (polarize amount :credit account)))

@@ -2,7 +2,6 @@
   (:refer-clojure :exclude [find])
   (:require [clojure.spec.alpha :as s]
             [xtdb-money.core :as mny]
-            [xtdb-money.accounts :refer [polarize]]
             [xtdb-money.models :as models]))
 
 (s/def ::name string?)
@@ -45,11 +44,3 @@
       (vary-meta assoc :model-type :account)
       (mny/put)
       find-first))
-
-(defn debit
-  [account amount]
-  (update-in account [:balance] + (polarize amount :debit account)))
-
-(defn credit
-  [account amount]
-  (update-in account [:balance] + (polarize amount :credit account)))
