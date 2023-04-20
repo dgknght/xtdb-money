@@ -47,18 +47,6 @@
                    ::start-date
                    ::end-date]))
 
-(defn- ->model
-  [model]
-  (as-> model m
-      (zipmap [:id
-               :entity-id
-               :transaction-date
-               :debit-account-id
-               :credit-account-id
-               :amount]
-              m)
-      (vary-meta m assoc :model-type :account)))
-
 (s/def ::criteria (s/multi-spec criteria :account-id))
 
 (s/def ::offset integer?)
@@ -102,7 +90,9 @@
 
 (defn- after-read
   [trx]
-  (update-in trx [:transaction-date] <-storable-date))
+  (-> trx
+      (with-meta {:model-type :transaction})
+      (update-in [:transaction-date] <-storable-date)))
 
 (defn select
   ([] (select {}))
