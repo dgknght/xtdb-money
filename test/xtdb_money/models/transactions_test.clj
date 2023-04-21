@@ -13,6 +13,14 @@
 
 (use-fixtures :each reset-db)
 
+(defn- mapify
+  "Accept a UnilateralTransaction and return a map of the attributes"
+  [t]
+  {:index (trxs/index t)
+   :amount (trxs/amount t)
+   :balance (trxs/balance t)
+   :transaction-date (trxs/transaction-date t)})
+
 (deftest create-a-simple-transaction
   (with-context
     (let [entity (find-entity "Personal")
@@ -28,15 +36,25 @@
         (is (comparable? attr result)
             "The correct attributes are returned"))
       (testing "transaction query by account"
-        (is (seq-of-maps-like? [attr]
-                               (trxs/select {:account-id (:id checking)
-                                             :start-date (t/local-date 2000 1 1)
-                                             :end-date (t/local-date 2000 1 2)}))
+        (is (seq-of-maps-like? [{:index 1
+                                 :amount 1000M
+                                 :balance 1000M
+                                 :transaction-date (t/local-date 2000 1 1)}]
+                               (map mapify
+                                    (trxs/select-by-account
+                                      checking
+                                      (t/local-date 2000 1 1)
+                                      (t/local-date 2000 2 1))))
             "The transaction is included in the debit account query")
-        (is (seq-of-maps-like? [attr]
-                               (trxs/select {:account-id (:id salary)
-                                             :start-date (t/local-date 2000 1 1)
-                                             :end-date (t/local-date 2000 1 2)}))
+        (is (seq-of-maps-like? [{:index 1
+                                 :amount 1000M
+                                 :balance 1000M
+                                 :transaction-date (t/local-date 2000 1 1)}]
+                               (map mapify
+                                    (trxs/select-by-account
+                                      salary
+                                      (t/local-date 2000 1 1)
+                                      (t/local-date 2000 2 1))))
             "The transaction is included in the credit account query"))
       (testing "account updates"
         (is (= 1000M (:balance (acts/find (:id checking))))
@@ -108,16 +126,20 @@
           "The rent account balance is updated correctly"))
 
     (testing "transactions can be retrieved by account"
-      (let [trxs  (trxs/select-by-account (find-account "Checking")
-                                          (t/local-date 2000 1 1)
-                                          (t/local-date 2000 2 1))]
-        ; TODO: add index and balance
-        (is (seq-of-maps-like? [{:transaction-date (t/local-date 2000 1 1)
-                                 :amount 1000M}
-                                {:transaction-date (t/local-date 2000 1 2)
-                                 :amount -500M}]
-                               trxs)
-            "The correct list of transactions is returned")))
+      (is (seq-of-maps-like? [{:transaction-date (t/local-date 2000 1 1)
+                               :index 1
+                               :amount 1000M
+                               :balance 1000M}
+                              {:transaction-date (t/local-date 2000 1 2)
+                               :index 2
+                               :amount -500M
+                               :balance 500M}]
+                             (map mapify
+                                  (trxs/select-by-account
+                                    (find-account "Checking")
+                                    (t/local-date 2000 1 1)
+                                    (t/local-date 2000 2 1))))
+          "The correct list of transactions is returned"))
     (testing "reports are correct"
       (is (= [{:style :header
                :label "Asset"

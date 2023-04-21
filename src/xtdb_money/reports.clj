@@ -24,7 +24,7 @@
             [{:account credit-account
               :amount (polarize amount :credit credit-account)}
              {:account debit-account
-              :amount (polarize amount :debig debit-account)}])
+              :amount (polarize amount :debit debit-account)}])
           transactions))
 
 (defn- aggregate-by-account

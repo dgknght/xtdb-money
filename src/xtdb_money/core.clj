@@ -60,7 +60,8 @@
 
 (defn put
   [& docs]
-  {:pre [(seq docs)]}
+  {:pre [(seq docs)
+         (every? map? docs)]}
 
   (let [n @node
         prepped (->> docs

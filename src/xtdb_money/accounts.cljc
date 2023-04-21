@@ -14,12 +14,7 @@
   ([{:keys [amount action account]}]
    (polarize amount action account))
   ([amount action account]
+   {:pre [amount
+          (#{:debit :credit} action)
+          (:type account)]}
    (* amount (polarizer action account))))
-
-(defn debit
-  [account amount]
-  (update-in account [:balance] + (polarize amount :debit account)))
-
-(defn credit
-  [account amount]
-  (update-in account [:balance] + (polarize amount :credit account)))
