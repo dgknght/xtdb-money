@@ -1,6 +1,8 @@
 (ns xtdb-money.models.transactions-test
   (:require [clojure.test :refer [deftest is use-fixtures testing]]
             [clj-time.core :as t]
+            [clj-time.format :as tf]
+            [clj-time.coerce :as tc]
             [dgknght.app-lib.test-assertions]
             [xtdb-money.test-context :refer [with-context
                                              basic-context
@@ -13,13 +15,22 @@
 
 (use-fixtures :each reset-db)
 
+(defn- format-money
+  [m]
+  (format "%.2f" m))
+
+(defn- format-date
+  [d]
+  (tf/unparse (tf/formatters :date) (tc/to-date-time d)))
+
 (defn- mapify
   "Accept a UnilateralTransaction and return a map of the attributes"
   [t]
   {:index (trxs/index t)
-   :amount (trxs/amount t)
-   :balance (trxs/balance t)
-   :transaction-date (trxs/transaction-date t)})
+   :amount (format-money (trxs/amount t))
+   :balance (format-money (trxs/balance t))
+   :transaction-date (format-date (trxs/transaction-date t))
+   :other-account (:name (trxs/other-account t))})
 
 (deftest create-a-simple-transaction
   (with-context
@@ -37,9 +48,9 @@
             "The correct attributes are returned"))
       (testing "transaction query by account"
         (is (seq-of-maps-like? [{:index 1
-                                 :amount 1000M
-                                 :balance 1000M
-                                 :transaction-date (t/local-date 2000 1 1)}]
+                                 :amount "1000.00"
+                                 :balance "1000.00"
+                                 :transaction-date "2000-01-01"}]
                                (map mapify
                                     (trxs/select-by-account
                                       checking
@@ -47,9 +58,9 @@
                                       (t/local-date 2000 2 1))))
             "The transaction is included in the debit account query")
         (is (seq-of-maps-like? [{:index 1
-                                 :amount 1000M
-                                 :balance 1000M
-                                 :transaction-date (t/local-date 2000 1 1)}]
+                                 :amount "1000.00"
+                                 :balance "1000.00"
+                                 :transaction-date "2000-01-01"}]
                                (map mapify
                                     (trxs/select-by-account
                                       salary
@@ -126,14 +137,14 @@
           "The rent account balance is updated correctly"))
 
     (testing "transactions can be retrieved by account"
-      (is (seq-of-maps-like? [{:transaction-date (t/local-date 2000 1 1)
+      (is (seq-of-maps-like? [{:transaction-date "2000-01-01"
                                :index 1
-                               :amount 1000M
-                               :balance 1000M}
-                              {:transaction-date (t/local-date 2000 1 2)
+                               :amount "1000.00"
+                               :balance "1000.00"}
+                              {:transaction-date "2000-01-02"
                                :index 2
-                               :amount -500M
-                               :balance 500M}]
+                               :amount "-500.00"
+                               :balance "500.00"}]
                              (map mapify
                                   (trxs/select-by-account
                                     (find-account "Checking")
@@ -188,8 +199,61 @@
                                      :end-date (t/local-date 2001 1 1)}))
           "A correct income statement is produced"))))
 
-; TODO: find transactions by account, they should be in order and reflect the transaction amount and reulsing blance
-; TODO: add a transaction to the start or middle of a list of existing transactions
+(def ^:private insert-before-context
+  (assoc basic-context
+         :transactions [{:entity-id "Personal"
+                         :transaction-date (t/local-date 2000 1 1)
+                         :credit-account-id "Salary"
+                         :debit-account-id "Checking"
+                         :amount 1000M}
+                        {:entity-id "Personal"
+                         :transaction-date (t/local-date 2000 1 2)
+                         :credit-account-id "Checking"
+                         :debit-account-id "Groceries"
+                         :amount 50M}
+                        {:entity-id "Personal"
+                         :transaction-date (t/local-date 2000 1 3)
+                         :credit-account-id "Checking"
+                         :debit-account-id "Dining"
+                         :amount 20M}
+                        {:entity-id "Personal"
+                         :transaction-date (t/local-date 2000 1 2)
+                         :credit-account-id "Checking"
+                         :debit-account-id "Rent"
+                         :amount 500M}]))
+
+(deftest insert-a-transaction-before-another
+  (with-context insert-before-context
+    (is (seq-of-maps-like? [{:transaction-date "2000-01-01"
+                             :other-account "Salary"
+                             :index 1
+                             :amount "1000.00"
+                             :balance "1000.00"}
+                            {:transaction-date "2000-01-02"
+                             :other-account "Rent"
+                             :index 2
+                             :amount "-500.00"
+                             :balance "500.00"}
+                            {:transaction-date "2000-01-02"
+                             :other-account "Groceries"
+                             :index 3
+                             :amount "-50.00"
+                             :balance "450.00"}
+                            {:transaction-date "2000-01-03"
+                             :other-account "Dining"
+                             :index 4
+                             :amount "-20.00"
+                             :balance "430.00"}]
+                           (->> (trxs/select-by-account
+                                  (find-account "Checking")
+                                  (t/local-date 2000 1 1)
+                                  (t/local-date 2000 2 1))
+                                (map mapify)))
+        "The indexes and balances are updated up the chain")
+    (is (= 430M
+           (:balance (acts/find (find-account "Checking"))))
+        "The account balance is updated.")))
+
 ; TODO: add a complex transaction, like a paycheck, with taxes, etc.
 ; TODO: add transaction description
 ; TODO: add reports test ns and get reports with explicit dates

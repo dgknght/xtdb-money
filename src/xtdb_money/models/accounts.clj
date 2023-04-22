@@ -1,6 +1,7 @@
 (ns xtdb-money.models.accounts
   (:refer-clojure :exclude [find])
   (:require [clojure.spec.alpha :as s]
+            [xtdb-money.util :refer [->id]]
             [xtdb-money.core :as mny]
             [xtdb-money.models :as models]))
 
@@ -29,7 +30,7 @@
 
 (defn find
   [id]
-  (first (select {:id id})))
+  (first (select {:id (->id id)})))
 
 (defn- find-first
   [[id]]

@@ -1,6 +1,9 @@
 (ns xtdb-money.models.transactions
   (:refer-clojure :exclude [find])
   (:require [clojure.spec.alpha :as s]
+            [clojure.pprint :as pp]
+            [clj-time.format :refer [formatters unparse]]
+            [clj-time.coerce :refer [to-date-time]]
             [xtdb-money.util :refer [->storable-date
                                      <-storable-date]]
             [xtdb-money.core :as mny]
@@ -62,6 +65,16 @@
 (s/def ::options (s/keys :opt-un [::offset ::limit]))
 
 (defmulti ^:private apply-criteria criteria-dispatch)
+
+(def ^{:private true :dynamic true} *accounts* nil)
+
+(defmacro with-accounts
+  "Provides contextual access to all of the accounts in the entity"
+  [model & body]
+  `(binding [*accounts* (->> (acts/select (select-keys ~model [:entity-id]))
+                             (map (juxt :id identity))
+                             (into {}))]
+     ~@body))
 
 (defmethod apply-criteria :id
   [query {:keys [id]}]
@@ -129,6 +142,7 @@
 (defprotocol UnilateralTransaction
   (account [this] "Returns the account for the transaction")
   (account-id [this] "Retrieves the ID for the account to which the transaction belongs")
+  (other-account [this] "Returns the account on the other side of the transaction")
   (amount [this] "The polarized amount of the transaction")
   (index [this] "Ordinal position of this transaction within the account")
   (set-index [this index] "Set the ordinal position")
@@ -137,60 +151,84 @@
   (transaction-date [this] "The date of the transaction")
   (bilateral [this] "Returns the underlaying bilateral transaction"))
 
-(def ^{:private true :dynamic true} *accounts* nil)
+(declare split)
 
-(defmacro with-accounts
-  "Provides contextual access to all of the accounts in the entity"
-  [model & body]
-  `(binding [*accounts* (->> (acts/select (select-keys ~model [:entity-id]))
-                             (map (juxt :id identity))
-                             (into {}))]
-     ~@body))
+(defrecord CreditSide [trx accounts]
+  UnilateralTransaction
+  (account [_] (-> trx :credit-account-id accounts))
+  (account-id [_] (:credit-account-id trx))
+  (other-account [_] (-> trx :debit-account-id accounts))
+  (amount [this]
+    (a/polarize {:amount (:amount trx)
+                 :account (account this)
+                 :action :credit}))
+  (index [_] (:credit-index trx))
+  (set-index [_ index]
+    (-> trx
+        (assoc :credit-index
+               index)
+        (split)
+        :credit))
+  (balance [_] (:credit-balance trx))
+  (set-balance [_ balance]
+    (-> trx
+        (assoc :credit-balance balance)
+        (split)
+        :credit))
+  (transaction-date [_] (:transaction-date trx))
+  (bilateral [_] trx))
 
-(defn- split-keys
-  [action]
-  (let [a (name action)]
-    {:index (keyword (str a "-index"))
-     :balance (keyword (str a "-balance"))
-     :account-id (keyword (str a "-account-id"))}))
+(defrecord DebitSide [trx accounts]
+  UnilateralTransaction
+  (account [_] (-> trx :debit-account-id accounts))
+  (account-id [_] (:debit-account-id trx))
+  (other-account [_] (-> trx :credit-account-id accounts))
+  (amount [this]
+    (a/polarize {:amount (:amount trx)
+                 :account (account this)
+                 :action :debit}))
+  (index [_] (:debit-index trx))
+  (set-index [_ index]
+    (-> trx
+        (assoc :debit-index
+               index)
+        (split)
+        :debit))
+  (balance [_] (:debit-balance trx))
+  (set-balance [_ balance]
+    (-> trx
+        (assoc :debit-balance balance)
+        (split)
+        :debit))
+  (transaction-date [_] (:transaction-date trx))
+  (bilateral [_] trx))
+
+(defn- pprintable
+  [t]
+  {:amount (format "%.2f" (amount t))
+   :account (:name (account t))
+   :transaction-date (unparse (:date formatters)
+                              (to-date-time (transaction-date t)))
+   :index (index t)
+   :balance (when-let [b (balance t)]
+              (format "%.2f" b))})
+
+(defmethod pp/simple-dispatch CreditSide
+  [t]
+  (pp/pprint (pprintable t) *out*))
+
+(defmethod pp/simple-dispatch DebitSide
+  [t]
+  (pp/pprint (pprintable t) *out*))
 
 (defn- split
   "Accepts a storable transaction and returns reified UnilateralTransaction instances,
   one for debit and one for credit"
-  ([trx]
-   {:pre [trx]}
+  [trx]
+  {:pre [trx *accounts*]}
 
-   {:debit (split trx :debit)
-    :credit (split trx :credit)})
-  ([trx action]
-   {:pre [*accounts*]}
-   (let [k (split-keys action)
-         account-id (get-in trx [(:account-id k)])
-         account (get-in *accounts* [account-id])]
-     (reify UnilateralTransaction
-       (account-id [_] account-id)
-       (account [_] account)
-       (amount [_]
-         (a/polarize {:amount (:amount trx)
-                      :account account
-                      :action action}))
-       (index [_]
-         (get-in trx [(k :index)]))
-       (set-index [_ index]
-         (get-in (-> trx
-                     (assoc (k :index)
-                            index)
-                     (split))
-                 [action]))
-       (balance [_] (get-in trx [(k :balance)]))
-       (set-balance [_ balance]
-         (get-in (-> trx
-                     (assoc (k :balance)
-                            balance)
-                     (split))
-                 [action]))
-       (transaction-date [_] (:transaction-date trx))
-       (bilateral [_] trx)))))
+  {:debit (DebitSide. trx *accounts*)
+   :credit (CreditSide. trx *accounts*)})
 
 (defn- split-and-filter
   [account trxs]
@@ -202,17 +240,27 @@
 (defn select-by-account
   [account start-date end-date]
   (with-accounts account
-    (split-and-filter account
-                      (select {:account-id (:id account)
-                               :start-date start-date
-                               :end-date end-date}))))
+    (->> (select {:account-id (:id account)
+                  :start-date start-date
+                  :end-date end-date})
+         (split-and-filter account)
+         (sort-by index))))
+
+(defn- apply-account-id
+  [query]
+  (-> query
+      (update-in [:where]
+                 conj
+                 '(or [id :transaction/debit-account-id account-id]
+                      [id :transaction/credit-account-id account-id]))))
 
 (defn- precedent
   [{:keys [transaction-date]} account]
   (let [query (-> base-query
-                  (update-in [:where] conj '(or [(= debit-account-id account-id)]
-                                                [(= credit-account-id account-id)]))
-                  (update-in [:where] conj ['(<= transaction-date d)])
+                  (apply-account-id)
+                  (update-in [:where]
+                             conj
+                             ['(< transaction-date d)])
                   (assoc :order-by [['transaction-date :desc]] ; TODO: put back index
                          :limit 1
                          :in '[[account-id d]]))]
@@ -226,9 +274,10 @@
 (defn- subsequents
   [{:keys [transaction-date]} account]
   (let [query (-> base-query
-                  (update-in [:where] conj ['(<= d transaction-date)])
-                  (update-in [:where] conj ['(or (== account-id credit-account-id)
-                                                 (== account-id debit-account-id))])
+                  (apply-account-id)
+                  (update-in [:where]
+                             conj
+                             ['(<= d transaction-date)])
                   (assoc :order-by [['transaction-date :asc]] ; TODO: put back the index
                          :in '[[account-id d]]))]
     (->> (mny/select query
@@ -258,7 +307,6 @@
 (defn- apply-index
   [{:keys [last-index last-balance] :as result} trx]
   {:pre [result trx]}
-
   (let [index (+ 1 last-index)
         balance (+ last-balance
                    (amount trx))]
@@ -282,7 +330,8 @@
 (defn- propagate*
   [trx action account]
   (let [prev (precedent trx account)]
-    (->> [(get-in (split trx) [action])]
+    (->> (cons (get-in (split trx) [action])
+               (subsequents trx account))
          (reduce apply-index
                  {:last-index (if prev (index prev) 0)
                   :last-balance (if prev (balance prev) 0M)})
@@ -297,13 +346,15 @@
                      (:entity-id debit-account)
                      (:entity-id credit-account))
                   "All accounts in a transaction must belong to the same entity as the transaction")
+        ; TODO: Maybe split the transaction first, then follow each side of the split
         debit-side (propagate* trx :debit debit-account)
         credit-side (propagate* (first debit-side) :credit credit-account)]
 
     ; The calling fn expects the transaction to be in the first position
     (concat 
-      credit-side ; TODO: Remove any duplicates here
-      (rest debit-side) ; this 1st one here should be the first one in credit-side also
+      (map before-save
+           (concat credit-side
+                   (rest debit-side)))
       ; TODO: the accounts should only be updated if the update chain makes it
       ; to the last transaction for the account
       [(update-in debit-account [:balance] + (a/polarize amount :debit debit-account))
@@ -314,6 +365,6 @@
   {:pre [(s/valid? ::transaction trx)]}
 
   (with-accounts trx
-    (-> (apply mny/put (propagate (before-save trx)))
+    (-> (apply mny/put (propagate trx))
         first
         find)))

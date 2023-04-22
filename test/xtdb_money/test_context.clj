@@ -21,6 +21,9 @@
                :type :expense}
               {:entity-id "Personal"
                :name "Groceries"
+               :type :expense}
+              {:entity-id "Personal"
+               :name "Dining"
                :type :expense}]})
 
 (defn- find-model
