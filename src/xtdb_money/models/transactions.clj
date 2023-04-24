@@ -13,6 +13,7 @@
   (:import org.joda.time.LocalDate))
 
 (s/def ::transaction-date (partial instance? LocalDate))
+(s/def ::description string?)
 (s/def ::debit-account-id uuid?)
 (s/def ::credit-account-id uuid?)
 (s/def ::amount (s/and decimal?
@@ -23,6 +24,7 @@
 (s/def ::credit-balance decimal?)
 (s/def ::transaction (s/keys :req-un [::mdls/entity-id
                                       ::transaction-date
+                                      ::description
                                       ::credit-account-id
                                       ::debit-account-id
                                       ::amount]
@@ -119,6 +121,7 @@
   (mny/query-map :transaction
                  entity-id
                  transaction-date
+                 description
                  debit-account-id
                  debit-index
                  debit-balance
@@ -149,6 +152,7 @@
   (balance [this] "Balance of the account as of this transaction")
   (set-balance [this balance] "Set the balance")
   (transaction-date [this] "The date of the transaction")
+  (description [this] "The description of the transaction")
   (bilateral [this] "Returns the underlaying bilateral transaction"))
 
 (declare split)
@@ -176,6 +180,7 @@
         (split)
         :credit))
   (transaction-date [_] (:transaction-date trx))
+  (description [_] (:description trx))
   (bilateral [_] trx))
 
 (defrecord DebitSide [trx accounts]
@@ -201,6 +206,7 @@
         (split)
         :debit))
   (transaction-date [_] (:transaction-date trx))
+  (description [_] (:description trx))
   (bilateral [_] trx))
 
 (defn- pprintable

@@ -30,6 +30,7 @@
    :amount (format-money (trxs/amount t))
    :balance (format-money (trxs/balance t))
    :transaction-date (format-date (trxs/transaction-date t))
+   :description (trxs/description t)
    :other-account (:name (trxs/other-account t))})
 
 (deftest create-a-simple-transaction
@@ -38,6 +39,7 @@
           checking (find-account "Checking")
           salary (find-account "Salary")
           attr {:transaction-date (t/local-date 2000 1 1)
+                :description "Paycheck"
                 :entity-id (:id entity)
                 :credit-account-id (:id salary)
                 :debit-account-id (:id checking)
@@ -48,6 +50,7 @@
             "The correct attributes are returned"))
       (testing "transaction query by account"
         (is (seq-of-maps-like? [{:index 1
+                                 :description "Paycheck"
                                  :amount "1000.00"
                                  :balance "1000.00"
                                  :transaction-date "2000-01-01"}]
@@ -58,6 +61,7 @@
                                       (t/local-date 2000 2 1))))
             "The transaction is included in the debit account query")
         (is (seq-of-maps-like? [{:index 1
+                                 :description "Paycheck"
                                  :amount "1000.00"
                                  :balance "1000.00"
                                  :transaction-date "2000-01-01"}]
@@ -112,17 +116,20 @@
   (assoc basic-context
          :transactions [{:entity-id "Personal"
                          :transaction-date (t/local-date 2000 1 1)
+                         :description "Paycheck"
                          :credit-account-id "Salary"
                          :debit-account-id "Checking"
                          :amount 1000M}
                         {:entity-id "Personal"
                          :transaction-date (t/local-date 2000 1 2)
+                         :description "The Landlord"
                          :credit-account-id "Checking"
                          :debit-account-id "Rent"
                          :amount 500M}
                         {:entity-id "Personal"
                          :transaction-date (t/local-date 2000 1 2)
                          :credit-account-id "Credit Card"
+                         :description "Kroger"
                          :debit-account-id "Groceries"
                          :amount 50M}]))
 
@@ -139,10 +146,12 @@
     (testing "transactions can be retrieved by account"
       (is (seq-of-maps-like? [{:transaction-date "2000-01-01"
                                :index 1
+                               :description "Paycheck"
                                :amount "1000.00"
                                :balance "1000.00"}
                               {:transaction-date "2000-01-02"
                                :index 2
+                               :description "The Landlord"
                                :amount "-500.00"
                                :balance "500.00"}]
                              (map mapify
@@ -204,20 +213,24 @@
          :transactions [{:entity-id "Personal"
                          :transaction-date (t/local-date 2000 1 1)
                          :credit-account-id "Salary"
+                         :description "Paycheck"
                          :debit-account-id "Checking"
                          :amount 1000M}
                         {:entity-id "Personal"
                          :transaction-date (t/local-date 2000 1 2)
+                         :description "Kroger"
                          :credit-account-id "Checking"
                          :debit-account-id "Groceries"
                          :amount 50M}
                         {:entity-id "Personal"
                          :transaction-date (t/local-date 2000 1 3)
+                         :description "Nice Restaurant"
                          :credit-account-id "Checking"
                          :debit-account-id "Dining"
                          :amount 20M}
                         {:entity-id "Personal"
                          :transaction-date (t/local-date 2000 1 2)
+                         :description "The Landlord"
                          :credit-account-id "Checking"
                          :debit-account-id "Rent"
                          :amount 500M}]))
@@ -226,21 +239,25 @@
   (with-context insert-before-context
     (is (seq-of-maps-like? [{:transaction-date "2000-01-01"
                              :other-account "Salary"
+                             :description "Paycheck"
                              :index 1
                              :amount "1000.00"
                              :balance "1000.00"}
                             {:transaction-date "2000-01-02"
                              :other-account "Rent"
+                             :description "The Landlord"
                              :index 2
                              :amount "-500.00"
                              :balance "500.00"}
                             {:transaction-date "2000-01-02"
                              :other-account "Groceries"
+                             :description "Kroger"
                              :index 3
                              :amount "-50.00"
                              :balance "450.00"}
                             {:transaction-date "2000-01-03"
                              :other-account "Dining"
+                             :description "Nice Restaurant"
                              :index 4
                              :amount "-20.00"
                              :balance "430.00"}]
@@ -255,6 +272,5 @@
         "The account balance is updated.")))
 
 ; TODO: add a complex transaction, like a paycheck, with taxes, etc.
-; TODO: add transaction description
 ; TODO: add reports test ns and get reports with explicit dates
 ; TODO: set the first transaction and last transaction dates on the account
