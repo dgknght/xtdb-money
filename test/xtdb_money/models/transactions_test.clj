@@ -72,9 +72,17 @@
                                       (t/local-date 2000 2 1))))
             "The transaction is included in the credit account query"))
       (testing "account updates"
-        (is (= 1000M (:balance (acts/find (:id checking))))
+        (is (= {:balance 1000M
+                :first-trx-date (t/local-date 2000 1 1)
+                :last-trx-date (t/local-date 2000 1 1)}
+               (select-keys (acts/find (:id checking))
+                            [:balance :first-trx-date :last-trx-date]))
             "The checking account balance is updated correctly")
-        (is (= 1000M (:balance (acts/find (:id salary))))
+        (is (= {:balance 1000M
+                :first-trx-date (t/local-date 2000 1 1)
+                :last-trx-date (t/local-date 2000 1 1)}
+               (select-keys (acts/find (:id salary))
+                            [:balance :first-trx-date :last-trx-date]))
             "The salary account balance is updated correctly"))
       (testing "reports"
         (is (= [{:style :header
@@ -136,12 +144,36 @@
 (deftest create-multiple-transactions
   (with-context multi-context
     (testing "account balances are set"
-      (is (= 500M (:balance (acts/find (:id (find-account "Checking")))))
+      (is (= {:balance 500M
+              :first-trx-date (t/local-date 2000 1 1)
+              :last-trx-date (t/local-date 2000 1 2)}
+             (select-keys (acts/find (:id (find-account "Checking")))
+                          [:balance :first-trx-date :last-trx-date]))
           "The checking account balance is updated correctly")
-      (is (= 1000M (:balance (acts/find (:id (find-account "Salary")))))
+      (is (= {:balance 1000M
+              :first-trx-date (t/local-date 2000 1 1)
+              :last-trx-date (t/local-date 2000 1 1)}
+             (select-keys (acts/find (:id (find-account "Salary")))
+                          [:balance :first-trx-date :last-trx-date]))
           "The salary account balance is updated correctly")
-      (is (= 500M (:balance (acts/find (:id (find-account "Rent")))))
-          "The rent account balance is updated correctly"))
+      (is (= {:balance 500M
+              :first-trx-date (t/local-date 2000 1 2)
+              :last-trx-date (t/local-date 2000 1 2)}
+             (select-keys (acts/find (:id (find-account "Rent")))
+                          [:balance :first-trx-date :last-trx-date]))
+          "The rent account balance is updated correctly")
+      (is (= {:balance 50M
+              :first-trx-date (t/local-date 2000 1 2)
+              :last-trx-date (t/local-date 2000 1 2)}
+             (select-keys (acts/find (:id (find-account "Groceries")))
+                          [:balance :first-trx-date :last-trx-date]))
+          "The groceries account balance is updated correctly")
+      (is (= {:balance 50M
+              :first-trx-date (t/local-date 2000 1 2)
+              :last-trx-date (t/local-date 2000 1 2)}
+             (select-keys (acts/find (:id (find-account "Credit Card")))
+                          [:balance :first-trx-date :last-trx-date]))
+          "The credit card account balance is updated correctly"))
 
     (testing "transactions can be retrieved by account"
       (is (seq-of-maps-like? [{:transaction-date "2000-01-01"
@@ -273,4 +305,3 @@
 
 ; TODO: add a complex transaction, like a paycheck, with taxes, etc.
 ; TODO: add reports test ns and get reports with explicit dates
-; TODO: set the first transaction and last transaction dates on the account

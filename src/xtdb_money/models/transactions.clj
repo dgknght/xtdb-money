@@ -2,17 +2,19 @@
   (:refer-clojure :exclude [find])
   (:require [clojure.spec.alpha :as s]
             [clojure.pprint :as pp]
+            [clj-time.core :as t]
             [clj-time.format :refer [formatters unparse]]
             [clj-time.coerce :refer [to-date-time]]
             [xtdb-money.util :refer [->storable-date
-                                     <-storable-date]]
+                                     <-storable-date
+                                     local-date?]]
             [xtdb-money.core :as mny]
             [xtdb-money.accounts :as a]
             [xtdb-money.models :as mdls]
             [xtdb-money.models.accounts :as acts])
   (:import org.joda.time.LocalDate))
 
-(s/def ::transaction-date (partial instance? LocalDate))
+(s/def ::transaction-date local-date?)
 (s/def ::description string?)
 (s/def ::debit-account-id uuid?)
 (s/def ::credit-account-id uuid?)
@@ -324,6 +326,13 @@
                                    (set-balance balance)
                                    bilateral)))))
 
+(defn- update-account
+  [account action {:keys [amount transaction-date]}]
+  (-> account
+      (update-in [:first-trx-date] (fnil t/earliest (t/local-date 9999 12 31)) transaction-date)
+      (update-in [:last-trx-date] t/latest transaction-date)
+      (update-in [:balance] + (a/polarize amount action account))))
+
 ; To propagate, get the transaction immediately preceding the one being put
 ; this is the starting point for the index and balance updates.
 ; continue updating the chain until a transaction is unmodified
@@ -345,7 +354,7 @@
          (into []))))
 
 (defn- propagate
-  [{:keys [debit-account-id credit-account-id amount entity-id] :as trx}]
+  [{:keys [debit-account-id credit-account-id entity-id] :as trx}]
   (let [debit-account (acts/find debit-account-id)
         credit-account (acts/find credit-account-id)
         _ (assert (= entity-id
@@ -363,8 +372,8 @@
                    (rest debit-side)))
       ; TODO: the accounts should only be updated if the update chain makes it
       ; to the last transaction for the account
-      [(update-in debit-account [:balance] + (a/polarize amount :debit debit-account))
-       (update-in credit-account [:balance] + (a/polarize amount :credit credit-account))])))
+      [(update-account debit-account :debit trx)
+       (update-account credit-account :credit trx)])))
 
 (defn put
   [trx]

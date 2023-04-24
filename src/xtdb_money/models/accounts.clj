@@ -1,28 +1,36 @@
 (ns xtdb-money.models.accounts
   (:refer-clojure :exclude [find])
   (:require [clojure.spec.alpha :as s]
-            [xtdb-money.util :refer [->id]]
+            [xtdb-money.util :refer [->id
+                                     local-date?]]
             [xtdb-money.core :as mny]
             [xtdb-money.models :as models]))
 
 (s/def ::name string?)
 (s/def ::type #{:asset :liability :equity :income :expense})
 (s/def ::balance decimal?)
+(s/def ::first-trx-date (s/nilable local-date?))
+(s/def ::last-trx-date (s/nilable local-date?))
 (s/def ::account (s/keys :req-un [::models/entity-id
                                   ::name
                                   ::type]
-                         :opt-un [::balance]))
+                         :opt-un [::balance
+                                  ::first-trx-date
+                                  ::last-trx-date]))
 
 (defn- after-read
   [account]
   (with-meta account {:model-type :account}))
+
+(def ^:private query-base
+  (mny/query-map :account entity-id name type balance first-trx-date last-trx-date))
 
 (defn select
   [{:keys [id entity-id] :as criteria}]
   {:per [(or (uuid? (:id criteria))
              (uuid? (:entity-id criteria)))]}
 
-  (let [query (cond-> (mny/query-map :account entity-id name type balance)
+  (let [query (cond-> query-base
                 entity-id (assoc :in '[entity-id])
                 id (assoc :in '[id]))]
     (map after-read
@@ -36,12 +44,19 @@
   [[id]]
   (find id))
 
+(defn- before-save
+  [account]
+  (-> account
+      (update-in [:first-trx-date] identity) ; force a key with nil value is absent
+      (update-in [:last-trx-date] identity)
+      (update-in [:balance] (fnil identity 0M))
+      (vary-meta assoc :model-type :account)))
+
 (defn put
   [account]
   {:pre [(s/valid? ::account account)]}
 
   (-> account
-      (update-in [:balance] (fnil identity 0M))
-      (vary-meta assoc :model-type :account)
+      before-save
       (mny/put)
       find-first))
