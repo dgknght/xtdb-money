@@ -42,6 +42,15 @@
   ([account-name {:keys [accounts]}]
    (find-model accounts :name account-name)))
 
+(defn find-transaction
+  ([trx-date description]
+   (find-transaction trx-date description *context*))
+  ([trx-date description {:keys [transactions]}]
+   (->> transactions
+        (filter #(and (= trx-date (:transaction-date %))
+                      (= description (:description %))))
+        first)))
+
 (defn- resolve-entity
   ([model ctx] (resolve-entity model ctx :entity-id))
   ([model ctx k]

@@ -7,7 +7,8 @@
             [clj-time.coerce :refer [to-date-time]]
             [xtdb-money.util :refer [->storable-date
                                      <-storable-date
-                                     local-date?]]
+                                     local-date?
+                                     ->id]]
             [xtdb-money.core :as mny]
             [xtdb-money.accounts :as a]
             [xtdb-money.models :as mdls]
@@ -343,15 +344,21 @@
 ; Care must be taken to ensure that any transactions that are in
 ; both the debit and credit chains are only updated once
 (defn- propagate*
-  [trx action account]
-  (let [prev (precedent trx account)]
-    (->> (cons (get-in (split trx) [action])
-               (subsequents trx account))
-         (reduce apply-index
-                 {:last-index (if prev (index prev) 0)
-                  :last-balance (if prev (balance prev) 0M)})
-         :out
-         (into []))))
+  ([trx action account]
+   (propagate* trx action account false))
+  ([trx action account delete?]
+   (let [prev (precedent trx account)
+         following (subsequents trx account)
+         ts (if delete?
+              following
+              (cons (get-in (split trx) [action])
+                    following))]
+     (->> ts
+          (reduce apply-index
+                  {:last-index (if prev (index prev) 0)
+                   :last-balance (if prev (balance prev) 0M)})
+          :out
+          (into [])))))
 
 (defn- propagate
   [{:keys [debit-account-id credit-account-id entity-id] :as trx}]
@@ -383,3 +390,10 @@
     (-> (apply mny/put (propagate trx))
         first
         find)))
+
+(defn destroy
+  [trx]
+  {:pre [(or (:id trx)
+             (uuid? trx))]}
+
+  (mny/delete (->id trx)))

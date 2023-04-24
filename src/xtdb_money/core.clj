@@ -72,6 +72,13 @@
     (xt/sync n)
     (map #(get-in % [1 :xt/id]) prepped)))
 
+(defn delete
+  [& ids]
+  (xt/submit-tx @node
+                (->> ids
+                     (map #(vector ::xt/delete %))
+                     (into []))))
+
 (defn select
   ([query]
    (xt/q (xt/db @node)
