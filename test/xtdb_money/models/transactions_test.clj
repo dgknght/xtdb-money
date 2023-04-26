@@ -304,7 +304,7 @@
            (:balance (acts/find (find-account "Checking"))))
         "The account balance is updated.")))
 
-(def ^:private destroy-context
+(def ^:private delete-context
   (assoc basic-context
          :transactions [{:entity-id "Personal"
                          :transaction-date (t/local-date 2000 1 1)
@@ -320,34 +320,18 @@
                          :amount 500M}
                         {:entity-id "Personal"
                          :transaction-date (t/local-date 2000 1 3)
-                         :credit-account-id "Credit Card"
+                         :credit-account-id "Checking"
                          :description "Kroger"
                          :debit-account-id "Groceries"
                          :amount 50M}]))
 
 (deftest delete-a-transaction
-  (with-context destroy-context
-    (trxs/destroy (find-transaction (t/local-date 2000 1 2) "The Landlord"))
-    (testing "account balances are set"
-      (is (= {:balance 950M
-              :first-trx-date (t/local-date 2000 1 1)
-              :last-trx-date (t/local-date 2000 1 2)}
-             (select-keys (acts/find (:id (find-account "Checking")))
-                          [:balance :first-trx-date :last-trx-date]))
-          "The checking account balance is updated correctly")
-      (is (= {:balance 0M
-              :first-trx-date nil
-              :last-trx-date nil}
-             (select-keys (acts/find (:id (find-account "Rent")))
-                          [:balance :first-trx-date :last-trx-date]))
-          "The rent account balance is updated correctly")
-      (is (= {:balance 50M
-              :first-trx-date (t/local-date 2000 1 2)
-              :last-trx-date (t/local-date 2000 1 2)}
-             (select-keys (acts/find (:id (find-account "Groceries")))
-                          [:balance :first-trx-date :last-trx-date]))
-          "The groceries account balance is updated correctly"))
-    (testing "transactions can be retrieved by account"
+  (with-context delete-context
+    (let [trx (find-transaction (t/local-date 2000 1 2) "The Landlord")]
+      (trxs/delete trx)
+      (testing "the transaction is unavailable"
+        (is (nil? (trxs/find (:id trx))))))
+    (testing "affected transactions are updated"
       (is (seq-of-maps-like? [{:transaction-date "2000-01-01"
                                :index 1
                                :description "Paycheck"
@@ -364,49 +348,64 @@
                                     (t/local-date 2000 1 1)
                                     (t/local-date 2000 2 1))))
           "The correct list of transactions is returned"))
+    (testing "account balances are set"
+        (is (= {:balance 950M
+                :first-trx-date (t/local-date 2000 1 1)
+                :last-trx-date (t/local-date 2000 1 3)}
+               (select-keys (acts/find (:id (find-account "Checking")))
+                            [:balance :first-trx-date :last-trx-date]))
+            "The checking account balance is updated correctly")
+        (is (= {:balance 0M
+                :first-trx-date nil
+                :last-trx-date nil}
+               (select-keys (acts/find (:id (find-account "Rent")))
+                            [:balance :first-trx-date :last-trx-date]))
+            "The rent account balance is updated correctly")
+        (is (= {:balance 50M
+                :first-trx-date (t/local-date 2000 1 3)
+                :last-trx-date (t/local-date 2000 1 3)}
+               (select-keys (acts/find (:id (find-account "Groceries")))
+                            [:balance :first-trx-date :last-trx-date]))
+            "The groceries account balance is updated correctly"))
     (testing "reports are correct"
-      (is (= [{:style :header
-               :label "Asset"
-               :value 950M}
-              {:style :data
-               :depth 0
-               :label "Checking"
-               :value 950M}
-              {:style :header
-               :label "Liability"
-               :value 0M}
-              {:style :data
-               :depth 0
-               :label "Credit Card"
-               :value 0M}
-              {:style :header
-               :label "Equity"
-               :value 950M}
-              {:style :data
-               :depth 0
-               :label "Retained Earnings"
-               :value 950M}]
-             (rpts/balance-sheet {:entity-id (:id (find-entity "Personal"))
-                                  :as-of (t/local-date 2000 12 31)}))
-          "A correct balance sheet is produced")
-      (is (= [{:style :header
-               :label "Income"
-               :value 1000M}
-              {:style :data
-               :depth 0
-               :label "Salary"
-               :value 1000M}
-              {:style :header
-               :label "Expense"
-               :value 50M}
-              {:style :data
-               :depth 0
-               :label "Groceries"
-               :value 50M}]
-             (rpts/income-statement {:entity-id (:id (find-entity "Personal"))
-                                     :start-date (t/local-date 2000 1 1)
-                                     :end-date (t/local-date 2001 1 1)}))
-          "A correct income statement is produced"))))
+        (is (= [{:style :header
+                 :label "Asset"
+                 :value 950M}
+                {:style :data
+                 :depth 0
+                 :label "Checking"
+                 :value 950M}
+                {:style :header
+                 :label "Liability"
+                 :value 0M}
+                {:style :header
+                 :label "Equity"
+                 :value 950M}
+                {:style :data
+                 :depth 0
+                 :label "Retained Earnings"
+                 :value 950M}]
+               (rpts/balance-sheet {:entity-id (:id (find-entity "Personal"))
+                                    :as-of (t/local-date 2000 12 31)}))
+            "A correct balance sheet is produced")
+        (is (= [{:style :header
+                 :label "Income"
+                 :value 1000M}
+                {:style :data
+                 :depth 0
+                 :label "Salary"
+                 :value 1000M}
+                {:style :header
+                 :label "Expense"
+                 :value 50M}
+                {:style :data
+                 :depth 0
+                 :label "Groceries"
+                 :value 50M}]
+               (rpts/income-statement {:entity-id (:id (find-entity "Personal"))
+                                       :start-date (t/local-date 2000 1 1)
+                                       :end-date (t/local-date 2001 1 1)}))
+            "A correct income statement is produced"))))
 
 ; TODO: add a complex transaction, like a paycheck, with taxes, etc.
 ; TODO: add reports test ns and get reports with explicit dates

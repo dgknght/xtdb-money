@@ -1,6 +1,10 @@
 (ns xtdb-money.core
   (:require [clojure.walk :refer [postwalk]]
-            [xtdb.api :as xt])
+            [xtdb.api :as xt]
+            [cljs.core :as c]
+            [xtdb-money.util :refer [local-date?
+                                     ->storable-date]]
+            [clj-time.core :as t])
   (:gen-class))
 
 
@@ -31,12 +35,17 @@
 
 (defmulti ^:private ->xt*
   (fn [x _]
-    (when (map-tuple? x)
-      :tuple)))
+    (c/cond
+      (map-tuple? x) :tuple
+      (local-date? x) :date)))
 
 (defmethod ->xt* :default
   [x _]
   x)
+
+(defmethod ->xt* :date
+  [x _]
+  (->storable-date x))
 
 (defmethod ->xt* :tuple
   [x model-type-name]
@@ -58,26 +67,29 @@
         (update-in [:id] make-id)
         (->xt-keys model-type))))
 
-(defn put
+(defn- wrap-trans
+  [t]
+  [::xt/put t])
+
+(defn- prepare-trans
+  [t]
+  (if (vector? t)
+    t
+    (-> t ->xt-map wrap-trans)))
+
+(defn submit
   [& docs]
   {:pre [(seq docs)
-         (every? map? docs)]}
+         (every? (some-fn map?
+                          vector?) docs)]}
 
   (let [n @node
         prepped (->> docs
-                     (map (comp #(vector ::xt/put %)
-                                ->xt-map))
+                     (map prepare-trans)
                      (into []))]
     (xt/submit-tx n prepped)
     (xt/sync n)
     (map #(get-in % [1 :xt/id]) prepped)))
-
-(defn delete
-  [& ids]
-  (xt/submit-tx @node
-                (->> ids
-                     (map #(vector ::xt/delete %))
-                     (into []))))
 
 (defn select
   ([query]

@@ -2,7 +2,9 @@
   (:refer-clojure :exclude [find])
   (:require [clojure.spec.alpha :as s]
             [xtdb-money.util :refer [->id
-                                     local-date?]]
+                                     local-date?
+                                     <-storable-date
+                                     update-in-if]]
             [xtdb-money.core :as mny]
             [xtdb-money.models :as models]))
 
@@ -20,7 +22,10 @@
 
 (defn- after-read
   [account]
-  (with-meta account {:model-type :account}))
+  (-> account
+      (with-meta {:model-type :account})
+      (update-in-if [:first-trx-date] <-storable-date)
+      (update-in-if [:last-trx-date] <-storable-date)))
 
 (def ^:private query-base
   (mny/query-map :account entity-id name type balance first-trx-date last-trx-date))
@@ -58,5 +63,5 @@
 
   (-> account
       before-save
-      (mny/put)
+      (mny/submit)
       find-first))

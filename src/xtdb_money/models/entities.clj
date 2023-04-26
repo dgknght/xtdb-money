@@ -36,5 +36,5 @@
 
   (-> entity
       (vary-meta assoc :model-type :entity)
-      (mny/put)
+      (mny/submit)
       find-first))
