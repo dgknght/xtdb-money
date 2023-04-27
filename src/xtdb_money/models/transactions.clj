@@ -159,6 +159,10 @@
   (description [this] "The description of the transaction")
   (bilateral [this] "Returns the underlaying bilateral transaction"))
 
+(defn- transaction?
+  [m]
+  (= :transaction (-> m meta :model-type)))
+
 (declare split)
 
 (defrecord CreditSide [trx accounts]
@@ -236,7 +240,7 @@
   "Accepts a storable transaction and returns reified UnilateralTransaction instances,
   one for debit and one for credit"
   [trx]
-  {:pre [trx *accounts*]}
+  {:pre [(transaction? trx) *accounts*]}
 
   {:debit (DebitSide. trx *accounts*)
    :credit (CreditSide. trx *accounts*)})
@@ -317,6 +321,7 @@
 (defn- apply-index-and-balance
   [{:keys [last-index last-balance] :as result} trx]
   {:pre [result trx]}
+
   (let [index (+ 1 last-index)
         balance (+ last-balance
                    (amount trx))]
@@ -328,12 +333,25 @@
                                    (set-balance balance)
                                    bilateral)))))
 
+(defn- balance-for-account
+  [trx account]
+ (cond
+   (= (:id account)
+      (:debit-account-id trx)) (:debit-balance trx)
+   (= (:id account)
+      (:credit-account-id trx)) (:credit-balance trx)))
+
 (defn- update-account
-  [account balance transaction-date]
-  (-> account
-      (update-in [:first-trx-date] (fnil t/earliest (t/local-date 9999 12 31)) transaction-date)
-      (update-in [:last-trx-date] t/latest transaction-date)
-      (assoc :balance balance)))
+  [account {:keys [transaction-date] :as trx}]
+  (if transaction-date
+    (-> account
+        (update-in [:first-trx-date] (fnil t/earliest (t/local-date 9999 12 31)) transaction-date)
+        (update-in [:last-trx-date] t/latest transaction-date)
+        (assoc :balance (balance-for-account trx account)))
+    (assoc account
+           :balance 0M
+           :first-trx-date nil
+           :last-trx-date nil)))
 
 ; To propagate, get the transaction immediately preceding the one being put
 ; this is the starting point for the index and balance updates.
@@ -348,30 +366,26 @@
   ([trx action account]
    (propagate* trx action account false))
   ([trx action account delete?]
+   {:pre [(transaction? trx)]}
+
    (let [prev (precedent trx account)
          following (subsequents trx account)
          ts (if delete?
               following
               (cons (get-in (split trx) [action])
-                    following))]
-     (->> ts
-          (reduce apply-index-and-balance
-                  {:last-index (if prev (index prev) 0)
-                   :last-balance (if prev (balance prev) 0M)
-                   :out []})
-          :out
-          (into [])))))
-
-(defn- balance-for-account
-  [trx account]
- (cond
-   (= (:id account)
-      (:debit-account-id trx)) (:debit-balance trx)
-   (= (:id account)
-      (:credit-account-id trx)) (:credit-balance trx)))
+                    following))
+         updates (->> ts
+                      (reduce apply-index-and-balance
+                              {:last-index (if prev (index prev) 0)
+                               :last-balance (if prev (balance prev) 0M)
+                               :out []})
+                      :out
+                      (into []))]
+     (conj (mapv before-save updates)
+           (update-account account (last updates))))))
 
 (defn- propagate
-  [{:keys [debit-account credit-account transaction-date] :as trx}]
+  [{:keys [debit-account credit-account] :as trx}]
   {:pre [(= (:entity-id trx)
             (-> trx :debit-account :entity-id)
             (-> trx :credit-account :entity-id))]}
@@ -380,18 +394,8 @@
         credit-side (propagate* (first debit-side) :credit credit-account)]
 
     ; The calling fn expects the transaction to be in the first position
-    (concat 
-      (map before-save
-           (concat credit-side
-                   (rest debit-side)))
-      ; TODO: the accounts should only be updated if the update chain makes it
-      ; to the last transaction for the account
-      [(update-account debit-account
-                       (balance-for-account (last debit-side) debit-account)
-                       transaction-date)
-       (update-account credit-account
-                       (balance-for-account (last credit-side) credit-account)
-                                            transaction-date)])))
+    (concat credit-side
+            (rest debit-side))))
 
 (defn- resolve-accounts
   [{:keys [debit-account-id credit-account-id] :as trx}]
@@ -406,6 +410,7 @@
   (with-accounts trx
     (-> (apply mny/submit
                (-> trx
+                   (vary-meta assoc :model-type :transaction)
                    resolve-accounts
                    propagate))
         first
@@ -417,12 +422,11 @@
 
   (with-accounts trx
     (let [{:keys [debit-account credit-account]} (resolve-accounts trx)
-          debit-side (propagate* trx :debit debit-account true)
-          credit-side (propagate* trx :credit credit-account true)
-          propagated (map before-save
-                          (concat credit-side
-                                  (rest debit-side)))]
-      (apply mny/submit (cons [::xt/delete (->id trx)] ; TODO: Can we avoid the explicit reference to the underlying database ns?
-                              (remove #(= (:id trx)
-                                          (:id %))
-                                      propagated))))))
+          propagated (->> (propagate* trx :debit debit-account true)
+                          (concat (propagate* trx :credit credit-account true))
+                          (map #(if (transaction? %)
+                                  (before-save %)
+                                  %)))]
+      (apply mny/submit
+             (cons [::xt/delete (->id trx)] ; TODO: Can we avoid the explicit reference to the underlying database ns?
+                   propagated)))))
