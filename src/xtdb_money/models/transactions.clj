@@ -363,39 +363,44 @@
 ; Care must be taken to ensure that any transactions that are in
 ; both the debit and credit chains are only updated once
 (defn- propagate*
-  ([trx action account]
-   (propagate* trx action account false))
-  ([trx action account delete?]
-   {:pre [(transaction? trx)]}
+  [trx action account delete?]
+  {:pre [(transaction? trx)]}
 
-   (let [prev (precedent trx account)
-         following (subsequents trx account)
-         ts (if delete?
-              following
-              (cons (get-in (split trx) [action])
-                    following))
-         updates (->> ts
-                      (reduce apply-index-and-balance
-                              {:last-index (if prev (index prev) 0)
-                               :last-balance (if prev (balance prev) 0M)
-                               :out []})
-                      :out
-                      (into []))]
-     (conj (mapv before-save updates)
-           (update-account account (last updates))))))
+  (let [prev (precedent trx account)
+        following (subsequents trx account)
+        ts (if delete?
+             following
+             (cons (get-in (split trx) [action])
+                   following))
+        updates (->> ts
+                     (reduce apply-index-and-balance
+                             {:last-index (if prev (index prev) 0)
+                              :last-balance (if prev (balance prev) 0M)
+                              :out []})
+                     :out
+                     (into []))]
+    (conj (mapv before-save updates)
+          (update-account account (last updates)))))
 
 (defn- propagate
-  [{:keys [debit-account credit-account] :as trx}]
-  {:pre [(= (:entity-id trx)
-            (-> trx :debit-account :entity-id)
-            (-> trx :credit-account :entity-id))]}
+  ([trx] (propagate trx false))
+  ([{:keys [debit-account credit-account] :as trx} delete?]
+   {:pre [(= (:entity-id trx)
+             (-> trx :debit-account :entity-id)
+             (-> trx :credit-account :entity-id))]}
 
-  (let [debit-side (propagate* trx :debit debit-account)
-        credit-side (propagate* (first debit-side) :credit credit-account)]
+   (let [debit-side (propagate* trx :debit debit-account delete?)
+         credit-side (propagate* (if delete?
+                                   trx
+                                   (first debit-side))
+                                 :credit
+                                 credit-account delete?)]
 
-    ; The calling fn expects the transaction to be in the first position
-    (concat credit-side
-            (rest debit-side))))
+     ; The calling fn expects the transaction to be in the first position
+     (concat credit-side
+             (if delete?
+               debit-side
+               (rest debit-side))))))
 
 (defn- resolve-accounts
   [{:keys [debit-account-id credit-account-id] :as trx}]
@@ -421,12 +426,6 @@
   {:pre [(s/valid? ::transaction trx)]}
 
   (with-accounts trx
-    (let [{:keys [debit-account credit-account]} (resolve-accounts trx)
-          propagated (->> (propagate* trx :debit debit-account true)
-                          (concat (propagate* trx :credit credit-account true))
-                          (map #(if (transaction? %)
-                                  (before-save %)
-                                  %)))]
-      (apply mny/submit
-             (cons [::xt/delete (->id trx)] ; TODO: Can we avoid the explicit reference to the underlying database ns?
-                   propagated)))))
+    (apply mny/submit
+           (cons [::xt/delete (->id trx)] ; TODO: Can we avoid the explicit reference to the underlying database ns?
+                 (propagate (resolve-accounts trx) true)))))
