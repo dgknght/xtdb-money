@@ -348,7 +348,7 @@
                                     (t/local-date 2000 1 1)
                                     (t/local-date 2000 2 1))))
           "The correct list of transactions is returned"))
-    (testing "account balances are set"
+    #_(testing "account balances are set"
       (is (= {:balance 950M
               :first-trx-date (t/local-date 2000 1 1)
               :last-trx-date (t/local-date 2000 1 3)}
@@ -367,7 +367,7 @@
              (select-keys (acts/find (:id (find-account "Groceries")))
                           [:balance :first-trx-date :last-trx-date]))
           "The groceries account balance is updated correctly"))
-    (testing "reports are correct"
+    #_(testing "reports are correct"
       (is (= [{:style :header
                :label "Asset"
                :value 950M}

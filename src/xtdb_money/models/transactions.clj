@@ -146,6 +146,14 @@
                            (apply-criteria criteria))]
      (map after-read (mny/select query param)))))
 
+(defn- mark-deleted
+  [trx]
+  (vary-meta trx assoc :deleted? true))
+
+(defn- marked-deleted?
+  [trx]
+  (-> trx meta :deleted?))
+
 (defprotocol UnilateralTransaction
   (account [this] "Returns the account for the transaction")
   (account-id [this] "Retrieves the ID for the account to which the transaction belongs")
@@ -158,11 +166,16 @@
   (transaction-date [this] "The date of the transaction")
   (description [this] "The description of the transaction")
   (action [this] "The action of this side of the transaction")
+  (deleted? [this] "Indicates whether or not the transaction is marked for deletion")
   (bilateral [this] "Returns the underlaying bilateral transaction"))
 
 (defn- transaction?
   [m]
   (= :transaction (mny/model-type m)))
+
+(defn- account?
+  [m]
+  (= :account (mny/model-type m)))
 
 (def ^:private unilateral? (partial satisfies? UnilateralTransaction))
 
@@ -193,6 +206,7 @@
   (transaction-date [_] (:transaction-date trx))
   (description [_] (:description trx))
   (action [_] :credit)
+  (deleted? [_] (marked-deleted? trx))
   (bilateral [_] trx))
 
 (defrecord DebitSide [trx accounts]
@@ -220,6 +234,7 @@
   (transaction-date [_] (:transaction-date trx))
   (description [_] (:description trx))
   (action [_] :debit)
+  (deleted? [_] (marked-deleted? trx))
   (bilateral [_] trx))
 
 (defmulti ^:private other-side class)
@@ -334,35 +349,51 @@
 (def ^:private before-save
   ensure-model-type)
 
-(defn- apply-index-and-balance
+(defmulti ^:private apply-index-and-balance
+  (fn [_state m]
+    (cond
+      (satisfies? UnilateralTransaction m) :transaction
+      (account? m) :account)))
+
+(defmethod apply-index-and-balance :transaction
   [{:keys [last-index last-balance] :as result} trx]
   {:pre [result trx]}
 
-  (let [index (+ 1 last-index)
-        balance (+ last-balance
-                   (amount trx))]
-    (-> result
-        (assoc :last-index index
-               :last-balance balance)
-        (update-in [:out] conj (-> trx
-                                   (set-index index)
-                                   (set-balance balance))))))
+  (if (deleted? trx)
+    (update-in result [:out] conj trx)
+    (let [index (+ 1 last-index)
+          balance (+ last-balance
+                     (amount trx))]
+      (-> result
+          (assoc :last-index index
+                 :last-balance balance
+                 :last-transaction-date (transaction-date trx))
+          (update-in [:out] conj (-> trx
+                                     (set-index index)
+                                     (set-balance balance)))))))
 
-(defn- update-account
-  [account trx]
-  (if trx
-    (-> account
-        (update-in [:first-trx-date]
-                   (fnil t/earliest (t/local-date 9999 12 31))
-                   (transaction-date trx))
-        (update-in [:last-trx-date]
-                   t/latest
-                   (transaction-date trx))
-        (assoc :balance (balance trx)))
-    (assoc account
-           :balance 0M
-           :first-trx-date nil
-           :last-trx-date nil)))
+(defmethod apply-index-and-balance :account
+  [{:keys [last-transaction-date
+           last-balance
+           out]
+    :as result}
+   account]
+  (update-in result
+             [:out]
+             conj
+             (if (seq out)
+               (-> account
+                   (update-in [:first-trx-date]
+                              (fnil t/earliest (t/local-date 9999 12 31))
+                              last-transaction-date)
+                   (update-in [:last-trx-date]
+                              t/latest
+                              last-transaction-date)
+                   (assoc :balance last-balance))
+               (assoc account
+                      :balance 0M
+                      :first-trx-date nil
+                      :last-trx-date nil))))
 
 ; To propagate, get the transaction immediately preceding the one being put
 ; this is the starting point for the index and balance updates.
@@ -374,45 +405,37 @@
 ; Care must be taken to ensure that any transactions that are in
 ; both the debit and credit chains are only updated once
 (defn- propagate-side
-  [trx delete?]
+  [trx]
   (let [prev (precedent trx)
-        following (subsequents trx)
-        ts (if delete?
-             following
-             (cons trx following))
-        updates (->> ts
-                     (reduce apply-index-and-balance
-                             {:last-index (if prev (index prev) 0)
-                              :last-balance (if prev (balance prev) 0M)
-                              :out []})
-                     :out
-                     (into []))]
-    (conj updates
-          (update-account (account trx) (last updates)))))
+        following (subsequents trx)]
+    (->> (concat (cons trx following)
+                 [(account trx)])
+         (reduce apply-index-and-balance
+                 {:last-index (if prev (index prev) 0)
+                  :last-balance (if prev (balance prev) 0M)
+                  :out []})
+         :out
+         (into []))))
 
 (defn- propagate
-  ([trx] (propagate trx false))
-  ([trx delete?]
-   {:pre [(= (:entity-id trx)
-             (-> trx :debit-account :entity-id)
-             (-> trx :credit-account :entity-id))]}
+  [trx]
+  {:pre [(= (:entity-id trx)
+            (-> trx :debit-account :entity-id)
+            (-> trx :credit-account :entity-id))]}
 
-   (let [{:keys [debit credit]} (split trx)
-         debit-side (propagate-side debit delete?)
-         credit-side (propagate-side (if delete?
-                                   credit
-                                   (other-side (first debit-side)))
-                                 delete?)]
+  (let [{:keys [debit]} (split trx)
+        debit-side (propagate-side debit)
+        credit-side (propagate-side (other-side (first debit-side)))]
 
-     ; The calling fn expects the transaction to be in the first position
-     (mapv (comp before-save
-                 #(if (unilateral? %)
-                    (bilateral %)
-                    %))
-           (concat credit-side
-                   (if delete?
-                     debit-side
-                     (rest debit-side)))))))
+    ; The calling fn expects the transaction to be in the first position
+    (->> (rest debit-side)
+         (concat credit-side)
+         (map (comp before-save
+                     #(if (unilateral? %)
+                        (bilateral %)
+                        %)))
+         (remove marked-deleted?)
+         (into []))))
 
 (defn- resolve-accounts
   [{:keys [debit-account-id credit-account-id] :as trx}]
@@ -440,4 +463,4 @@
   (with-accounts trx
     (apply mny/submit
            (cons [::xt/delete (->id trx)] ; TODO: Can we avoid the explicit reference to the underlying database ns?
-                 (propagate (resolve-accounts trx) true)))))
+                 (propagate (mark-deleted (resolve-accounts trx)))))))
