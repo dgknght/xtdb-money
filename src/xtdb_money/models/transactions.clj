@@ -157,11 +157,14 @@
   (set-balance [this balance] "Set the balance")
   (transaction-date [this] "The date of the transaction")
   (description [this] "The description of the transaction")
+  (action [this] "The action of this side of the transaction")
   (bilateral [this] "Returns the underlaying bilateral transaction"))
 
 (defn- transaction?
   [m]
   (= :transaction (-> m meta :model-type)))
+
+(def ^:private unilateral? (partial satisfies? UnilateralTransaction))
 
 (declare split)
 
@@ -189,6 +192,7 @@
         :credit))
   (transaction-date [_] (:transaction-date trx))
   (description [_] (:description trx))
+  (action [_] :credit)
   (bilateral [_] trx))
 
 (defrecord DebitSide [trx accounts]
@@ -215,11 +219,23 @@
         :debit))
   (transaction-date [_] (:transaction-date trx))
   (description [_] (:description trx))
+  (action [_] :debit)
   (bilateral [_] trx))
+
+(defmulti ^:private other-side class)
+
+(defmethod other-side DebitSide
+  [trx]
+  (:credit (split (bilateral trx))))
+
+(defmethod other-side CreditSide
+  [trx]
+  (:debit (split (bilateral trx))))
 
 (defn- pprintable
   [t]
   {:amount (format "%.2f" (amount t))
+   :action (action t)
    :account (:name (account t))
    :description (description t)
    :transaction-date (unparse (:date formatters)
@@ -270,50 +286,51 @@
                       [id :transaction/credit-account-id account-id]))))
 
 (defn- precedent
-  [{:keys [transaction-date id]} account]
-  (let [query (-> base-query
-                  (apply-account-id)
-                  (update-in [:where]
-                             conj
-                             ['(< transaction-date d)])
-                  (assoc :order-by [['transaction-date :desc]] ; TODO: put back index
-                         :limit 2
-                         :in '[[account-id d]]))]
-    (->> (mny/select query
-                     [(:id account)
-                      (->storable-date transaction-date)])
-         (map after-read)
-         (remove #(= id (:id %)))
-         (split-and-filter account)
-         first)))
+  ([unilateral] (precedent (bilateral unilateral) (account unilateral)))
+  ([{:keys [transaction-date id]} account]
+   (let [query (-> base-query
+                   (apply-account-id)
+                   (update-in [:where]
+                              conj
+                              ['(< transaction-date d)])
+                   (assoc :order-by [['transaction-date :desc]] ; TODO: put back index
+                          :limit 2
+                          :in '[[account-id d]]))]
+     (->> (mny/select query
+                      [(:id account)
+                       (->storable-date transaction-date)])
+          (map after-read)
+          (remove #(= id (:id %)))
+          (split-and-filter account)
+          first))))
 
 (defn- subsequents
-  [{:keys [transaction-date id]} account]
-  (let [query (-> base-query
-                  (apply-account-id)
-                  (update-in [:where]
-                             conj
-                             ['(<= d transaction-date)])
-                  (assoc :order-by [['transaction-date :asc]] ; TODO: put back the index
-                         :in '[[account-id d]]))]
-    (->> (mny/select query
-                     [(:id account)
-                      (->storable-date transaction-date)])
-         (remove #(= id (:id %)))
-         (map after-read)
-         (split-and-filter account))))
+  ([unilateral] (subsequents (bilateral unilateral) (account unilateral)))
+  ([{:keys [transaction-date id]} account]
+   (let [query (-> base-query
+                   (apply-account-id)
+                   (update-in [:where]
+                              conj
+                              ['(<= d transaction-date)])
+                   (assoc :order-by [['transaction-date :asc]] ; TODO: put back the index
+                          :in '[[account-id d]]))]
+     (->> (mny/select query
+                      [(:id account)
+                       (->storable-date transaction-date)])
+          (remove #(= id (:id %)))
+          (map after-read)
+          (split-and-filter account)))))
 
 (defn find
   [id]
   (first (select {:id id})))
 
 (defn- ensure-model-type
-  [trx]
-  (case (-> trx meta :model-type)
-    :transaction trx
-    nil (vary-meta trx assoc :model-type :transaction)
-    (throw (ex-info "Unexpected model type" {:model trx
-                                             :meta (meta trx)}))))
+  [m]
+  (case (-> m meta :model-type)
+    :account m
+    :transaction m
+    nil (vary-meta m assoc :model-type :transaction)))
 
 (def ^:private before-save
   ensure-model-type)
@@ -330,24 +347,19 @@
                :last-balance balance)
         (update-in [:out] conj (-> trx
                                    (set-index index)
-                                   (set-balance balance)
-                                   bilateral)))))
-
-(defn- balance-for-account
-  [trx account]
- (cond
-   (= (:id account)
-      (:debit-account-id trx)) (:debit-balance trx)
-   (= (:id account)
-      (:credit-account-id trx)) (:credit-balance trx)))
+                                   (set-balance balance))))))
 
 (defn- update-account
-  [account {:keys [transaction-date] :as trx}]
-  (if transaction-date
+  [account trx]
+  (if trx
     (-> account
-        (update-in [:first-trx-date] (fnil t/earliest (t/local-date 9999 12 31)) transaction-date)
-        (update-in [:last-trx-date] t/latest transaction-date)
-        (assoc :balance (balance-for-account trx account)))
+        (update-in [:first-trx-date]
+                   (fnil t/earliest (t/local-date 9999 12 31))
+                   (transaction-date trx))
+        (update-in [:last-trx-date]
+                   t/latest
+                   (transaction-date trx))
+        (assoc :balance (balance trx)))
     (assoc account
            :balance 0M
            :first-trx-date nil
@@ -362,16 +374,13 @@
 ; This need to be done for both the debit and the credit account.
 ; Care must be taken to ensure that any transactions that are in
 ; both the debit and credit chains are only updated once
-(defn- propagate*
-  [trx action account delete?]
-  {:pre [(transaction? trx)]}
-
-  (let [prev (precedent trx account)
-        following (subsequents trx account)
+(defn- propagate-side
+  [trx delete?]
+  (let [prev (precedent trx)
+        following (subsequents trx)
         ts (if delete?
              following
-             (cons (get-in (split trx) [action])
-                   following))
+             (cons trx following))
         updates (->> ts
                      (reduce apply-index-and-balance
                              {:last-index (if prev (index prev) 0)
@@ -379,28 +388,32 @@
                               :out []})
                      :out
                      (into []))]
-    (conj (mapv before-save updates)
-          (update-account account (last updates)))))
+    (conj updates
+          (update-account (account trx) (last updates)))))
 
 (defn- propagate
   ([trx] (propagate trx false))
-  ([{:keys [debit-account credit-account] :as trx} delete?]
+  ([trx delete?]
    {:pre [(= (:entity-id trx)
              (-> trx :debit-account :entity-id)
              (-> trx :credit-account :entity-id))]}
 
-   (let [debit-side (propagate* trx :debit debit-account delete?)
-         credit-side (propagate* (if delete?
-                                   trx
-                                   (first debit-side))
-                                 :credit
-                                 credit-account delete?)]
+   (let [{:keys [debit credit]} (split trx)
+         debit-side (propagate-side debit delete?)
+         credit-side (propagate-side (if delete?
+                                   credit
+                                   (other-side (first debit-side)))
+                                 delete?)]
 
      ; The calling fn expects the transaction to be in the first position
-     (concat credit-side
-             (if delete?
-               debit-side
-               (rest debit-side))))))
+     (mapv (comp before-save
+                 #(if (unilateral? %)
+                    (bilateral %)
+                    %))
+           (concat credit-side
+                   (if delete?
+                     debit-side
+                     (rest debit-side)))))))
 
 (defn- resolve-accounts
   [{:keys [debit-account-id credit-account-id] :as trx}]
