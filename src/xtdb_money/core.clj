@@ -6,6 +6,11 @@
                                      ->storable-date]])
   (:gen-class))
 
+(defn model-type
+  ([m]
+   (-> m meta :model-type))
+  ([m model-type]
+   (vary-meta m assoc :model-type model-type)))
 
 (defonce ^:private node (atom nil))
 

@@ -118,7 +118,7 @@
 (defn- after-read
   [trx]
   (-> trx
-      (with-meta {:model-type :transaction})
+      (mny/model-type :transaction)
       (update-in [:transaction-date] <-storable-date)))
 
 (def ^:private base-query
@@ -162,7 +162,7 @@
 
 (defn- transaction?
   [m]
-  (= :transaction (-> m meta :model-type)))
+  (= :transaction (mny/model-type m)))
 
 (def ^:private unilateral? (partial satisfies? UnilateralTransaction))
 
@@ -327,10 +327,9 @@
 
 (defn- ensure-model-type
   [m]
-  (case (-> m meta :model-type)
-    :account m
-    :transaction m
-    nil (vary-meta m assoc :model-type :transaction)))
+  (if (mny/model-type m)
+    m
+    (mny/model-type m :transaction)))
 
 (def ^:private before-save
   ensure-model-type)
@@ -428,7 +427,7 @@
   (with-accounts trx
     (-> (apply mny/submit
                (-> trx
-                   (vary-meta assoc :model-type :transaction)
+                   (mny/model-type :transaction)
                    resolve-accounts
                    propagate))
         first

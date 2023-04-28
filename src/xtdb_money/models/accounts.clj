@@ -23,7 +23,7 @@
 (defn- after-read
   [account]
   (-> account
-      (with-meta {:model-type :account})
+      (mny/model-type :account)
       (update-in-if [:first-trx-date] <-storable-date)
       (update-in-if [:last-trx-date] <-storable-date)))
 
@@ -55,7 +55,7 @@
       (update-in [:first-trx-date] identity) ; force a key with nil value is absent
       (update-in [:last-trx-date] identity)
       (update-in [:balance] (fnil identity 0M))
-      (vary-meta assoc :model-type :account)))
+      (mny/model-type :account)))
 
 (defn put
   [account]
