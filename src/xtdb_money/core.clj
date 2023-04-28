@@ -3,8 +3,7 @@
             [xtdb.api :as xt]
             [cljs.core :as c]
             [xtdb-money.util :refer [local-date?
-                                     ->storable-date]]
-            [clj-time.core :as t])
+                                     ->storable-date]])
   (:gen-class))
 
 
