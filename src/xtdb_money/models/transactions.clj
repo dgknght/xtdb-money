@@ -118,8 +118,8 @@
 (defn- after-read
   [trx]
   (-> trx
-      (mny/model-type :transaction)
-      (update-in [:transaction-date] <-storable-date)))
+      (update-in [:transaction-date] <-storable-date)
+      (mny/prepare :transaction)))
 
 (def ^:private base-query
   (mny/query-map :transaction
@@ -358,7 +358,7 @@
 (defmulti ^:private propagate-trx
   (fn [_state m]
     (cond
-      (satisfies? UnilateralTransaction m) :transaction
+      (unilateral? m) :transaction
       (account? m) :account)))
 
 (defmethod propagate-trx :transaction
@@ -367,16 +367,19 @@
 
   (if (deleted? trx)
     (update-in result [:out] conj trx)
-    (let [index (+ 1 last-index)
-          balance (+ last-balance
-                     (amount trx))]
-      (-> result
-          (assoc :last-index index
-                 :last-balance balance
-                 :last-transaction-date (transaction-date trx))
-          (update-in [:out] conj (-> trx
-                                     (set-index index)
-                                     (set-balance balance)))))))
+    (let [idx (+ 1 last-index)
+          bln (+ last-balance
+                 (amount trx))
+          updated (-> trx
+                      (set-index idx)
+                      (set-balance bln))
+          term? (not (mny/changed? (bilateral updated)))]
+      (cond-> (assoc result
+                     :last-index idx
+                     :last-balance bln
+                     :last-transaction-date (transaction-date trx))
+        term? reduced
+        (not term?) (update-in [:out] conj updated)))))
 
 (defmethod propagate-trx :account
   [{:keys [last-transaction-date
@@ -417,9 +420,12 @@
     (->> (concat (cons trx following)
                  [(account trx)])
          (reduce propagate-trx
-                 {:last-index (if prev (index prev) 0)
-                  :last-balance (if prev (balance prev) 0M)
-                  :out []})
+                 (merge {:out []}
+                        (if prev
+                          {:last-index (index prev)
+                           :last-balance (balance prev)}
+                          {:last-index 0
+                           :last-balance 0M})))
          :out
          (into []))))
 

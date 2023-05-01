@@ -4,6 +4,7 @@
             [clj-time.format :as tf]
             [clj-time.coerce :as tc]
             [dgknght.app-lib.test-assertions]
+            [xtdb-money.core :as mny]
             [xtdb-money.test-context :refer [with-context
                                              basic-context
                                              find-entity
@@ -406,6 +407,140 @@
                                      :start-date (t/local-date 2000 1 1)
                                      :end-date (t/local-date 2001 1 1)}))
           "A correct income statement is produced"))))
+
+(def ^:private prop-context
+  (assoc basic-context
+         :transactions [{:entity-id "Personal"
+                         :transaction-date (t/local-date 2000 1 1)
+                         :description "Paycheck"
+                         :credit-account-id "Salary"
+                         :debit-account-id "Checking"
+                         :amount 1000M}
+                        {:entity-id "Personal"
+                         :transaction-date (t/local-date 2000 1 3)
+                         :description "The Landlord"
+                         :credit-account-id "Checking"
+                         :debit-account-id "Rent"
+                         :amount 500M}
+                        {:entity-id "Personal"
+                         :transaction-date (t/local-date 2000 1 4)
+                         :credit-account-id "Checking"
+                         :description "Kroger"
+                         :debit-account-id "Groceries"
+                         :amount 50M}
+                        {:entity-id "Personal"
+                         :transaction-date (t/local-date 2000 1 9)
+                         :credit-account-id "Checking"
+                         :description "Kroger"
+                         :debit-account-id "Groceries"
+                         :amount 51M}]))
+
+(deftest shortcut-propagation 
+  (with-context prop-context
+    (let [trx (find-transaction (t/local-date 2000 1 4)
+                                "Kroger")
+          submissions (atom [])
+          orig-submit mny/submit]
+      (with-redefs [mny/submit (fn [& args]
+                                 (swap! submissions conj args)
+                                 (apply orig-submit args))]
+        (trxs/put (assoc trx :transaction-date (t/local-date 2000 1 2))))
+      (testing "transaction propogation"
+        (is (seq-of-maps-like? [{:transaction-date "2000-01-01"
+                                 :index 1
+                                 :description "Paycheck"
+                                 :amount "1000.00"
+                                 :balance "1000.00"}
+                                {:transaction-date "2000-01-02"
+                                 :index 2
+                                 :description "Kroger"
+                                 :amount "-50.00"
+                                 :balance "950.00"}
+                                {:transaction-date "2000-01-03"
+                                 :index 3
+                                 :description "The Landlord"
+                                 :amount "-500.00"
+                                 :balance "450.00"}
+                                {:transaction-date "2000-01-09"
+                                 :index 4
+                                 :description "Kroger"
+                                 :amount "-51.00"
+                                 :balance "399.00"}]
+                               (map mapify
+                                    (trxs/select-by-account
+                                      (find-account "Checking")
+                                      (t/local-date 2000 1 1)
+                                      (t/local-date 2000 2 1))))
+            "The transactions are updated correctly"))
+      (testing "Unaffected models are not saved"
+        (is (= (filter #(= (t/local-date 2000 1 9)
+                           (:transaction-date %))
+                       (apply concat @submissions))
+               [])
+            "The first unaffected transaction is not updated.")
+        (is (= (filter #(and (= :account
+                                (mny/model-type %))
+                             (= "Checking"
+                                (:name %)))
+                       (apply concat @submissions))
+               [])
+            "The checking account is not updated"))
+      (testing "account balances are set"
+        (is (= {:balance 399M
+                :first-trx-date (t/local-date 2000 1 1)
+                :last-trx-date (t/local-date 2000 1 9)}
+               (select-keys (acts/find (:id (find-account "Checking")))
+                            [:balance :first-trx-date :last-trx-date]))
+            "The checking account balance is updated correctly")
+        (is (= {:balance 101M
+                :first-trx-date (t/local-date 2000 1 2)
+                :last-trx-date (t/local-date 2000 1 9)}
+               (select-keys (acts/find (:id (find-account "Groceries")))
+                            [:balance :first-trx-date :last-trx-date]))
+            "The groceries account balance is updated correctly"))
+      (testing "reports are correct"
+        (is (= [{:style :header
+                 :label "Asset"
+                 :value 399M}
+                {:style :data
+                 :depth 0
+                 :label "Checking"
+                 :value 399M}
+                {:style :header
+                 :label "Liability"
+                 :value 0M}
+                {:style :header
+                 :label "Equity"
+                 :value 399M}
+                {:style :data
+                 :depth 0
+                 :label "Retained Earnings"
+                 :value 399M}]
+               (rpts/balance-sheet {:entity-id (:id (find-entity "Personal"))
+                                    :as-of (t/local-date 2000 12 31)}))
+            "A correct balance sheet is produced")
+        (is (= [{:style :header
+                 :label "Income"
+                 :value 1000M}
+                {:style :data
+                 :depth 0
+                 :label "Salary"
+                 :value 1000M}
+                {:style :header
+                 :label "Expense"
+                 :value 601M}
+                {:style :data
+                 :depth 0
+                 :label "Groceries"
+                 :value 101M}
+                {:style :data
+                 :depth 0
+                 :label "Rent"
+                 :value 500M}]
+               (rpts/income-statement {:entity-id (:id (find-entity "Personal"))
+                                       :start-date (t/local-date 2000 1 1)
+                                       :end-date (t/local-date 2001 1 1)}))
+            "A correct income statement is produced")))))
 
 ; TODO: add a complex transaction, like a paycheck, with taxes, etc.
 ; TODO: add reports test ns and get reports with explicit dates

@@ -12,6 +12,16 @@
   ([m model-type]
    (vary-meta m assoc :model-type model-type)))
 
+(defn prepare
+  [m model-type]
+  (vary-meta m assoc
+             :model-type model-type
+             :original m))
+
+(defn changed?
+  [m]
+  (not= m (-> m meta :original)))
+
 (defonce ^:private node (atom nil))
 
 (defn start []
