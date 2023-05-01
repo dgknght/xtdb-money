@@ -150,10 +150,6 @@
   [trx]
   (vary-meta trx assoc :deleted? true))
 
-(defn- marked-deleted?
-  [trx]
-  (-> trx meta :deleted?))
-
 (defprotocol UnilateralTransaction
   (account [this] "Returns the account for the transaction")
   (account-id [this] "Retrieves the ID for the account to which the transaction belongs")
@@ -166,7 +162,6 @@
   (transaction-date [this] "The date of the transaction")
   (description [this] "The description of the transaction")
   (action [this] "The action of this side of the transaction")
-  (deleted? [this] "Indicates whether or not the transaction is marked for deletion")
   (bilateral [this] "Returns the underlaying bilateral transaction"))
 
 (defn- transaction?
@@ -176,6 +171,19 @@
 (defn- account?
   [m]
   (= :account (mny/model-type m)))
+
+(defmulti ^:private deleted?
+  #(cond
+     (satisfies? UnilateralTransaction %) :unilateral
+     (map? %) :map))
+
+(defmethod deleted? :unilateral
+  [t]
+  (deleted? (bilateral t)))
+
+(defmethod deleted? :map
+  [m]
+  (-> m meta :deleted?))
 
 (def ^:private unilateral? (partial satisfies? UnilateralTransaction))
 
@@ -206,7 +214,6 @@
   (transaction-date [_] (:transaction-date trx))
   (description [_] (:description trx))
   (action [_] :credit)
-  (deleted? [_] (marked-deleted? trx))
   (bilateral [_] trx))
 
 (defrecord DebitSide [trx accounts]
@@ -234,7 +241,6 @@
   (transaction-date [_] (:transaction-date trx))
   (description [_] (:description trx))
   (action [_] :debit)
-  (deleted? [_] (marked-deleted? trx))
   (bilateral [_] trx))
 
 (defmulti ^:private other-side class)
@@ -349,13 +355,13 @@
 (def ^:private before-save
   ensure-model-type)
 
-(defmulti ^:private apply-index-and-balance
+(defmulti ^:private propagate-trx
   (fn [_state m]
     (cond
       (satisfies? UnilateralTransaction m) :transaction
       (account? m) :account)))
 
-(defmethod apply-index-and-balance :transaction
+(defmethod propagate-trx :transaction
   [{:keys [last-index last-balance] :as result} trx]
   {:pre [result trx]}
 
@@ -372,7 +378,7 @@
                                      (set-index index)
                                      (set-balance balance)))))))
 
-(defmethod apply-index-and-balance :account
+(defmethod propagate-trx :account
   [{:keys [last-transaction-date
            last-balance
            out]
@@ -381,7 +387,11 @@
   (update-in result
              [:out]
              conj
-             (if (seq out)
+             (if (= 0 (count (remove deleted? out)))
+               (assoc account
+                      :balance 0M
+                      :first-trx-date nil
+                      :last-trx-date nil)
                (-> account
                    (update-in [:first-trx-date]
                               (fnil t/earliest (t/local-date 9999 12 31))
@@ -389,11 +399,7 @@
                    (update-in [:last-trx-date]
                               t/latest
                               last-transaction-date)
-                   (assoc :balance last-balance))
-               (assoc account
-                      :balance 0M
-                      :first-trx-date nil
-                      :last-trx-date nil))))
+                   (assoc :balance last-balance)))))
 
 ; To propagate, get the transaction immediately preceding the one being put
 ; this is the starting point for the index and balance updates.
@@ -410,7 +416,7 @@
         following (subsequents trx)]
     (->> (concat (cons trx following)
                  [(account trx)])
-         (reduce apply-index-and-balance
+         (reduce propagate-trx
                  {:last-index (if prev (index prev) 0)
                   :last-balance (if prev (balance prev) 0M)
                   :out []})
@@ -434,7 +440,7 @@
                      #(if (unilateral? %)
                         (bilateral %)
                         %)))
-         (remove marked-deleted?)
+         (remove deleted?)
          (into []))))
 
 (defn- resolve-accounts
