@@ -402,6 +402,15 @@
                       (assoc :balance last-balance)))]
     (update-in result [:out] conj updated)))
 
+(defn- apply-first-trx-date-change
+  [trx prev updates]
+  (if (and (nil? prev)
+           (empty? (filter account? updates)))
+    (conj updates (assoc (account trx)
+                         :first-trx-date (when-not (deleted? trx)
+                                           (transaction-date trx))))
+    updates))
+
 ; To propagate, get the transaction immediately preceding the one being put
 ; this is the starting point for the index and balance updates.
 ; continue updating the chain until a transaction is unmodified
@@ -415,17 +424,18 @@
   [trx]
   (let [prev (precedent trx)
         following (subsequents trx)]
-    (->> (concat (cons trx following)
-                 [(account trx)])
-         (reduce propagate-rec
-                 (merge {:out []}
-                        (if prev
-                          {:last-index (index prev)
-                           :last-balance (balance prev)}
-                          {:last-index 0
-                           :last-balance 0M})))
-         :out
-         (into []))))
+        (->> (concat (cons trx following)
+                             [(account trx)])
+                     (reduce propagate-rec
+                             (merge {:out []}
+                                    (if prev
+                                      {:last-index (index prev)
+                                       :last-balance (balance prev)}
+                                      {:last-index 0
+                                       :last-balance 0M})))
+                     :out
+                     (apply-first-trx-date-change trx prev)
+                     (into []))))
 
 (defn- propagate
   [trx]
