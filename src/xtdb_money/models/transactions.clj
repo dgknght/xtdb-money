@@ -355,13 +355,13 @@
 (def ^:private before-save
   ensure-model-type)
 
-(defmulti ^:private propagate-trx
+(defmulti ^:private propagate-rec
   (fn [_state m]
     (cond
       (unilateral? m) :transaction
       (account? m) :account)))
 
-(defmethod propagate-trx :transaction
+(defmethod propagate-rec :transaction
   [{:keys [last-index last-balance] :as result} trx]
   {:pre [result trx]}
 
@@ -381,28 +381,26 @@
         term? reduced
         (not term?) (update-in [:out] conj updated)))))
 
-(defmethod propagate-trx :account
+(defmethod propagate-rec :account
   [{:keys [last-transaction-date
            last-balance
            out]
     :as result}
    account]
-  (update-in result
-             [:out]
-             conj
-             (if (= 0 (count (remove deleted? out)))
-               (assoc account
-                      :balance 0M
-                      :first-trx-date nil
-                      :last-trx-date nil)
-               (-> account
-                   (update-in [:first-trx-date]
-                              (fnil t/earliest (t/local-date 9999 12 31))
-                              last-transaction-date)
-                   (update-in [:last-trx-date]
-                              t/latest
-                              last-transaction-date)
-                   (assoc :balance last-balance)))))
+  (let [updated (if (= 0 (count (remove deleted? out)))
+                  (assoc account
+                         :balance 0M
+                         :first-trx-date nil
+                         :last-trx-date nil)
+                  (-> account
+                      (update-in [:first-trx-date]
+                                 (fnil t/earliest (t/local-date 9999 12 31))
+                                 last-transaction-date)
+                      (update-in [:last-trx-date]
+                                 t/latest
+                                 last-transaction-date)
+                      (assoc :balance last-balance)))]
+    (update-in result [:out] conj updated)))
 
 ; To propagate, get the transaction immediately preceding the one being put
 ; this is the starting point for the index and balance updates.
@@ -419,7 +417,7 @@
         following (subsequents trx)]
     (->> (concat (cons trx following)
                  [(account trx)])
-         (reduce propagate-trx
+         (reduce propagate-rec
                  (merge {:out []}
                         (if prev
                           {:last-index (index prev)
