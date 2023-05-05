@@ -5,6 +5,7 @@
             [clj-time.coerce :as tc]
             [dgknght.app-lib.test-assertions]
             [xtdb-money.core :as mny]
+            [xtdb-money.util :refer [uuid]]
             [xtdb-money.test-context :refer [with-context
                                              basic-context
                                              find-entity
@@ -41,6 +42,7 @@
           checking (find-account "Checking")
           salary (find-account "Salary")
           attr {:transaction-date (t/local-date 2000 1 1)
+                :correlation-id (uuid)
                 :description "Paycheck"
                 :entity-id (:id entity)
                 :credit-account-id (:id salary)

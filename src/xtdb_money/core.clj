@@ -3,6 +3,7 @@
             [xtdb.api :as xt]
             [cljs.core :as c]
             [xtdb-money.util :refer [local-date?
+                                     uuid
                                      ->storable-date]])
   (:gen-class))
 
@@ -32,7 +33,7 @@
 
 (defn- make-id
   [id]
-  (if id id (java.util.UUID/randomUUID)))
+  (if id id (uuid)))
 
 (defn- two-count?
   [coll]

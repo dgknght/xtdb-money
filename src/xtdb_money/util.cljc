@@ -20,3 +20,6 @@
   (if (= :absent (get-in m k :absent))
     m
     (apply update-in m k f args)))
+
+#?(:clj (defn uuid []
+          (java.util.UUID/randomUUID)))

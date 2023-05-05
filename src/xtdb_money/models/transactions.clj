@@ -16,6 +16,7 @@
             [xtdb-money.models.accounts :as acts])
   (:import org.joda.time.LocalDate))
 
+(s/def ::correlation-id (s/nilable uuid?))
 (s/def ::transaction-date local-date?)
 (s/def ::description string?)
 (s/def ::debit-account-id uuid?)
@@ -36,7 +37,8 @@
                                       ::debit-index
                                       ::debit-balance
                                       ::credit-index
-                                      ::credit-balance]))
+                                      ::credit-balance
+                                      ::correlation-id]))
 
 (s/def ::start-date (partial instance? LocalDate))
 (s/def ::end-date (partial instance? LocalDate))
@@ -124,6 +126,7 @@
 (def ^:private base-query
   (mny/query-map :transaction
                  entity-id
+                 correlation-id
                  transaction-date
                  description
                  debit-account-id
@@ -352,8 +355,11 @@
     m
     (mny/model-type m :transaction)))
 
-(def ^:private before-save
-  ensure-model-type)
+(defn- before-save
+  [trx]
+  (-> trx
+      (update-in [:correlation-id] identity) ; ensure there is a key in the map
+      ensure-model-type))
 
 (defmulti ^:private propagate-rec
   (fn [_state m]
