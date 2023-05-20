@@ -27,27 +27,20 @@
       (update-in-if [:first-trx-date] <-storable-date)
       (update-in-if [:last-trx-date] <-storable-date)))
 
-(def ^:private query-base
-  (mny/query-map :account entity-id name type balance first-trx-date last-trx-date))
+(defmulti query mny/storage-dispatch)
+(defmulti submit mny/storage-dispatch)
 
 (defn select
-  [{:keys [id entity-id] :as criteria}]
+  [criteria]
   {:per [(or (uuid? (:id criteria))
              (uuid? (:entity-id criteria)))]}
 
-  (let [query (cond-> query-base
-                entity-id (assoc :in '[entity-id])
-                id (assoc :in '[id]))]
-    (map after-read
-         (mny/select query (or id entity-id)))))
+  (map after-read
+         (query criteria)))
 
 (defn find
   [id]
   (first (select {:id (->id id)})))
-
-(defn- find-first
-  [[id]]
-  (find id))
 
 (defn- before-save
   [account]
@@ -63,5 +56,6 @@
 
   (-> account
       before-save
-      (mny/submit)
-      find-first))
+      submit
+      first
+      find))

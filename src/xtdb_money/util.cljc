@@ -21,5 +21,6 @@
     m
     (apply update-in m k f args)))
 
-#?(:clj (defn uuid []
-          (java.util.UUID/randomUUID)))
+(defn make-id
+  [id]
+  (or id (random-uuid)))

@@ -4,7 +4,8 @@
             [xtdb-money.test-context :refer [with-context
                                              find-entity]]
             [xtdb-money.helpers :refer [reset-db]]
-            [xtdb-money.models.accounts :as acts]))
+            [xtdb-money.models.accounts :as acts]
+            [xtdb-money.models.xtdb.ref]))
 
 (use-fixtures :each reset-db)
 

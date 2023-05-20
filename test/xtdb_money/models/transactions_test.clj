@@ -5,7 +5,6 @@
             [clj-time.coerce :as tc]
             [dgknght.app-lib.test-assertions]
             [xtdb-money.core :as mny]
-            [xtdb-money.util :refer [uuid]]
             [xtdb-money.test-context :refer [with-context
                                              basic-context
                                              find-entity
@@ -14,7 +13,8 @@
             [xtdb-money.helpers :refer [reset-db]]
             [xtdb-money.models.accounts :as acts]
             [xtdb-money.models.transactions :as trxs]
-            [xtdb-money.reports :as rpts]))
+            [xtdb-money.reports :as rpts]
+            [xtdb-money.models.xtdb.ref]))
 
 (use-fixtures :each reset-db)
 
@@ -42,7 +42,7 @@
           checking (find-account "Checking")
           salary (find-account "Salary")
           attr {:transaction-date (t/local-date 2000 1 1)
-                :correlation-id (uuid)
+                :correlation-id (random-uuid)
                 :description "Paycheck"
                 :entity-id (:id entity)
                 :credit-account-id (:id salary)
@@ -273,6 +273,10 @@
 
 (deftest insert-a-transaction-before-another
   (with-context insert-before-context
+
+    (println "")
+    (println "START THE TEST")
+
     (is (seq-of-maps-like? [{:transaction-date "2000-01-01"
                              :other-account "Salary"
                              :description "Paycheck"
@@ -442,10 +446,10 @@
     (let [trx (find-transaction (t/local-date 2000 1 4)
                                 "Kroger")
           submissions (atom [])
-          orig-submit mny/submit]
-      (with-redefs [mny/submit (fn [& args]
-                                 (swap! submissions conj args)
-                                 (apply orig-submit args))]
+          orig-submit trxs/submit]
+      (with-redefs [trxs/submit (fn [& args]
+                                  (swap! submissions conj args)
+                                  (apply orig-submit args))]
         (trxs/put (assoc trx :transaction-date (t/local-date 2000 1 2))))
       (testing "transaction propogation"
         (is (seq-of-maps-like? [{:transaction-date "2000-01-01"
