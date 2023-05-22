@@ -357,9 +357,6 @@
   [trx]
   (let [prev (precedent trx)
         following (subsequents trx)]
-
-    (clojure.pprint/pprint {::following following})
-
     (->> (concat (cons trx following)
                  [(account trx)])
          (reduce propagate-rec
@@ -378,9 +375,6 @@
   {:pre [(= (:entity-id trx)
             (-> trx :debit-account :entity-id)
             (-> trx :credit-account :entity-id))]}
-
-  (clojure.pprint/pprint {::propagate trx})
-
   (let [{:keys [debit]} (split trx)
         debit-side (propagate-side debit)
         credit-side (propagate-side (other-side (first debit-side)))]
