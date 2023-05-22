@@ -267,7 +267,7 @@
 (defn subsequents
   ([unilateral] (subsequents (bilateral unilateral) (account unilateral)))
   ([{:keys [transaction-date id]} account]
-   (->> (subsequents* transaction-date account-id)
+   (->> (subsequents* transaction-date (:id account))
         (remove #(= id (:id %)))
         (map after-read)
         (split-and-filter account))))

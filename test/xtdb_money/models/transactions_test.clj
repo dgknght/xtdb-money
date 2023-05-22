@@ -273,10 +273,6 @@
 
 (deftest insert-a-transaction-before-another
   (with-context insert-before-context
-
-    (println "")
-    (println "START THE TEST")
-
     (is (seq-of-maps-like? [{:transaction-date "2000-01-01"
                              :other-account "Salary"
                              :description "Paycheck"

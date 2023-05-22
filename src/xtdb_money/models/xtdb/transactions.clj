@@ -1,5 +1,6 @@
 (ns xtdb-money.models.xtdb.transactions
-  (:require [xtdb-money.util :refer [->storable-date]]
+  (:require [xtdb-money.util :refer [->storable-date
+                                     local-date?]]
             [xtdb-money.xtdb :as x]
             [xtdb-money.models.transactions :as trxs]))
 
@@ -88,6 +89,9 @@
 
 (defmethod trxs/subsequents* :xtdb
   [transaction-date account-id]
+  {:pre [(local-date? transaction-date)
+         (uuid? account-id)]}
+
   (let [query (-> base-query
                   (apply-account-id)
                   (update-in [:where]
