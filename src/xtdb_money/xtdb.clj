@@ -53,7 +53,11 @@
   [m model-type]
   (postwalk #(->xt* % (name model-type)) m))
 
-(defn- ->xt-map
+(defmulti ^:private ->xt-map #(cond
+                                (map? %) :map
+                                (vector? %) :vector))
+
+(defmethod ->xt-map :map
   [m]
   {:pre [(-> m meta :model-type)]}
 
@@ -62,21 +66,38 @@
         (update-in [:id] make-id)
         (->xt-keys model-type))))
 
-(defn- wrap-trans
-  [t]
-  [::xt/put t])
+(defmethod ->xt-map :vector
+  [m]
+  (update-in m [1] ->xt-map))
 
-(defn- prepare-trans
+(defmethod ->xt-map :default
+  [m]
+  m)
+
+(def ^:private action-map
+  {::mny/delete ::xt/delete})
+
+(defmulti ^:private wrap-trans #(cond
+                                  (map? %) :map
+                                  (vector? %) :vector))
+
+(defmethod wrap-trans :vector
   [t]
-  (if (vector? t)
-    t
-    (-> t ->xt-map wrap-trans)))
+  (update-in t [0] action-map)) ; exchange the generic action for the xtdb action
+
+(defmethod wrap-trans :map
+  [t]
+  [::xt/put t]) ; assume put if no action is specified
 
 (defn submit
+  "Give a list of model maps, or vector tuples with an action in the
+  1st position and a model in the second, execute the actions and
+  return the id values of the models"
   [& docs]
   (let [n @node
         prepped (->> docs
-                     (map prepare-trans)
+                     (map (comp ->xt-map
+                                wrap-trans))
                      (into []))]
     (xt/submit-tx n prepped)
     (xt/sync n)

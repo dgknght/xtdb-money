@@ -2,7 +2,6 @@
   (:refer-clojure :exclude [find])
   (:require [clojure.spec.alpha :as s]
             [clojure.pprint :as pp]
-            [xtdb.api :as xt]
             [clj-time.core :as t]
             [clj-time.format :refer [formatters unparse]]
             [clj-time.coerce :refer [to-date-time]]
@@ -414,5 +413,5 @@
 
   (with-accounts trx
     (apply submit
-           (cons [::xt/delete (->id trx)] ; TODO: Can we avoid the explicit reference to the underlying database ns?
+           (cons [::mny/delete (->id trx)]
                  (propagate (mark-deleted (resolve-accounts trx)))))))
