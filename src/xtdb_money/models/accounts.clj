@@ -5,15 +5,16 @@
                                      local-date?
                                      <-storable-date
                                      update-in-if]]
-            [xtdb-money.core :as mny]
-            [xtdb-money.models :as models]))
+            [xtdb-money.core :as mny]))
 
+(def non-nil? (complement nil?))
+(s/def ::entity-id non-nil?)
 (s/def ::name string?)
 (s/def ::type #{:asset :liability :equity :income :expense})
 (s/def ::balance decimal?)
 (s/def ::first-trx-date (s/nilable local-date?))
 (s/def ::last-trx-date (s/nilable local-date?))
-(s/def ::account (s/keys :req-un [::models/entity-id
+(s/def ::account (s/keys :req-un [::entity-id
                                   ::name
                                   ::type]
                          :opt-un [::balance
@@ -32,11 +33,10 @@
 
 (defn select
   [criteria]
-  {:per [(or (uuid? (:id criteria))
-             (uuid? (:entity-id criteria)))]}
+  {:per [(some #(% criteria) [:id :entity-id])]}
 
   (map after-read
-         (query criteria)))
+       (query criteria)))
 
 (defn find
   [id]

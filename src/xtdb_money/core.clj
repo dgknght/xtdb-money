@@ -23,3 +23,4 @@
 
 (defmulti start storage-dispatch)
 (defmulti stop storage-dispatch)
+(defmulti reset-db storage-dispatch)

@@ -15,6 +15,9 @@
 (defmethod mny/stop :xtdb []
   (reset! node nil))
 
+; This is a no-op with the memory implementation
+(defmethod mny/reset-db :xtdb [])
+
 (defn- two-count?
   [coll]
   (= 2 (count coll)))

@@ -6,6 +6,8 @@
             :dependencies [[org.clojure/clojure "1.11.1"]
                            [clj-time "0.15.2"]
                            [com.xtdb/xtdb-core "1.23.1"]
+                           [com.datomic/dev-local "1.0.243"]
+                           [com.datomic/client-pro "1.0.76"]
                            [com.github.dgknght/app-lib "0.3.2"]
                            [yogthos/config "1.2.0"]]
             :main ^:skip-aot xtdb-money.core

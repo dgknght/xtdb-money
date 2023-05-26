@@ -2,4 +2,3 @@
   (:require [clojure.spec.alpha :as s]))
 
 (s/def ::id uuid?)
-(s/def ::entity-id uuid?)
