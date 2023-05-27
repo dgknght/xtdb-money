@@ -15,17 +15,21 @@
             :plugins [[lein-environ "1.2.0"]]
             :profiles {:uberjar {:aot :all
                                  :jvm-opts ["-Dclojure.compiler.direct-linking=true"]}
-                       :test {:env {:db {:active "xtdb"
-                                         :strategies {"datomic" {:provider :datomic
-                                                                 :settings {:server-type :dev-local
-                                                                            :system "money-dev-system"
-                                                                            :storage-dir "/home/doug/.datomic-storage"}}
-                                                      "xtdb" {:provider :xtdb
-                                                              :url "xtdb"}}}}}
-                       :dev {:env {:db {:active "xtdb"
-                                        :strategies {"datomic" {:provider :datomic
-                                                                :url "datomic:sql://money?jdbc:postgresql://app_user:please01@localhost/datomic"}
-                                                     "xtdb" {:provider :xtdb
-                                                             :url "xtdb:jdbc:postgresql://app_user:please01@localhost/xtdb-money"}}}}}}
+                       :test [:project/test :profiles/test]
+                       :project/test {:env {:db {:active "xtdb"
+                                                 :strategies {"datomic" {:provider :datomic
+                                                                         :settings {:server-type :dev-local
+                                                                                    :system "money-test"
+                                                                                    :storage-dir "/Users/dknight/.datomic-storage"}}
+                                                              "xtdb" {:provider :xtdb
+                                                                      :url "xtdb"}}}}}
+                       :dev [:project/dev :profiles/dev]
+                       :project/dev {:env {:db {:active "xtdb"
+                                                :strategies {"datomic" {:provider :datomic
+                                                                        :settings {:server-type :dev-local
+                                                                                   :system "money-dev"
+                                                                                   :storage-dir "/Users/dknight/.datomic-storage"}}
+                                                             "xtdb" {:provider :xtdb
+                                                                     :url "xtdb:jdbc:postgresql://app_user:please01@localhost/xtdb-money"}}}}}}
             :repl-options {:init-ns xtdb-money.repl
                            :wilcome (println "Welcome to money management with persistent data!")})
