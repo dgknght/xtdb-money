@@ -12,4 +12,4 @@ pom.xml.asc
 .hgignore
 .hg/
 .lsp/
-.clj-kondo/
+.clj-kondo/.cache
