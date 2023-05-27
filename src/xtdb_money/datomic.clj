@@ -2,7 +2,7 @@
   (:require [clojure.set :refer [rename-keys]]
             [config.core :refer [env]]
             [datomic.client.api :as d]
-            [xtdb-money.util :refer [+id qualify-keys]]
+            [xtdb-money.util :refer [qualify-keys]]
             [xtdb-money.core :as mny]))
 
 (def schema

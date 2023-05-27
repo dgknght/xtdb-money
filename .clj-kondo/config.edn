@@ -1,1 +1,3 @@
-{:linters {:unresolved-symbol {:exclude [(clojure.test/is [seq-of-maps-like?])]}}}
+{:linters {:unresolved-symbol {:exclude [(clojure.test/is [seq-of-maps-like?
+                                                           comparable?])
+                                         (xtdb-money.xtdb/query-map)]}}}

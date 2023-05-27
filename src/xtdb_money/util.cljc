@@ -1,8 +1,7 @@
 (ns xtdb-money.util
   (:require [clojure.walk :refer [prewalk]]
             #?(:clj [clj-time.coerce :as tc]
-               :cljs [cljs-time.coerce :as tc])
-            [xtdb-money.models :as models])
+               :cljs [cljs-time.coerce :as tc]))
   #?(:clj (:import org.joda.time.LocalDate)))
 
 (def ->storable-date tc/to-long)
