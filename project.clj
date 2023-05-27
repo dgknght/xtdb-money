@@ -17,7 +17,9 @@
                                  :jvm-opts ["-Dclojure.compiler.direct-linking=true"]}
                        :test {:env {:db {:active "xtdb"
                                          :strategies {"datomic" {:provider :datomic
-                                                                 :url "datomic:mem://money"}
+                                                                 :settings {:server-type :dev-local
+                                                                            :system "money-dev-system"
+                                                                            :storage-dir "/home/doug/.datomic-storage"}}
                                                       "xtdb" {:provider :xtdb
                                                               :url "xtdb"}}}}}
                        :dev {:env {:db {:active "xtdb"

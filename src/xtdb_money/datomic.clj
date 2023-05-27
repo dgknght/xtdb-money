@@ -1,6 +1,6 @@
 (ns xtdb-money.datomic
   (:require [clojure.set :refer [rename-keys]]
-            #_[config.core :refer [env]]
+            [config.core :refer [env]]
             [datomic.client.api :as d]
             [xtdb-money.util :refer [+id qualify-keys]]
             [xtdb-money.core :as mny]))
@@ -39,9 +39,7 @@
     :db/cardinality :db.cardinality/one
     :db/doc "The date of the last transaction in the account"}])
 
-(def config {:server-type :dev-local
-             :system "money-dev-system"
-             :storage-dir "/Users/dknight/.datomic-storage"})
+(def config (get-in env [:db :strategies "datomic" :settings]))
 
 (defn- client []
   (d/client config))

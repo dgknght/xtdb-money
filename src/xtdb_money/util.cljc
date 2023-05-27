@@ -55,6 +55,15 @@
                          (-> m meta :model-type name))
            m))
 
+(defn unqualify-keys
+  "Replaces qualified keys with the simple values"
+  [m]
+  (prewalk (fn [x]
+             (if (key-value-tuple? x)
+               (update-in x [0] (comp keyword name))
+               x))
+           m))
+
 (defn +id
   "Given a map without an :id value, adds one with a random UUID as a value"
   [m]
