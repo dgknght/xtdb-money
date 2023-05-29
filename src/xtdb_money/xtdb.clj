@@ -9,14 +9,14 @@
 
 (defonce ^:private node (atom nil))
 
-(defmethod mny/start :xtdb []
+(defmethod mny/start :xtdb [_]
   (reset! node (xt/start-node {})))
 
-(defmethod mny/stop :xtdb []
+(defmethod mny/stop :xtdb [_]
   (reset! node nil))
 
 ; This is a no-op with the memory implementation
-(defmethod mny/reset-db :xtdb [])
+(defmethod mny/reset-db :xtdb [_])
 
 (defn- two-count?
   [coll]

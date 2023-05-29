@@ -6,20 +6,21 @@
 (def ^:private entity-keys [:id :name])
 
 (defmethod ents/query :datomic
-  [criteria]
+  [cfg criteria]
   (if-let [id (:id criteria)]
     (map #(zipmap entity-keys %)
-         (d/query '[:find ?e ?entity-name
-                    :where [?e :entity/name ?entity-name]
-                    :in $ ?e]
+         (d/query cfg '[:find ?e ?entity-name
+                        :where [?e :entity/name ?entity-name]
+                        :in $ ?e]
                   id))
     (map #(zipmap entity-keys %)
-         (d/query '[:find ?e ?entity-name
-                    :where [?e :entity/name ?entity-name]]))))
+         (d/query cfg '[:find ?e ?entity-name
+                        :where [?e :entity/name ?entity-name]]))))
 
 (defmethod ents/submit :datomic
-  [& models]
-  (let [result (d/transact models)]
-    (map first (api/q '[:find ?e
-                        :where [?e :entity/name _]]
+  [cfg models]
+  (let [result (d/transact cfg [models])]
+    ; TODO: Here I need to be able to pass in the database, not a configuration
+    (map first (api/q cfg '[:find ?e
+                            :where [?e :entity/name _]]
                       (:db-after result)))))

@@ -39,43 +39,47 @@
     :db/cardinality :db.cardinality/one
     :db/doc "The date of the last transaction in the account"}])
 
-(def config (get-in env [:db :strategies "datomic" :settings]))
+(def ^:private db-name "money")
 
-(defn- client []
+(defn- client
+  [config]
   (d/client config))
 
 (def ^:private conn (atom nil))
 
 (defn- db [] (d/db @conn))
 
-(defmethod mny/start :datomic []
-  (let [cl (client)
-        _ (d/create-database cl {:db-name "money-dev"}) ; TODO: should this be run every time? only once?
-        cn (d/connect cl {:db-name "money-dev"})]
+(defmethod mny/start :datomic
+  [config]
+  (let [cl (client config)
+        _ (d/create-database cl {:db-name db-name}) ; TODO: should this be run every time? only once?
+        cn (d/connect cl {:db-name db-name})]
     (reset! conn cn)
     (d/transact cn {:tx-data schema
-                    :db-name "money-dev"}))) ; TODO: should this be run every time? only once?
+                    :db-name db-name}))) ; TODO: should this be run every time? only once?
 
-(defmethod mny/stop :datomic []
+(defmethod mny/stop :datomic [_]
   (reset! conn nil))
 
-(defmethod mny/reset-db :datomic []
-  (d/delete-database (client) {:db-name "money-dev"}))
+(defmethod mny/reset-db :datomic
+  [config]
+  (d/delete-database (client config) {:db-name db-name}))
 
 (defn transact
-  [models]
-  (d/transact @conn
+  [cfg models]
+  (d/transact (d/connect (client cfg)
+                         {:db-name db-name})
               {:tx-data (map (comp #(rename-keys % {:entity/id :db/id}) ; TODO: unkludge this
                                    qualify-keys)
                              models)}))
 
 (defn query
-  [q & args]
+  [cfg q & args]
   (d/q {:query q
-        :args (if (instance? datomic.core.db.Db
-                             (first args))
-                args
-                (cons (db) args))}))
+        :args (cons (d/db
+                      (d/connect (client cfg)
+                                 {:db-name db-name}))
+                    args)}))
 
 (defn index-pull
   [q]

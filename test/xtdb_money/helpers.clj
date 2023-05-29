@@ -2,10 +2,16 @@
   (:require [config.core :refer [env]]
             [xtdb-money.core :as mny]))
 
+(defn dbs []
+  (get-in env [:db :strategies]))
+
 (defn reset-db [f]
-  (mny/start)
+  (doseq [db (vals (dbs))]
+    (mny/reset-db db)
+    (mny/start db))
   (f)
-  (mny/stop))
+  (doseq [db (vals (dbs))]
+    (mny/stop db)))
 
 (defmacro with-strategy
   [id & body]

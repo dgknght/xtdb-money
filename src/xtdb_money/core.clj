@@ -1,6 +1,12 @@
 (ns xtdb-money.core
   (:require [config.core :refer [env]]))
 
+(def ^:dynamic *storage*)
+
+(defn storage []
+  (or *storage*
+      (get-in env [:db :strategies (get-in env [:db :active])])))
+
 (defn model-type
   ([m]
    (-> m meta :model-type))
@@ -17,9 +23,8 @@
   [m]
   (not= m (-> m meta :original)))
 
-(defn storage-dispatch [& _]
-  (when-let [active (get-in env [:db :active])]
-    (get-in env [:db :strategies active :provider])))
+(defn storage-dispatch [db & _]
+  (some ::provider [db (meta db)]))
 
 (defmulti start storage-dispatch)
 (defmulti stop storage-dispatch)

@@ -10,21 +10,22 @@
 (defmulti submit mny/storage-dispatch)
 
 (defn select
-  ([] (select {}))
-  ([criteria]
+  ([criteria] (select (mny/storage) criteria))
+  ([db criteria]
    (map #(mny/model-type % :entity)
-        (query criteria))))
+        (query db criteria))))
 
 (defn find
-  [id]
-  (first (select {:id id})))
+  ([id] (find (mny/storage) id))
+  ([db id]
+   (first (select db {:id id}))))
 
 (defn put
-  [entity]
-  {:pre [(s/valid? ::entity entity)]}
+  ([entity] (put (mny/storage) entity))
+  ([db entity]
+   {:pre [(s/valid? ::entity entity)
+          (::mny/provider db)]}
 
-  (-> entity
-        (mny/model-type :entity)
-        submit
-        first
-        find))
+   (-> (submit db (mny/model-type entity :entity))
+       first
+       find)))
