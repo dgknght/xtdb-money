@@ -1,11 +1,28 @@
 (ns xtdb-money.core
   (:require [config.core :refer [env]]))
 
+(defprotocol Storage
+  "Defines the functions necessary to provider storage for the application"
+  (put [this models] "Saves the models to the database in an atomic transaction")
+  (select [this criteria options] "Retrieves models from the database")
+  (delete [this models] "Removes the models from the database in an atomic transaction")
+  (reset [this] "Resets the database")) ; TODO: Is there someplace to put this so it's only available in tests?
+
+
+(defn storage-dispatch [config & _]
+  (::provider config))
+
+(defmulti reify-storage storage-dispatch)
+(defmulti start storage-dispatch)
+(defmulti stop storage-dispatch)
+(defmulti reset-db storage-dispatch)
+
 (def ^:dynamic *storage*)
 
 (defn storage []
   (or *storage*
-      (get-in env [:db :strategies (get-in env [:db :active])])))
+      (let [active-key (get-in env [:db :active])]
+        (reify-storage (get-in env [:db :strategies active-key])))))
 
 (defn model-type
   ([m]
@@ -23,9 +40,8 @@
   [m]
   (not= m (-> m meta :original)))
 
-(defn storage-dispatch [db & _]
-  (some ::provider [db (meta db)]))
-
-(defmulti start storage-dispatch)
-(defmulti stop storage-dispatch)
-(defmulti reset-db storage-dispatch)
+(defmacro with-storage
+  [bindings & body]
+  `(let [storage# (reify-storage ~(first bindings))]
+     (binding [*storage* storage#]
+       ~@body)))

@@ -6,12 +6,13 @@
   (get-in env [:db :strategies]))
 
 (defn reset-db [f]
-  (doseq [db (vals (dbs))]
-    (mny/reset-db db)
-    (mny/start db))
-  (f)
-  (doseq [db (vals (dbs))]
-    (mny/stop db)))
+  (let [dbs (->> (get-in env [:db :strategies])
+                 vals
+                 (map mny/reify-storage))]
+    (doseq [db dbs]
+      (mny/reset db)
+      (binding [mny/*storage* db]
+        (f)))))
 
 (defmacro with-strategy
   [id & body]

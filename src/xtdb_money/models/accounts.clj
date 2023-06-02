@@ -28,19 +28,18 @@
       (update-in-if [:first-trx-date] <-storable-date)
       (update-in-if [:last-trx-date] <-storable-date)))
 
-(defmulti query mny/storage-dispatch)
-(defmulti submit mny/storage-dispatch)
-
 (defn select
-  [criteria]
-  {:per [(some #(% criteria) [:id :entity-id])]}
+  ([criteria] (select (mny/storage) criteria))
+  ([db criteria]
+   {:per [(some #(% criteria) [:id :entity-id])]}
 
-  (map after-read
-       (query criteria)))
+   (map after-read
+        (mny/select db (mny/model-type criteria :account) {}))))
 
 (defn find
-  [id]
-  (first (select {:id (->id id)})))
+  ([id] (find (mny/storage) id))
+  ([db id]
+   (first (select db {:id (->id id)}))))
 
 (defn- before-save
   [account]
@@ -51,11 +50,8 @@
       (mny/model-type :account)))
 
 (defn put
-  [account]
-  {:pre [(s/valid? ::account account)]}
+  ([account] (put (mny/storage) account))
+  ([db account]
+   {:pre [(s/valid? ::account account)]}
 
-  (-> account
-      before-save
-      submit
-      first
-      find))
+   (find db (first (mny/put db [(before-save account)])))))

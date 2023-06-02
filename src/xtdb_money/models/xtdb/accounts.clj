@@ -5,14 +5,13 @@
 (def ^:private query-base
   (x/query-map :account entity-id name type balance first-trx-date last-trx-date))
 
-(defmethod acts/query :xtdb
-  [{:keys [id]}]
-  (let [query (cond-> query-base
-                id (assoc :in '[id]))]
-    (if id
-      (x/select query id)
-      (x/select query))))
-
-(defmethod acts/submit :xtdb
-  [& models]
-  (apply x/submit models))
+(defmethod x/criteria->query :account
+  [criteria]
+  (reduce (fn [res [k v]]
+            (-> res
+                (update-in [0 :in]
+                           (fnil conj [])
+                           (symbol (name k)))
+                (update-in [1] (fnil conj []) v)))
+          [query-base []]
+           (select-keys criteria [:id :entity-id])))

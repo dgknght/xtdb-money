@@ -7,14 +7,6 @@
                                      make-id
                                      ->storable-date]]))
 
-(defonce ^:private node (atom nil))
-
-(defmethod mny/start :xtdb [_]
-  (reset! node (xt/start-node {})))
-
-(defmethod mny/stop :xtdb [_]
-  (reset! node nil))
-
 ; This is a no-op with the memory implementation
 (defmethod mny/reset-db :xtdb [_])
 
@@ -96,21 +88,22 @@
   "Give a list of model maps, or vector tuples with an action in the
   1st position and a model in the second, execute the actions and
   return the id values of the models"
-  [& docs]
-  (let [n @node
-        prepped (->> docs
+  [node docs]
+  {:pre [(sequential? docs)]} ; TODO: Use the "&" syntax for any number of documents
+
+  (let [prepped (->> docs
                      (map (comp ->xt-map
                                 wrap-trans))
                      (into []))]
-    (xt/submit-tx n prepped)
-    (xt/sync n)
+    (xt/submit-tx node prepped)
+    (xt/sync node)
     (map #(get-in % [1 :xt/id]) prepped)))
 
 (defn select
-  ([query]
-   (xt/q (xt/db @node) query))
-  ([query params]
-   (xt/q (xt/db @node) query params)))
+  ([node query]
+   (xt/q (xt/db node) query))
+  ([node query params]
+   (xt/q (xt/db node) query params)))
 
 (defmacro query-map
   [model-type & fields]
@@ -124,3 +117,16 @@
       :where (quote ~(mapv (fn [field]
                              ['id (keyword type (name field)) field])
                            fields))}))
+
+(defmulti criteria->query mny/model-type)
+
+(defmethod mny/reify-storage :xtdb
+  [config]
+  (let [node (xt/start-node (dissoc config ::mny/provider))]
+    (reify mny/Storage
+      (put [_ models] (submit node models))
+      (select [_ criteria _options]
+        (let [[query args] (criteria->query criteria)]
+          (apply xt/q (xt/db node) query args)))
+      (delete [_ models] (submit node (map #(vector :xt/delete %) models)))
+      (reset [_] (comment "This is a no-op with in-memory implementation")))))

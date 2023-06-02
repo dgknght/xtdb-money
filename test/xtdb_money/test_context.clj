@@ -59,7 +59,8 @@
 (defn- throw-on-failure
   [model-type]
   (fn [m]
-    (if m m (throw (RuntimeException. (format "Unable to create the %s" model-type))))))
+    (or m
+        (throw (RuntimeException. (format "Unable to create the %s" model-type))))))
 
 (defn- realize-entity
   [entity _ctx]
