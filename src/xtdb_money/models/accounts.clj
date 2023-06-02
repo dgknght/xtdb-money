@@ -5,7 +5,7 @@
                                      local-date?
                                      <-storable-date
                                      update-in-if]]
-            [xtdb-money.core :as mny]))
+            [xtdb-money.core :as mny :refer [dbfn]]))
 
 (def non-nil? (complement nil?))
 (s/def ::entity-id non-nil?)
@@ -28,18 +28,16 @@
       (update-in-if [:first-trx-date] <-storable-date)
       (update-in-if [:last-trx-date] <-storable-date)))
 
-(defn select
-  ([criteria] (select (mny/storage) criteria))
-  ([db criteria]
-   {:per [(some #(% criteria) [:id :entity-id])]}
+(dbfn select
+  [db criteria]
+  {:per [(some #(% criteria) [:id :entity-id])]}
 
-   (map after-read
-        (mny/select db (mny/model-type criteria :account) {}))))
+  (map after-read
+       (mny/select db (mny/model-type criteria :account) {})))
 
-(defn find
-  ([id] (find (mny/storage) id))
-  ([db id]
-   (first (select db {:id (->id id)}))))
+(dbfn find
+  [db id]
+  (first (select db {:id (->id id)})))
 
 (defn- before-save
   [account]
@@ -49,9 +47,8 @@
       (update-in [:balance] (fnil identity 0M))
       (mny/model-type :account)))
 
-(defn put
-  ([account] (put (mny/storage) account))
-  ([db account]
-   {:pre [(s/valid? ::account account)]}
+(dbfn put
+  [db account]
+  {:pre [(s/valid? ::account account)]}
 
-   (find db (first (mny/put db [(before-save account)])))))
+  (find db (first (mny/put db [(before-save account)]))))

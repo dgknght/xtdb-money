@@ -51,7 +51,7 @@
   (let [fname (symbol (name fn-name))
         alt-bindings (vec (rest bindings))]
     `(defn ~fname
-       (~(vec (rest bindings))
-         (apply ~fname ~db ~bindings))
+       (~alt-bindings
+         (apply ~fname (storage) ~alt-bindings))
        (~bindings
                ~@body))))
