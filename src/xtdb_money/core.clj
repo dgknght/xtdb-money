@@ -49,7 +49,7 @@
 (defmacro dbfn
   [fn-name bindings & body]
   (let [fname (symbol (name fn-name))
-        db (symbol (name 'db))]
+        alt-bindings (vec (rest bindings))]
     `(defn ~fname
        (~(vec (rest bindings))
          (apply ~fname ~db ~bindings))

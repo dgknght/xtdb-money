@@ -6,5 +6,5 @@
   (if id
     [(assoc (x/query-map :entity name)
             :in '[id])
-     [id]])
-  [(x/query-map :entity name)])
+     [id]]
+    [(x/query-map :entity name)]))

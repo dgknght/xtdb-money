@@ -14,4 +14,4 @@
                            (symbol (name k)))
                 (update-in [1] (fnil conj []) v)))
           [query-base []]
-           (select-keys criteria [:id :entity-id])))
+          (select-keys criteria [:id :entity-id])))
