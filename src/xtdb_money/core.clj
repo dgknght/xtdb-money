@@ -45,3 +45,13 @@
   `(let [storage# (reify-storage ~(first bindings))]
      (binding [*storage* storage#]
        ~@body)))
+
+(defmacro dbfn
+  [fn-name bindings & body]
+  (let [fname (symbol (name fn-name))
+        db (symbol (name 'db))]
+    `(defn ~fname
+       (~(vec (rest bindings))
+         (apply ~fname ~db ~bindings))
+       (~bindings
+               ~@body))))
