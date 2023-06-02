@@ -1,5 +1,6 @@
 (ns xtdb-money.helpers
-  (:require [config.core :refer [env]]
+  (:require [clojure.test :refer [deftest testing]]
+            [config.core :refer [env]]
             [xtdb-money.core :as mny]))
 
 (defn dbs []
@@ -14,11 +15,10 @@
       (binding [mny/*storage* db]
         (f)))))
 
-(defmacro with-strategy
-  [id & body]
-  `(let [orig-env# env]
-     (with-redefs [env (assoc-in orig-env# [:db :active] ~id)]
-       (mny/reset-db)
-       (mny/start)
-       ~@body
-       (mny/stop))))
+(defmacro dbtest
+  [test-name & body]
+  `(deftest ~test-name
+     (doseq [[name# config#] (dbs)]
+       (testing (format "database strategy %s" name#)
+         (mny/with-storage [config#]
+           ~@body)))))
