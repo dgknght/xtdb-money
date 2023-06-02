@@ -1,5 +1,5 @@
 (ns xtdb-money.models.transactions-test
-  (:require [clojure.test :refer [deftest is use-fixtures testing]]
+  (:require [clojure.test :refer [is use-fixtures testing]]
             [clj-time.core :as t]
             [clj-time.format :as tf]
             [clj-time.coerce :as tc]
@@ -10,7 +10,8 @@
                                              find-entity
                                              find-account
                                              find-transaction]]
-            [xtdb-money.helpers :refer [reset-db]]
+            [xtdb-money.helpers :refer [reset-db
+                                        dbtest]]
             [xtdb-money.models.accounts :as acts]
             [xtdb-money.models.transactions :as trxs]
             [xtdb-money.reports :as rpts]
@@ -36,7 +37,7 @@
    :description (trxs/description t)
    :other-account (:name (trxs/other-account t))})
 
-(deftest create-a-simple-transaction
+(dbtest create-a-simple-transaction
   (with-context
     (let [entity (find-entity "Personal")
           checking (find-account "Checking")
@@ -145,7 +146,7 @@
                          :debit-account-id "Groceries"
                          :amount 50M}]))
 
-(deftest create-multiple-transactions
+(dbtest create-multiple-transactions
   (with-context multi-context
     (testing "account balances are set"
       (is (= {:balance 500M
@@ -271,7 +272,7 @@
                          :debit-account-id "Rent"
                          :amount 500M}]))
 
-(deftest insert-a-transaction-before-another
+(dbtest insert-a-transaction-before-another
   (with-context insert-before-context
     (is (seq-of-maps-like? [{:transaction-date "2000-01-01"
                              :other-account "Salary"
@@ -328,7 +329,7 @@
                          :debit-account-id "Groceries"
                          :amount 50M}]))
 
-(deftest delete-a-transaction
+(dbtest delete-a-transaction
   (with-context delete-context
     (let [trx (find-transaction (t/local-date 2000 1 2) "The Landlord")]
       (trxs/delete trx)
@@ -437,7 +438,7 @@
                          :debit-account-id "Groceries"
                          :amount 51M}]))
 
-(deftest shortcut-propagation 
+(dbtest shortcut-propagation 
   (with-context prop-context
     (let [trx (find-transaction (t/local-date 2000 1 4)
                                 "Kroger")

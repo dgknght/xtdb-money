@@ -8,7 +8,7 @@
             [xtdb-money.util :refer [<-storable-date
                                      local-date?
                                      ->id]]
-            [xtdb-money.core :as mny]
+            [xtdb-money.core :as mny :refer dbfn]
             [xtdb-money.accounts :as a]
             [xtdb-money.models :as mdls]
             [xtdb-money.models.accounts :as acts])
@@ -89,13 +89,11 @@
 (defmulti query mny/storage-dispatch)
 (defmulti submit mny/storage-dispatch)
 
-(defn select
-  ([] (select {}))
-  ([criteria] (select criteria {}))
-  ([criteria options]
-   {:pre [(s/valid? ::criteria criteria)
-          (s/valid? ::options options)]}
-   (map after-read (query criteria options))))
+(dbfn select
+  [db criteria options]
+  {:pre [(s/valid? ::criteria criteria)
+         (s/valid? ::options options)]}
+  (map after-read (mny/select db criteria options)))
 
 (defn- mark-deleted
   [trx]
@@ -240,6 +238,7 @@
        (filter #(= (:id account)
                    (account-id %)))))
 
+; TODO: Make this a dbfn?
 (defn select-by-account
   [account start-date end-date]
   (with-accounts account
@@ -271,9 +270,9 @@
         (map after-read)
         (split-and-filter account))))
 
-(defn find
-  [id]
-  (first (select {:id id})))
+(dbfn find
+  [db id]
+  (first (select db {:id id})))
 
 (defn- ensure-model-type
   [m]
@@ -394,21 +393,18 @@
       (assoc :debit-account (get-in *accounts* [debit-account-id]))
       (assoc :credit-account (get-in *accounts* [credit-account-id]))))
 
-(defn put
-  [trx]
+(dbfn put
+  [db trx]
   {:pre [(s/valid? ::transaction trx)]}
 
   (with-accounts trx
-    (-> (apply submit
-               (-> trx
-                   (mny/model-type :transaction)
-                   resolve-accounts
-                   propagate))
-        first
-        find)))
+    (find db (first (mny/put db (-> trx
+                                    (mny/model-type :transaction)
+                                    resolve-accounts
+                                    propagate))))))
 
-(defn delete
-  [trx]
+(dbfn delete
+  [db trx]
   {:pre [(s/valid? ::transaction trx)]}
 
   (with-accounts trx
