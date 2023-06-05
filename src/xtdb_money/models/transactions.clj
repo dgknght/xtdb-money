@@ -8,7 +8,7 @@
             [xtdb-money.util :refer [<-storable-date
                                      local-date?
                                      ->id]]
-            [xtdb-money.core :as mny :refer dbfn]
+            [xtdb-money.core :as mny :refer [dbfn]]
             [xtdb-money.accounts :as a]
             [xtdb-money.models :as mdls]
             [xtdb-money.models.accounts :as acts])
