@@ -443,8 +443,8 @@
     (let [trx (find-transaction (t/local-date 2000 1 4)
                                 "Kroger")
           submissions (atom [])
-          orig-submit trxs/submit]
-      (with-redefs [trxs/submit (fn [& args]
+          orig-submit trxs/put]
+      (with-redefs [trxs/put (fn [& args]
                                   (swap! submissions conj args)
                                   (apply orig-submit args))]
         (trxs/put (assoc trx :transaction-date (t/local-date 2000 1 2))))

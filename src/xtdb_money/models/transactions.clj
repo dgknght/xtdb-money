@@ -86,14 +86,11 @@
       (update-in [:transaction-date] <-storable-date)
       (mny/prepare :transaction)))
 
-(defmulti query mny/storage-dispatch)
-(defmulti submit mny/storage-dispatch)
-
 (dbfn select
   [db criteria options]
-  {:pre [(s/valid? ::criteria criteria)
+  #_{:pre [(s/valid? ::criteria criteria)
          (s/valid? ::options options)]}
-  (map after-read (mny/select db criteria options)))
+  (map after-read (mny/select db (mny/model-type criteria :transaction) options)))
 
 (defn- mark-deleted
   [trx]
@@ -248,26 +245,33 @@
          (split-and-filter account)
          (sort-by index))))
 
-(defmulti preceding mny/storage-dispatch)
+(defn- preceding
+  [transaction-date account-id limit]
+  (select {:transaction-date [:< transaction-date]
+           :account-id account-id}
+          {:limit limit
+           :order-by [[:transaction-date :desc]]}))
 
 (defn precedent
   ([unilateral] (precedent (bilateral unilateral)
                            (account unilateral)))
   ([{:keys [transaction-date id]} account]
    (->> (preceding transaction-date (:id account) 2)
-        (map after-read)
         (remove #(= id (:id %)))
         (split-and-filter account)
         first)))
 
-(defmulti subsequents* mny/storage-dispatch)
+(defn- subsequents*
+  [transaction-date account-id]
+  (select {:transaction-date [:>= transaction-date]
+           :account-id account-id}
+          {:order-by [:transaction-date]}))
 
 (defn subsequents
   ([unilateral] (subsequents (bilateral unilateral) (account unilateral)))
   ([{:keys [transaction-date id]} account]
    (->> (subsequents* transaction-date (:id account))
         (remove #(= id (:id %)))
-        (map after-read)
         (split-and-filter account))))
 
 (dbfn find
@@ -408,6 +412,6 @@
   {:pre [(s/valid? ::transaction trx)]}
 
   (with-accounts trx
-    (apply submit
-           (cons [::mny/delete (->id trx)]
-                 (propagate (mark-deleted (resolve-accounts trx)))))))
+    (mny/put db
+             (cons [::mny/delete (->id trx)]
+                   (propagate (mark-deleted (resolve-accounts trx)))))))

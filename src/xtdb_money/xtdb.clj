@@ -5,7 +5,8 @@
             [xtdb-money.core :as mny]
             [xtdb-money.util :refer [local-date?
                                      make-id
-                                     ->storable-date]]))
+                                     ->storable-date]])
+  (:import org.joda.time.LocalDate))
 
 ; This is a no-op with the memory implementation
 (defmethod mny/reset-db :xtdb [_])
@@ -119,6 +120,66 @@
                            fields))}))
 
 (defmulti criteria->query mny/model-type)
+
+(defmulti ^:private ->storable type)
+
+(defmethod ->storable :default [v] v)
+
+(defmethod ->storable LocalDate
+  [v]
+  (->storable-date v))
+
+(defmulti ^:private apply-criterion
+  (fn [_query [_k v]]
+    (cond
+      (vector? v) :comparison)))
+
+(defmethod apply-criterion :default
+  [query [k v]]
+  (-> query
+      (update-in [:in] (fnil conj []) (symbol k))
+      (update-in [::args] (fnil conj []) (->storable v))))
+
+(defmethod apply-criterion :comparison
+  [query [k [oper v]]]
+  (let [arg (symbol (str (name k) "-arg"))]
+    (-> query
+        (update-in [::args] (->storable v))
+        (update-in [:in] (fnil conj []) arg)
+        (update-in [:where] conj [(list (name oper)
+                                        (symbol k)
+                                        arg)]))))
+
+(defn apply-criteria
+  [query criteria]
+  (reduce apply-criterion
+          query
+          criteria))
+
+(defmulti ^:private apply-sort
+  (fn [_query order-by]
+    (cond
+      (vector? order-by) :multi
+      order-by           :single)))
+
+(defmethod apply-sort :single
+  [query order-by]
+  (assoc query :order-by [(symbol order-by)]))
+
+(defmethod apply-sort :multi
+  [query order-by]
+  (assoc query :order-by (map (fn [x]
+                                (if (vector? x)
+                                  (update-in x [0] symbol)
+                                  (symbol x)))
+                              order-by)))
+
+(defn apply-options
+  [query {:keys [limit offset order-by]}]
+  (cond-> query
+    limit (assoc :limit limit)
+    offset (assoc :offset offset)
+    order-by (apply-sort order-by)))
 
 (defmethod mny/reify-storage :xtdb
   [config]
