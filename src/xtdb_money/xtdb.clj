@@ -126,7 +126,7 @@
     (reify mny/Storage
       (put [_ models] (submit node models))
       (select [_ criteria _options]
-        (let [[query args] (criteria->query criteria)]
-          (apply xt/q (xt/db node) query args)))
+        (let [{::keys [args] :as query} (criteria->query criteria)]
+          (apply xt/q (xt/db node) (dissoc query ::args) args)))
       (delete [_ models] (submit node (map #(vector :xt/delete %) models)))
       (reset [_] (comment "This is a no-op with in-memory implementation")))))

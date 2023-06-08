@@ -4,7 +4,7 @@
 (defmethod x/criteria->query :entity
   [{:keys [id]}]
   (if id
-    [(assoc (x/query-map :entity name)
-            :in '[id])
-     [id]]
-    [(x/query-map :entity name)]))
+    (assoc (x/query-map :entity name)
+           :in '[id]
+           ::x/args [id])
+    (x/query-map :entity name)))

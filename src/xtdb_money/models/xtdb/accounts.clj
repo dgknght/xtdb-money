@@ -9,9 +9,9 @@
   [criteria]
   (reduce (fn [res [k v]]
             (-> res
-                (update-in [0 :in]
+                (update-in [:in]
                            (fnil conj [])
                            (symbol (name k)))
-                (update-in [1] (fnil conj []) v)))
-          [query-base []]
+                (update-in [::x/args] (fnil conj []) v)))
+          query-base
           (select-keys criteria [:id :entity-id])))
