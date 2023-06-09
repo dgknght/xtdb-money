@@ -2,7 +2,7 @@
   (:require [xtdb-money.xtdb :as x]))
 
 (defmethod x/criteria->query :entity
-  [{:keys [id]}]
+  [{:keys [id]} _]
   (if id
     (assoc (x/query-map :entity name)
            :in '[id]

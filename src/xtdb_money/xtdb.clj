@@ -119,7 +119,8 @@
                              ['id (keyword type (name field)) field])
                            fields))}))
 
-(defmulti criteria->query mny/model-type)
+(defmulti criteria->query
+  (fn [criteria _opts] (mny/model-type criteria)))
 
 (defmulti ^:private ->storable type)
 
@@ -144,9 +145,9 @@
   [query [k [oper v]]]
   (let [arg (symbol (str (name k) "-arg"))]
     (-> query
-        (update-in [::args] (->storable v))
+        (update-in [::args] (fnil conj []) (->storable v))
         (update-in [:in] (fnil conj []) arg)
-        (update-in [:where] conj [(list (name oper)
+        (update-in [:where] conj [(list (symbol (name oper))
                                         (symbol k)
                                         arg)]))))
 
@@ -164,15 +165,15 @@
 
 (defmethod apply-sort :single
   [query order-by]
-  (assoc query :order-by [(symbol order-by)]))
+  (assoc query :order-by [[(symbol order-by) :asc]]))
 
 (defmethod apply-sort :multi
   [query order-by]
-  (assoc query :order-by (map (fn [x]
-                                (if (vector? x)
-                                  (update-in x [0] symbol)
-                                  (symbol x)))
-                              order-by)))
+  (assoc query :order-by (mapv (fn [x]
+                                 (if (vector? x)
+                                   (update-in x [0] symbol)
+                                   [(symbol x) :asc]))
+                               order-by)))
 
 (defn apply-options
   [query {:keys [limit offset order-by]}]
@@ -186,8 +187,8 @@
   (let [node (xt/start-node (dissoc config ::mny/provider))]
     (reify mny/Storage
       (put [_ models] (submit node models))
-      (select [_ criteria _options]
-        (let [{::keys [args] :as query} (criteria->query criteria)]
-          (apply xt/q (xt/db node) (dissoc query ::args) args)))
+      (select [_ criteria options]
+        (let [{::keys [args] :as query} (criteria->query criteria options)]
+          (apply xt/q (xt/db node) query args)))
       (delete [_ models] (submit node (map #(vector :xt/delete %) models)))
       (reset [_] (comment "This is a no-op with in-memory implementation")))))

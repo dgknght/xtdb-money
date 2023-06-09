@@ -54,12 +54,13 @@
   a collection of tuples with an account in the first position and
   the total for the account in the second."
   [entity-id start-date end-date]
-  (let [accounts (->> (acts/select {:entity-id entity-id})
+  (let [accounts (->> (acts/select {:entity-id entity-id} {})
                       (map (juxt :id identity))
                       (into {}))]
     (->> (trxs/select {:entity-id entity-id
                        :start-date start-date
-                       :end-date end-date})
+                       :end-date end-date}
+                      {})
          (lookup-accounts accounts)
          (split-actions)
          (group-by #(get-in % [:account :type]))

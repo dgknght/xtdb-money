@@ -19,7 +19,8 @@
   [query {:keys [account-id]}]
   (if account-id
     (-> query
-        (update-in [::args] (fnil conj []) account-id)
+        (update-in [::x/args] (fnil conj []) account-id)
+        (update-in [:in] (fnil conj []) 'account-id)
         (update-in [:where]
                    conj
                    '(or [id :transaction/debit-account-id account-id]

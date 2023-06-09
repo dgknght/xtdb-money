@@ -276,7 +276,11 @@
 
 (dbfn find
   [db id]
-  (first (select db {:id id})))
+
+  (clojure.pprint/pprint {::find id
+                          ::db db})
+
+  (first (select db {:id id} {:limit 1})))
 
 (defn- ensure-model-type
   [m]

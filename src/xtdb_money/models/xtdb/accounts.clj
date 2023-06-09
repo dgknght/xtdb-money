@@ -6,7 +6,7 @@
   (x/query-map :account entity-id name type balance first-trx-date last-trx-date))
 
 (defmethod x/criteria->query :account
-  [criteria]
+  [criteria _]
   (reduce (fn [res [k v]]
             (-> res
                 (update-in [:in]
