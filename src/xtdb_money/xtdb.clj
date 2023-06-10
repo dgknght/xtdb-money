@@ -132,8 +132,11 @@
 
 (defmulti ^:private apply-criterion
   (fn [_query [_k v]]
-    (cond
-      (vector? v) :comparison)))
+    (when (vector? v)
+      (case (first v)
+        (:< :<= :> :>=) :comparison
+        :and            :intersection
+        :or             :union))))
 
 (defmethod apply-criterion :default
   [query [k v]]
@@ -150,6 +153,31 @@
         (update-in [:where] conj [(list (symbol (name oper))
                                         (symbol k)
                                         arg)]))))
+
+(defmethod apply-criterion :intersection
+  [query [k [_ & v]]]
+  (update-in query
+             [:where]
+             (comp vec concat)
+             (map (fn [[oper x]]
+                    (vector
+                      (list (-> oper name symbol)
+                            (symbol k)
+                            (->storable x))))
+                  v)))
+
+(defmethod apply-criterion :union
+  [query [k [_ & v]]]
+  ; This shape of this actually depends on the operator.
+  ; If it's equality, then it can look like [attr :qualified/attr value]
+  ; If it's comparison, it should look like ((< attr value))
+  ; It should also support nested ands and ors, which it currently does not
+  (update-in query [:where] conj [(list 'or
+                                        (map (fn [[oper x]]
+                                               (list (-> oper name symbol)
+                                                     (symbol k)
+                                                     x))
+                                             v))]))
 
 (defn apply-criteria
   [query criteria]

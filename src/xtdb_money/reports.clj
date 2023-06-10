@@ -52,15 +52,19 @@
 (defn- summarized-transactions
   "Yields a map where the keys are account types and the values are
   a collection of tuples with an account in the first position and
-  the total for the account in the second."
+  the total for the account in the second. The start-date is inclusive
+  and the end-date is exclusive"
   [entity-id start-date end-date]
   (let [accounts (->> (acts/select {:entity-id entity-id} {})
                       (map (juxt :id identity))
-                      (into {}))]
-    (->> (trxs/select {:entity-id entity-id
-                       :start-date start-date
-                       :end-date end-date}
-                      {})
+                      (into {}))
+        transactions (trxs/select
+                       (trxs/between
+                         {:entity-id entity-id}
+                         start-date
+                         end-date)
+                       {})]
+    (->> transactions
          (lookup-accounts accounts)
          (split-actions)
          (group-by #(get-in % [:account :type]))

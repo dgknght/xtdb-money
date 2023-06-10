@@ -38,8 +38,14 @@
                                       ::credit-balance
                                       ::correlation-id]))
 
-(s/def ::start-date (partial instance? LocalDate))
-(s/def ::end-date (partial instance? LocalDate))
+(defn- criterion?
+  [pred]
+  (some-fn pred
+           (every-pred vector?
+                       #(mny/oper? (first %))
+                       #((criterion? pred) (second %)))))
+
+(s/def ::transaction-date (criterion? local-date?))
 
 (defn criteria-dispatch
   [& args]
@@ -56,19 +62,13 @@
 (defmethod criteria :account-id
   [_]
   (s/keys :req-un [::account-id
-                   ::start-date
-                   ::end-date]))
+                   ::transaction-date]))
 (defmethod criteria :entity-id
   [_]
   (s/keys :req-un [::entity-id
-                   ::start-date
-                   ::end-date]))
+                   ::transaction-date]))
 
 (s/def ::criteria (s/multi-spec criteria :account-id))
-
-(s/def ::offset integer?)
-(s/def ::limit integer?)
-(s/def ::options (s/keys :opt-un [::offset ::limit]))
 
 (def ^{:private true :dynamic true} *accounts* nil)
 
@@ -86,11 +86,16 @@
       (update-in [:transaction-date] <-storable-date)
       (mny/prepare :transaction)))
 
-(dbfn select
-  [db criteria options]
-  #_{:pre [(s/valid? ::criteria criteria)
-         (s/valid? ::options options)]}
-  (map after-read (mny/select db (mny/model-type criteria :transaction) options)))
+(defn select
+  ([criteria]         (select criteria {}))
+  ([criteria options] (select (mny/storage) criteria options))
+  ([db criteria options]
+   {:pre [(satisfies? mny/Storage db)
+          (s/valid? ::criteria criteria)
+          (s/valid? ::mny/options options)]}
+   (map after-read (mny/select db
+                               (mny/model-type criteria :transaction)
+                               options))))
 
 (defn- mark-deleted
   [trx]
@@ -235,13 +240,21 @@
        (filter #(= (:id account)
                    (account-id %)))))
 
-; TODO: Make this a dbfn?
+(defn between
+  "Applies a :transaction-date attribute to a criteria map where
+  :start-date is inclusive and :end-date is exclusive"
+  [criteria start-date end-date]
+  (assoc criteria :transaction-date [:and
+                                     [:>= start-date]
+                                     [:< end-date]]))
+
 (defn select-by-account
   [account start-date end-date]
   (with-accounts account
-    (->> (select {:account-id (:id account)
-                  :start-date start-date
-                  :end-date end-date})
+    (->> (select (between {:account-id (:id account)}
+                           start-date
+                           end-date)
+                 {})
          (split-and-filter account)
          (sort-by index))))
 
@@ -263,6 +276,7 @@
 
 (defn- subsequents*
   [transaction-date account-id]
+
   (select {:transaction-date [:>= transaction-date]
            :account-id account-id}
           {:order-by [:transaction-date]}))
@@ -276,10 +290,6 @@
 
 (dbfn find
   [db id]
-
-  (clojure.pprint/pprint {::find id
-                          ::db db})
-
   (first (select db {:id id} {:limit 1})))
 
 (defn- ensure-model-type

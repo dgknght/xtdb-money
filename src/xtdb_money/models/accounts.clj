@@ -28,16 +28,24 @@
       (update-in-if [:first-trx-date] <-storable-date)
       (update-in-if [:last-trx-date] <-storable-date)))
 
-(dbfn select
-  [db criteria]
-  {:per [(some #(% criteria) [:id :entity-id])]}
+(defn select
+  ([criteria]         (select criteria {}))
+  ([criteria options] (select (mny/storage) criteria options))
+  ([db criteria options]
+  {:per [(satisfies? mny/Storage db)
+         (s/valid? ::mny/options options)
+         ((some-fn :id :entity) criteria)]}
 
   (map after-read
-       (mny/select db (mny/model-type criteria :account) {})))
+       (mny/select db
+                   (mny/model-type criteria :account)
+                   options))))
 
 (dbfn find
   [db id]
-  (first (select db {:id (->id id)})))
+  (first (select db
+                 {:id (->id id)}
+                 {:limit 1})))
 
 (defn- before-save
   [account]

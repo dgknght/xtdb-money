@@ -1,5 +1,17 @@
 (ns xtdb-money.core
-  (:require [config.core :refer [env]]))
+  (:require [clojure.spec.alpha :as s]
+            [clojure.set :refer [union]]
+            [config.core :refer [env]]))
+
+(def comparison-opers #{:< :<= :> :>=})
+(def set-opers #{:and :or})
+(def opers (union comparison-opers set-opers))
+(def oper? (partial contains? opers))
+
+(s/def ::offset integer?)
+(s/def ::limit integer?)
+(s/def ::order-by vector?) ; TODO: flesh out this spec
+(s/def ::options (s/keys :opt-un [::offset ::limit ::order-by]))
 
 (defprotocol Storage
   "Defines the functions necessary to provider storage for the application"

@@ -1,5 +1,6 @@
 (ns xtdb-money.models.transactions-test
-  (:require [clojure.test :refer [is use-fixtures testing]]
+  (:require [clojure.test :refer [deftest is are use-fixtures testing]]
+            [clojure.spec.alpha :as s]
             [clj-time.core :as t]
             [clj-time.format :as tf]
             [clj-time.coerce :as tc]
@@ -18,6 +19,37 @@
             [xtdb-money.models.xtdb.ref]))
 
 (use-fixtures :each reset-db)
+
+(deftest validate-search-criteria
+  (are [c] (empty? (s/explain-data ::trxs/criteria c))
+       {:account-id 1
+        :transaction-date (t/local-date 2020 1 1)}
+       {:account-id 1
+        :transaction-date [:< (t/local-date 2020 1 1)]}
+       {:account-id 1
+        :transaction-date [:<= (t/local-date 2020 1 1)]}
+       {:account-id 1
+        :transaction-date [:> (t/local-date 2020 1 1)]}
+       {:account-id 1
+        :transaction-date [:>= (t/local-date 2020 1 1)]}
+       {:account-id 1
+        :transaction-date [:and
+                           [:>= (t/local-date 2020 1 1)]
+                           [:< (t/local-date 20201 1 1)]]}
+       {:entity-id 1
+        :transaction-date (t/local-date 2020 1 1)}
+       {:entity-id 1
+        :transaction-date [:< (t/local-date 2020 1 1)]}
+       {:entity-id 1
+        :transaction-date [:<= (t/local-date 2020 1 1)]}
+       {:entity-id 1
+        :transaction-date [:> (t/local-date 2020 1 1)]}
+       {:entity-id 1
+        :transaction-date [:>= (t/local-date 2020 1 1)]}
+       {:entity-id 1
+        :transaction-date [:and
+                           [:>= (t/local-date 2020 1 1)]
+                           [:< (t/local-date 20201 1 1)]]}))
 
 (defn- format-money
   [m]
