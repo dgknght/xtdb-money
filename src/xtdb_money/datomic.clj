@@ -57,19 +57,23 @@
                 conn))
           (throw (ex-info "Unable to connect to the database" d)))))))
 
-(defn- criteria->query
-  [_criteria {::keys [db]}]
-  {:query '[:find ?e ?name
-            :keys id name
-            :where [?e :entity/name ?name]]
-   :args [db]})
+(defmulti criteria->query
+  (fn [m _opts]
+    (mny/model-type m)))
+
+(defmulti before-save mny/model-type)
+(defmulti after-read mny/model-type)
+
+(defmethod before-save :default [m] m)
+(defmethod after-read :default [m] m)
 
 (defn- put*
   [models {:keys [conn]}]
   {:pre [(satisfies? Connection conn)]}
   (let [prepped (map (comp qualify-keys
                            #(rename-keys % {:id :db/id})
-                           #(+id % (comp str random-uuid)))
+                           #(+id % (comp str random-uuid))
+                           before-save)
                      models)
         result (d/transact conn {:tx-data prepped})]
     (map (fn [m]
@@ -82,7 +86,7 @@
                         [::db]
                         (fnil identity (d/db conn)))
         query (criteria->query criteria opts)]
-    (d/q query)))
+    (map after-read (d/q query))))
 
 (defmethod mny/reify-storage :datomic
   [config]

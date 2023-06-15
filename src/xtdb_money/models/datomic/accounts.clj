@@ -1,40 +1,22 @@
 (ns xtdb-money.models.datomic.accounts
-  #_(:require [xtdb-money.models.accounts :as acts]
-            [xtdb-money.datomic :as d]
-            [xtdb-money.util :refer [unqualify-keys]]))
+  (:require [xtdb-money.datomic :as d]))
 
-#_(defn- after-read
+(defmethod d/before-save :account
+  [{:keys [first-trx-date last-trx-date] :as account}]
+  (cond-> (update-in account [:type] name)
+    (not first-trx-date) (dissoc :first-trx-date)
+    (not last-trx-date)  (dissoc :last-trx-date)))
+
+(defmethod d/after-read :account
   [account]
-  (-> account
-      (update-in [:entity-id] :id)
-      (update-in [:type] keyword)))
+  (update-in account [:type] keyword))
 
-#_(defmethod acts/query :datomic
-  [criteria]
-  {:pre [(:entity-id criteria)]}
-  (map (comp after-read
-             unqualify-keys)
-       (d/index-pull {:index :avet
-                      :selector '[*]
-                      :start [:account/entity-id (:entity-id criteria)]})))
-
-#_(defn- remove-nils
-  [account]
-  (reduce (fn [a k]
-            (if (a k)
-              a
-              (dissoc a k)))
-          account
-          (keys account)))
-
-#_(defn- before-save
-  [account]
-  (-> account
-      (update-in [:type] name)
-      remove-nils))
-
-#_(defmethod acts/submit :datomic
-  [& models]
-  (->> models
-       (map before-save)
-       d/transact))
+(defmethod d/criteria->query :account
+  [_criteria {::d/keys [db]}]
+  {:query '[:find ?a ?entity-id ?name ?type ?balance
+            :keys id entity-id name type balance
+            :where [?a :account/entity-id ?entity-id]
+            [?a :account/name ?name]
+            [?a :account/type ?type]
+            [?a :account/balance ?balance]]
+   :args [db]})

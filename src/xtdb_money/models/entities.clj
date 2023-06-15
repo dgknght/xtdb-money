@@ -11,7 +11,7 @@
   (map #(mny/model-type % :entity)
     (mny/select db
                 (mny/model-type criteria :entity)
-                nil)))
+                {})))
 
 (dbfn find
   [db id]

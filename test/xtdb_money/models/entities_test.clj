@@ -5,7 +5,7 @@
                                         dbtest]]
             [xtdb-money.models.entities :as ents]
             [xtdb-money.models.xtdb.ref]
-            [xtdb-money.datomic]))
+            [xtdb-money.models.datomic.ref]))
 
 (use-fixtures :each reset-db)
 
