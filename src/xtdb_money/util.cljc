@@ -42,8 +42,10 @@
   x)
 
 (defmethod qualify-key :tuple
-  [x nspace]
-  (update-in x [0] #(keyword nspace (name %))))
+  [[k :as x] nspace]
+  (if (namespace k)
+    x
+    (update-in x [0] #(keyword nspace (name %)))))
 
 (defn qualify-keys
   "Creates fully-qualified entity attributes by applying
@@ -65,7 +67,8 @@
 
 (defn +id
   "Given a map without an :id value, adds one with a random UUID as a value"
-  [m]
-  (if (:id m)
-    m
-    (assoc m :id (random-uuid))))
+  ([m] (+id m random-uuid))
+  ([m id-fn]
+   (if (:id m)
+     m
+     (assoc m :id (id-fn)))))

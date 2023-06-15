@@ -1,7 +1,8 @@
 (ns xtdb-money.datomic
   (:require [clojure.set :refer [rename-keys]]
             [datomic.client.api :as d]
-            [xtdb-money.util :refer [qualify-keys]]
+            [datomic.client.api.protocols :refer [Connection]]
+            [xtdb-money.util :refer [qualify-keys +id]]
             [xtdb-money.core :as mny]))
 
 (def schema
@@ -40,16 +41,6 @@
 
 (def ^:private db-name "money")
 
-(defn- prepend-db
-  [coll db-fn]
-
-  (clojure.pprint/pprint {::prepend-db coll})
-
-  (cons (db-fn coll))
-  #_(if (instance? com.datomic.Db (first coll))
-    coll
-    (cons (db-fn) coll)))
-
 (defn- init-conn
   [client]
   (try
@@ -62,33 +53,42 @@
           (do (d/create-database client {:db-name db-name})
               (let [conn (d/connect client {:db-name db-name})]
                 (d/transact conn {:tx-data schema
-                                  :db-name db-name})))
+                                  :db-name db-name})
+                conn))
           (throw (ex-info "Unable to connect to the database" d)))))))
 
 (defn- criteria->query
   [_criteria {::keys [db]}]
-  {:query '[:find ?e
-            :where [?e :entity/name]]
+  {:query '[:find ?e ?name
+            :keys id name
+            :where [?e :entity/name ?name]]
    :args [db]})
+
+(defn- put*
+  [models {:keys [conn]}]
+  {:pre [(satisfies? Connection conn)]}
+  (let [prepped (map (comp qualify-keys
+                           #(rename-keys % {:id :db/id})
+                           #(+id % (comp str random-uuid)))
+                     models)
+        result (d/transact conn {:tx-data prepped})]
+    (map (fn [m]
+           (get-in result [:tempids (:db/id m)] (:db/id m)))
+         prepped)))
+
+(defn- select*
+  [criteria options {:keys [conn]}]
+  (let [opts (update-in options
+                        [::db]
+                        (fnil identity (d/db conn)))
+        query (criteria->query criteria opts)]
+    (d/q query)))
 
 (defmethod mny/reify-storage :datomic
   [config]
   (let [client (d/client config)
         conn (init-conn client)]
     (reify mny/Storage
-      (put [_ models]
-        (let [prepped (map (comp #(update-in % [:db/id] (fnil identity "new-entity"))
-                                 #(rename-keys % {:entity/id :db/id})
-                                 qualify-keys)
-                           models)
-              result (d/transact conn {:tx-data prepped})]
-          (map (fn [{:db/keys [id]}]
-                 (get-in result [:tempids id] id))
-               prepped)))
-      (select [_ criteria options]
-        (let [opts (update-in options
-                              [::db]
-                              (fnil identity (d/db conn)))]
-          (d/q (criteria->query criteria opts))))
-      (reset [_]
-        (d/delete-database client {:db-name db-name})))))
+      (put [_ models]       (put* models {:conn conn}))
+      (select [_ crit opts] (select* crit opts {:conn conn}))
+      (reset [_]            (d/delete-database client {:db-name db-name})))))
