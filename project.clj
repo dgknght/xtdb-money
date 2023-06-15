@@ -17,8 +17,8 @@
                              :jvm-opts ["-Dclojure.compiler.direct-linking=true"]}
                    :test [:project/test :profiles/test] ; this performs a deep merge, so it's only necessary to override the specific attributes that need to change in profiles.clj
                    :project/test {:env {:db {:active "xtdb"
-                                             :strategies {#_"datomic"
-                                                          #_{:xtdb-money.core/provider :datomic
+                                             :strategies {"datomic"
+                                                          {:xtdb-money.core/provider :datomic
                                                            :server-type :dev-local
                                                            :system "money-test"
                                                            :storage-dir "/Users/dknight/.datomic-storage"}
@@ -27,8 +27,8 @@
                                                           {:xtdb-money.core/provider :xtdb}}}}}
                    :dev [:project/dev :profiles/dev]
                    :project/dev {:env {:db {:active "xtdb"
-                                            :strategies {#_"datomic"
-                                                         #_{:xtdb-money.core/provider :datomic
+                                            :strategies {"datomic"
+                                                         {:xtdb-money.core/provider :datomic
                                                           :server-type :dev-local
                                                           :system "money-dev"
                                                           :storage-dir "/Users/dknight/.datomic-storage"}

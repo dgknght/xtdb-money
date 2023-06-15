@@ -21,5 +21,5 @@
   [db entity]
   {:pre [(s/valid? ::entity entity)]}
 
-  (find db
-        (first (mny/put db [(mny/model-type entity :entity)]))))
+  (let [ids (mny/put db [(mny/model-type entity :entity)])]
+    (find db (first ids)))) ; TODO: return all of the saved models instead of the first?

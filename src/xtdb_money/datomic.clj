@@ -40,43 +40,6 @@
 
 (def ^:private db-name "money")
 
-
-#_(defmethod mny/start :datomic
-  [config]
-  (let [cl (client config)
-        _ (d/create-database cl {:db-name db-name}) ; TODO: should this be run every time? only once?
-        cn (d/connect cl {:db-name db-name})]
-    (reset! conn cn)
-    (d/transact cn {:tx-data schema
-                    :db-name db-name}))) ; TODO: should this be run every time? only once?
-
-#_(defmethod mny/stop :datomic [_]
-  (reset! conn nil))
-
-#_(defmethod mny/reset-db :datomic
-  [config]
-  (d/delete-database (client config) {:db-name db-name}))
-
-#_(defn- transact
-  [models]
-  (d/transact (d/connect (client cfg)
-                         {:db-name db-name})
-              {:tx-data (map (comp #(rename-keys % {:entity/id :db/id}) ; TODO: unkludge this
-                                   qualify-keys)
-                             models)}))
-
-#_(defn query
-  [cfg q & args]
-  (d/q {:query q
-        :args (cons (d/db
-                      (d/connect (client cfg)
-                                 {:db-name db-name}))
-                    args)}))
-
-#_(defn index-pull
-  [q]
-  (d/index-pull (db) q))
-
 (defn- prepend-db
   [coll db-fn]
 
@@ -93,30 +56,39 @@
     (d/connect client {:db-name db-name})
     (catch clojure.lang.ExceptionInfo e
       ; TODO: is there are better way that catching this exception?
-      (if (= :cognitect.anomalies/not-found
-             (:cognitect.anomalies/category (ex-data e)))
-        (do
-          (d/create-database client {:db-name db-name})
-          (let [conn (d/connect client {:db-name db-name})]
-            (d/transact conn {:tx-data schema
-                              :db-name db-name})))
-        :enable-to-connect))))
+      (let [d (ex-data e)]
+        (if (= :cognitect.anomalies/not-found
+               (:cognitect.anomalies/category d))
+          (do (d/create-database client {:db-name db-name})
+              (let [conn (d/connect client {:db-name db-name})]
+                (d/transact conn {:tx-data schema
+                                  :db-name db-name})))
+          (throw (ex-info "Unable to connect to the database" d)))))))
+
+(defn- criteria->query
+  [_criteria {::keys [db]}]
+  {:query '[:find ?e
+            :where [?e :entity/name]]
+   :args [db]})
 
 (defmethod mny/reify-storage :datomic
   [config]
   (let [client (d/client config)
         conn (init-conn client)]
-
     (reify mny/Storage
       (put [_ models]
-        (let [prepped (map (comp #(rename-keys % {:entity/id :db/id})
+        (let [prepped (map (comp #(update-in % [:db/id] (fnil identity "new-entity"))
+                                 #(rename-keys % {:entity/id :db/id})
                                  qualify-keys)
                            models)
               result (d/transact conn {:tx-data prepped})]
-          (clojure.pprint/pprint {::result result}))
-        [])
-      (select [_ query args]
-        (d/q {:query query
-              :args (prepend-db args #(d/db conn))}))
+          (map (fn [{:db/keys [id]}]
+                 (get-in result [:tempids id] id))
+               prepped)))
+      (select [_ criteria options]
+        (let [opts (update-in options
+                              [::db]
+                              (fnil identity (d/db conn)))]
+          (d/q (criteria->query criteria opts))))
       (reset [_]
         (d/delete-database client {:db-name db-name})))))
