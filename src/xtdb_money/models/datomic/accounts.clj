@@ -3,15 +3,13 @@
 
 (defmethod d/before-save :account
   [{:keys [first-trx-date last-trx-date] :as account}]
-  (cond-> (update-in account [:type] name)
+  (cond-> account
     (not first-trx-date) (dissoc :first-trx-date)
     (not last-trx-date)  (dissoc :last-trx-date)))
 
 (defmethod d/after-read :account
   [account]
-  (-> account
-      (update-in [:entity-id] :id)
-      (update-in [:type] keyword)))
+  (update-in account [:entity-id] :id))
 
 (defn- apply-id
   [query {:keys [id]}]

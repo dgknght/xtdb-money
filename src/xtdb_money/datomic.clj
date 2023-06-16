@@ -26,7 +26,7 @@
     :db/cardinality :db.cardinality/one
     :db/doc "The name of the account"}
    {:db/ident :account/type
-    :db/valueType :db.type/string
+    :db/valueType :db.type/keyword
     :db/cardinality :db.cardinality/one
     :db/doc "The type of the account (asset, liability, equity, income, expense)"}
    {:db/ident :account/balance
