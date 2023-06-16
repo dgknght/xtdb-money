@@ -1,7 +1,8 @@
 (ns xtdb-money.util
   (:require [clojure.walk :refer [prewalk]]
             #?(:clj [clj-time.coerce :as tc]
-               :cljs [cljs-time.coerce :as tc]))
+               :cljs [cljs-time.coerce :as tc])
+            [cljs.core :as c])
   #?(:clj (:import org.joda.time.LocalDate)))
 
 (def ->storable-date tc/to-long)
@@ -72,3 +73,18 @@
    (if (:id m)
      m
      (assoc m :id (id-fn)))))
+
+(defmulti prepend
+  (fn [coll _]
+    {:pre [(sequential? coll)]}
+    (cond
+      (vector? coll) :vector
+      (list? coll)   :list)))
+
+(defmethod prepend :vector
+  [coll v]
+  (vec (concat [v] coll)))
+
+(defmethod prepend :list
+  [coll v]
+  (conj coll v))

@@ -4,7 +4,8 @@
             [datomic.client.api.protocols :refer [Connection]]
             [xtdb-money.util :refer [qualify-keys
                                      unqualify-keys
-                                     +id]]
+                                     +id
+                                     prepend]]
             [xtdb-money.core :as mny]))
 
 (def schema
@@ -84,15 +85,16 @@
 
 (defn- select*
   [criteria options {:keys [conn]}]
-  (let [opts (update-in options
-                        [::db]
-                        (fnil identity (d/db conn)))
-        query (criteria->query criteria opts)
+  (let [query (-> criteria
+                  (criteria->query options)
+                  (update-in [:args] prepend (or (::db options)
+                                                 (d/db conn))))
         result (d/q query)]
     (map (comp after-read
                #(mny/model-type % (mny/model-type criteria))
-               unqualify-keys)
-         (first result))))
+               unqualify-keys
+               first)
+         result)))
 
 (defmethod mny/reify-storage :datomic
   [config]

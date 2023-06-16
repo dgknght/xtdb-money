@@ -19,3 +19,11 @@
     (is (= {:id id}
            (utl/+id {:id id}))
         "The :id attribute is unchanged in a map that already contains one")))
+
+(deftest prepend-a-value
+  (is (= [:new :a :b]
+         (utl/prepend [:a :b] :new))
+      "The value is added at the front of a vector")
+  (is (= '(:new :a :b)
+         (utl/prepend '(:a :b) :new))
+      "The value is added at the front of a list"))
