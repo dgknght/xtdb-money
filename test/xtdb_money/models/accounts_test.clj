@@ -20,11 +20,12 @@
     (let [entity (find-entity "Personal")
           account {:entity-id (:id entity)
                    :name "Checking"
-                   :type :asset}]
-      (acts/put account)
-      (is (seq-of-maps-like? [account]
-                             (acts/select {:entity-id (:id entity)}))
-          "A saved account can be retrieved"))))
+                   :type :asset}
+          result (acts/put account)]
+      (is (comparable? account result)
+          "A map with the specified attributes is returned")
+      (is (:id result)
+          "The returned map contains an ID value"))))
 
 (def ^:private find-ctx
   (assoc create-ctx

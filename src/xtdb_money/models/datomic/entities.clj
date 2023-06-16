@@ -2,8 +2,8 @@
   (:require [xtdb-money.datomic :as d]))
 
 (defmethod d/criteria->query :entity
-  [_criteria {::d/keys [db]}]
-  {:query '[:find ?e ?name
-            :keys id name
-            :where [?e :entity/name ?name]]
-   :args [db]})
+  [criteria {::d/keys [db]}]
+  {:query '[:find (pull ?e [*])
+            :in $ ?e]
+   :args (filter identity [db
+                           (:id criteria)])})

@@ -2,7 +2,9 @@
   (:require [clojure.set :refer [rename-keys]]
             [datomic.client.api :as d]
             [datomic.client.api.protocols :refer [Connection]]
-            [xtdb-money.util :refer [qualify-keys +id]]
+            [xtdb-money.util :refer [qualify-keys
+                                     unqualify-keys
+                                     +id]]
             [xtdb-money.core :as mny]))
 
 (def schema
@@ -85,8 +87,12 @@
   (let [opts (update-in options
                         [::db]
                         (fnil identity (d/db conn)))
-        query (criteria->query criteria opts)]
-    (map after-read (d/q query))))
+        query (criteria->query criteria opts)
+        result (d/q query)]
+    (map (comp after-read
+               #(mny/model-type % (mny/model-type criteria))
+               unqualify-keys)
+         (first result))))
 
 (defmethod mny/reify-storage :datomic
   [config]

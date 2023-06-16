@@ -9,14 +9,12 @@
 
 (defmethod d/after-read :account
   [account]
-  (update-in account [:type] keyword))
+  (-> account
+      (update-in [:entity-id] :id)
+      (update-in [:type] keyword)))
 
 (defmethod d/criteria->query :account
-  [_criteria {::d/keys [db]}]
-  {:query '[:find ?a ?entity-id ?name ?type ?balance
-            :keys id entity-id name type balance
-            :where [?a :account/entity-id ?entity-id]
-            [?a :account/name ?name]
-            [?a :account/type ?type]
-            [?a :account/balance ?balance]]
-   :args [db]})
+  [criteria {::d/keys [db]}]
+  {:query '[:find (pull ?a [*])
+            :in $ ?a]
+   :args [db (:id criteria)]})
