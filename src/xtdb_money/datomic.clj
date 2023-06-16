@@ -40,7 +40,46 @@
    {:db/ident :account/last-trx-date
     :db/valueType :db.type/string
     :db/cardinality :db.cardinality/one
-    :db/doc "The date of the last transaction in the account"}])
+    :db/doc "The date of the last transaction in the account"}
+   
+   ; Transaction
+   {:db/ident :transaction/debit-account-id
+    :db/valueType :db.type/ref
+    :db/cardinality :db.cardinality/one
+    :db/doc "Identifies the account debited by this transaction"}
+   {:db/ident :transaction/debit-index
+    :db/valueType :db.type/bigint
+    :db/cardinality :db.cardinality/one
+    :db/doc "The ordinal position of this transaction with the account being debited"}
+   {:db/ident :transaction/debit-balance
+    :db/valueType :db.type/bigdec
+    :db/cardinality :db.cardinality/one
+    :db/doc "The balance of the account being debited as a result of this transaction"}
+   {:db/ident :transaction/credit-account-id
+    :db/valueType :db.type/ref
+    :db/cardinality :db.cardinality/one
+    :db/doc "Identifies the account credited by this transaction"}
+   {:db/ident :transaction/credit-index
+    :db/valueType :db.type/bigint
+    :db/cardinality :db.cardinality/one
+    :db/doc "The ordinal position of this transaction with the account being credited"}
+   {:db/ident :transaction/credit-balance
+    :db/valueType :db.type/bigdec
+    :db/cardinality :db.cardinality/one
+    :db/doc "The balance of the account being credited as a result of this transaction"}
+   {:db/ident :transaction/amount
+    :db/valueType :db.type/bigdec
+    :db/cardinality :db.cardinality/one
+    :db/doc "The amount of the transaction"}
+   {:db/ident :transaction/description
+    :db/valueType :db.type/string
+    :db/cardinality :db.cardinality/one
+    :db/doc "A description of the transaction"}
+   {:db/ident :transaction/correlation-id
+    :db/valueType :db.type/uuid
+    :db/cardinality :db.cardinality/one
+    :db/doc "An ID the indicates this transaction is part of a larger, compound transaction"}
+   ])
 
 (def ^:private db-name "money")
 
@@ -89,7 +128,16 @@
                   (criteria->query options)
                   (update-in [:args] prepend (or (::db options)
                                                  (d/db conn))))
+
+        _ (clojure.pprint/pprint {::select* criteria
+                                  ::query query})
+
         result (d/q query)]
+
+        _ (clojure.pprint/pprint {::select* criteria
+                                  ::query query
+                                  ::result result})
+
     (map (comp after-read
                #(mny/model-type % (mny/model-type criteria))
                unqualify-keys

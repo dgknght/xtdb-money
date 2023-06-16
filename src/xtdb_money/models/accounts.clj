@@ -4,10 +4,10 @@
             [xtdb-money.util :refer [->id
                                      local-date?
                                      <-storable-date
-                                     update-in-if]]
+                                     update-in-if
+                                     non-nil?]]
             [xtdb-money.core :as mny :refer [dbfn]]))
 
-(def non-nil? (complement nil?))
 (s/def ::entity-id non-nil?)
 (s/def ::name string?)
 (s/def ::type #{:asset :liability :equity :income :expense})

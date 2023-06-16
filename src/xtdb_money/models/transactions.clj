@@ -7,18 +7,18 @@
             [clj-time.coerce :refer [to-date-time]]
             [xtdb-money.util :refer [<-storable-date
                                      local-date?
-                                     ->id]]
+                                     ->id
+                                     non-nil?]]
             [xtdb-money.core :as mny :refer [dbfn]]
             [xtdb-money.accounts :as a]
             [xtdb-money.models :as mdls]
-            [xtdb-money.models.accounts :as acts])
-  (:import org.joda.time.LocalDate))
+            [xtdb-money.models.accounts :as acts]))
 
 (s/def ::correlation-id (s/nilable uuid?))
 (s/def ::transaction-date local-date?)
 (s/def ::description string?)
-(s/def ::debit-account-id uuid?)
-(s/def ::credit-account-id uuid?)
+(s/def ::debit-account-id non-nil?)
+(s/def ::credit-account-id non-nil?)
 (s/def ::amount (s/and decimal?
                        #(< 0M %)))
 (s/def ::debit-index integer?)

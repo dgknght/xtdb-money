@@ -16,7 +16,8 @@
             [xtdb-money.models.accounts :as acts]
             [xtdb-money.models.transactions :as trxs]
             [xtdb-money.reports :as rpts]
-            [xtdb-money.models.xtdb.ref]))
+            [xtdb-money.models.xtdb.ref]
+            [xtdb-money.models.datomic.ref]))
 
 (use-fixtures :each reset-db)
 
@@ -75,7 +76,7 @@
           checking (find-account "Checking")
           salary (find-account "Salary")
           attr {:transaction-date (t/local-date 2000 1 1)
-                :correlation-id (random-uuid)
+                ;:correlation-id (random-uuid)
                 :description "Paycheck"
                 :entity-id (:id entity)
                 :credit-account-id (:id salary)

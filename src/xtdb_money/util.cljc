@@ -88,3 +88,5 @@
 (defmethod prepend :list
   [coll v]
   (conj coll v))
+
+(def non-nil? (complement nil?))
