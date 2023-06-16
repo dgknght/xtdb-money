@@ -43,6 +43,10 @@
     :db/doc "The date of the last transaction in the account"}
    
    ; Transaction
+   {:db/ident :transaction/transaction-date
+    :db/valueType :db.type/string
+    :db/cardinality :db.cardinality/one
+    :db/doc "The date on which the transaction occurred"}
    {:db/ident :transaction/debit-account-id
     :db/valueType :db.type/ref
     :db/cardinality :db.cardinality/one
@@ -129,14 +133,16 @@
                   (update-in [:args] prepend (or (::db options)
                                                  (d/db conn))))
 
-        _ (clojure.pprint/pprint {::select* criteria
-                                  ::query query})
+        _ (when (= :transaction (mny/model-type criteria))
+            (clojure.pprint/pprint {::select* criteria
+                                    ::query query}))
 
         result (d/q query)]
 
-        _ (clojure.pprint/pprint {::select* criteria
+        _ (when (= :transaction (mny/model-type criteria))
+            (clojure.pprint/pprint {::select* criteria
                                   ::query query
-                                  ::result result})
+                                  ::result result}))
 
     (map (comp after-read
                #(mny/model-type % (mny/model-type criteria))
