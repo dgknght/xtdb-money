@@ -1,8 +1,9 @@
 (ns xtdb-money.util
   (:require [clojure.walk :refer [prewalk]]
+            #?(:clj [clj-time.core :as t]
+               :cljs [cljs-time.core :as t])
             #?(:clj [clj-time.coerce :as tc]
-               :cljs [cljs-time.coerce :as tc])
-            [cljs.core :as c])
+               :cljs [cljs-time.coerce :as tc]))
   #?(:clj (:import org.joda.time.LocalDate)))
 
 (def ->storable-date tc/to-long)
@@ -90,3 +91,52 @@
   (conj coll v))
 
 (def non-nil? (complement nil?))
+
+(defn- normalize-sort-key
+  [x]
+  (if (vector? x)
+    (if (= 1 (count x))
+      (conj x :asc)
+      x)
+    [x :asc]))
+
+(defmulti ^:private compare-fns
+  (fn [v _dir]
+    (cond
+      (local-date? v) :local-date)))
+
+(defmethod compare-fns :default
+  [_ dir]
+  [= (if (= :asc dir) < >)])
+
+(defmethod compare-fns :local-date
+  [_ dir]
+  [t/equal? (if (= :asc dir)
+              t/before?
+              t/after?)])
+
+(defn- compare-fn
+  [& ms]
+  (fn [_ [k dir]]
+    (let [[v1 v2] (map k ms)
+          [eq cmp] (compare-fns (or v1 v2) dir)]
+      (if (eq v1 v2)
+        0
+        (reduced (if (cmp v1 v2)
+                   -1
+                   1))))))
+
+(defn- sort-fn
+  [order-by]
+  {:pre [(vector? order-by)]}
+  (fn [m1 m2]
+    (->> order-by
+         (map normalize-sort-key)
+         (reduce (compare-fn m1 m2)
+                 0))))
+
+(defn apply-sort
+  [{:keys [order-by]} models]
+  (if order-by
+    (sort (sort-fn order-by) models)
+    models))
