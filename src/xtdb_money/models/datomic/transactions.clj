@@ -1,5 +1,7 @@
 (ns xtdb-money.models.datomic.transactions
-  (:require [xtdb-money.datomic :as d]))
+  (:require [xtdb-money.util :refer [->storable-date
+                                     <-storable-date]]
+            [xtdb-money.datomic :as d]))
 
 (defn- apply-id
   [query {:keys [id]}]
@@ -21,15 +23,31 @@
                          [?t :transaction/credit-account-id ?a])]))
     query))
 
+(defn- apply-entity-id
+  [query {:keys [entity-id]}]
+  (if entity-id
+    (-> query
+        (update-in [:query :in] conj '?e)
+        (update-in [:args] conj entity-id)
+        (update-in [:query :where]
+                  conj '[?t :transaction/entity-id ?e]))
+    query))
+
 (defmulti ^:private apply-transaction-date
   (fn [_query {:keys [transaction-date]}]
-    (when (vector? transaction-date)
-      (case (first transaction-date)
-        (:< :<= :> :>=) :comparison
-        :and            :intersection
-        :or             :union))))
+    (when transaction-date
+      (if (vector? transaction-date)
+        (case (first transaction-date)
+          (:< :<= :> :>=) :comparison
+          :and            :intersection
+          :or             :union)
+        :simple))))
 
 (defmethod apply-transaction-date :default
+  [query _criteria]
+  query)
+
+(defmethod apply-transaction-date :simple
   [query {:keys [transaction-date]}]
   (-> query
       (update-in [:query :in] conj '?d)
@@ -48,8 +66,6 @@
                          '?trx-date
                          '?d)]])))
 
-
-
 (defmethod d/criteria->query :transaction
   [criteria _options]
   (-> '{:query {:find [(pull ?t [*])]
@@ -58,6 +74,29 @@
         :args []}
       (apply-id criteria)
       (apply-account-id criteria)
+      (apply-entity-id criteria)
       (apply-transaction-date criteria)))
 
+(defmethod d/before-save :transaction
+  [trx]
+  (-> trx
+      (update-in [:transaction-date] ->storable-date)
+      (select-keys [:entity-id
+                    :transaction-date
+                    :correlation-id
+                    :debit-account-id
+                    :debit-index
+                    :debit-balance
+                    :credit-account-id
+                    :credit-index
+                    :credit-balance
+                    :description
+                    :amount])))
 
+(defmethod d/after-read :transaction
+  [trx]
+  (-> trx
+      (update-in [:debit-account-id] :id)
+      (update-in [:credit-account-id] :id)
+      (update-in [:entity-id] :id)
+      (update-in [:transaction-date] <-storable-date)))

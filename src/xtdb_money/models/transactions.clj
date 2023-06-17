@@ -298,12 +298,6 @@
     m
     (mny/model-type m :transaction)))
 
-(defn- before-save
-  [trx]
-  (-> trx
-      (update-in [:correlation-id] identity) ; ensure there is a key in the map
-      ensure-model-type))
-
 (defmulti ^:private propagate-rec
   (fn [_state m]
     (cond
@@ -398,7 +392,7 @@
     ; The calling fn expects the transaction to be in the first position
     (->> (rest debit-side)
          (concat credit-side)
-         (map (comp before-save
+         (map (comp ensure-model-type
                      #(if (unilateral? %)
                         (bilateral %)
                         %)))

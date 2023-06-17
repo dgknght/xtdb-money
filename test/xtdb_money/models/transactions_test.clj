@@ -76,7 +76,7 @@
           checking (find-account "Checking")
           salary (find-account "Salary")
           attr {:transaction-date (t/local-date 2000 1 1)
-                ;:correlation-id (random-uuid)
+                :correlation-id (random-uuid)
                 :description "Paycheck"
                 :entity-id (:id entity)
                 :credit-account-id (:id salary)

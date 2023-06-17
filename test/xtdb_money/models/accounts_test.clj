@@ -1,7 +1,6 @@
 (ns xtdb-money.models.accounts-test
-  (:require [clojure.test :refer [deftest is testing use-fixtures]]
+  (:require [clojure.test :refer [is use-fixtures]]
             [dgknght.app-lib.test-assertions]
-            [xtdb-money.core :refer [with-storage]]
             [xtdb-money.test-context :refer [with-context
                                              find-entity]]
             [xtdb-money.helpers :refer [reset-db
@@ -20,12 +19,11 @@
     (let [entity (find-entity "Personal")
           account {:entity-id (:id entity)
                    :name "Checking"
-                   :type :asset}
-          result (acts/put account)]
-      (is (comparable? account result)
-          "A map with the specified attributes is returned")
-      (is (:id result)
-          "The returned map contains an ID value"))))
+                   :type :asset}]
+      (acts/put account)
+      (is (seq-of-maps-like? [account]
+                             (acts/select {:entity-id (:id entity)}))
+          "A saved account can be retrieved"))))
 
 (def ^:private find-ctx
   (assoc create-ctx

@@ -1,15 +1,21 @@
 (ns xtdb-money.models.datomic.accounts
-  (:require [xtdb-money.datomic :as d]))
+  (:require [dgknght.app-lib.core :refer [update-in-if]]
+            [xtdb-money.util :refer [->storable-date
+                                     <-storable-date]]
+            [xtdb-money.datomic :as d]))
 
 (defmethod d/before-save :account
-  [{:keys [first-trx-date last-trx-date] :as account}]
-  (cond-> account
-    (not first-trx-date) (dissoc :first-trx-date)
-    (not last-trx-date)  (dissoc :last-trx-date)))
+  [account]
+  (-> account
+      (update-in-if [:first-trx-date] ->storable-date)
+      (update-in-if [:last-trx-date] ->storable-date)))
 
 (defmethod d/after-read :account
   [account]
-  (update-in account [:entity-id] :id))
+  (-> account
+      (update-in-if [:first-trx-date] <-storable-date)
+      (update-in-if [:last-trx-date] <-storable-date)
+      (update-in [:entity-id] :id)))
 
 (defn- apply-id
   [query {:keys [id]}]

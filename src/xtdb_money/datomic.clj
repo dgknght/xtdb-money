@@ -34,17 +34,21 @@
     :db/cardinality :db.cardinality/one
     :db/doc "The final balance of the account"}
    {:db/ident :account/first-trx-date
-    :db/valueType :db.type/string
+    :db/valueType :db.type/long
     :db/cardinality :db.cardinality/one
     :db/doc "The date of the first transaction in the account"}
    {:db/ident :account/last-trx-date
-    :db/valueType :db.type/string
+    :db/valueType :db.type/long
     :db/cardinality :db.cardinality/one
     :db/doc "The date of the last transaction in the account"}
    
    ; Transaction
+   {:db/ident :transaction/entity-id
+    :db/valueType :db.type/ref
+    :db/cardinality :db.cardinality/one
+    :db/doc "Identifies the entity to which the transaction belongs"}
    {:db/ident :transaction/transaction-date
-    :db/valueType :db.type/string
+    :db/valueType :db.type/long
     :db/cardinality :db.cardinality/one
     :db/doc "The date on which the transaction occurred"}
    {:db/ident :transaction/debit-account-id
@@ -52,7 +56,7 @@
     :db/cardinality :db.cardinality/one
     :db/doc "Identifies the account debited by this transaction"}
    {:db/ident :transaction/debit-index
-    :db/valueType :db.type/bigint
+    :db/valueType :db.type/long
     :db/cardinality :db.cardinality/one
     :db/doc "The ordinal position of this transaction with the account being debited"}
    {:db/ident :transaction/debit-balance
@@ -64,7 +68,7 @@
     :db/cardinality :db.cardinality/one
     :db/doc "Identifies the account credited by this transaction"}
    {:db/ident :transaction/credit-index
-    :db/valueType :db.type/bigint
+    :db/valueType :db.type/long
     :db/cardinality :db.cardinality/one
     :db/doc "The ordinal position of this transaction with the account being credited"}
    {:db/ident :transaction/credit-balance
@@ -82,8 +86,7 @@
    {:db/ident :transaction/correlation-id
     :db/valueType :db.type/uuid
     :db/cardinality :db.cardinality/one
-    :db/doc "An ID the indicates this transaction is part of a larger, compound transaction"}
-   ])
+    :db/doc "An ID the indicates this transaction is part of a larger, compound transaction"}])
 
 (def ^:private db-name "money")
 
@@ -116,7 +119,7 @@
 (defn- put*
   [models {:keys [conn]}]
   {:pre [(satisfies? Connection conn)]}
-  (let [prepped (map (comp qualify-keys
+  (let [prepped (mapv (comp qualify-keys
                            #(rename-keys % {:id :db/id})
                            #(+id % (comp str random-uuid))
                            before-save)
@@ -132,18 +135,7 @@
                   (criteria->query options)
                   (update-in [:args] prepend (or (::db options)
                                                  (d/db conn))))
-
-        _ (when (= :transaction (mny/model-type criteria))
-            (clojure.pprint/pprint {::select* criteria
-                                    ::query query}))
-
         result (d/q query)]
-
-        _ (when (= :transaction (mny/model-type criteria))
-            (clojure.pprint/pprint {::select* criteria
-                                  ::query query
-                                  ::result result}))
-
     (map (comp after-read
                #(mny/model-type % (mny/model-type criteria))
                unqualify-keys

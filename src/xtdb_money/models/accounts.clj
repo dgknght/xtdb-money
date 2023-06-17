@@ -3,7 +3,6 @@
   (:require [clojure.spec.alpha :as s]
             [xtdb-money.util :refer [->id
                                      local-date?
-                                     <-storable-date
                                      update-in-if
                                      non-nil?]]
             [xtdb-money.core :as mny :refer [dbfn]]))
@@ -23,10 +22,7 @@
 
 (defn- after-read
   [account]
-  (-> account
-      (mny/model-type :account)
-      (update-in-if [:first-trx-date] <-storable-date)
-      (update-in-if [:last-trx-date] <-storable-date)))
+  (mny/model-type account :account))
 
 (defn select
   ([criteria]         (select criteria {}))
@@ -50,8 +46,6 @@
 (defn- before-save
   [account]
   (-> account
-      (update-in [:first-trx-date] identity) ; force a key with nil value is absent
-      (update-in [:last-trx-date] identity)
       (update-in [:balance] (fnil identity 0M))
       (mny/model-type :account)))
 
