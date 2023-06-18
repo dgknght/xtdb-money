@@ -5,7 +5,8 @@
             [xtdb-money.util :refer [qualify-keys
                                      unqualify-keys
                                      +id
-                                     prepend]]
+                                     prepend
+                                     apply-sort]]
             [xtdb-money.core :as mny]))
 
 (def schema
@@ -116,14 +117,44 @@
 (defmethod before-save :default [m] m)
 (defmethod after-read :default [m] m)
 
+(defmulti ^:private prep-for-put
+  (fn [m]
+    (if (map? m)
+      :map
+      :vector)))
+
+(defmethod prep-for-put :map
+  [m]
+  [(-> m
+       before-save
+       (+id (comp str random-uuid))
+       (rename-keys {:id :db/id})
+       qualify-keys)])
+
+(def ^:private action-map
+  {::mny/delete :db/retract
+   ::mny/put    :db/add})
+
+(defmethod prep-for-put :vector
+  [[action {:keys [id] :as model}]]
+  ; This is primarily for delete (retract), which seems to want
+  ; the list form instead of the map form, so we retract each datom
+  ; that is part of the map
+  (let [model-type (-> model mny/model-type name)
+        op (action-map action)]
+    (->> (-> model
+             (dissoc :id)
+             before-save)
+         (map (fn [kv] ; qualify the key to make it a datomic attribute
+                (update-in kv [0] #(keyword model-type (name %)))))
+         (reduce (fn [res [k v]]
+                   (conj res [op id k v]))
+                 []))))
+
 (defn- put*
   [models {:keys [conn]}]
   {:pre [(satisfies? Connection conn)]}
-  (let [prepped (mapv (comp qualify-keys
-                           #(rename-keys % {:id :db/id})
-                           #(+id % (comp str random-uuid))
-                           before-save)
-                     models)
+  (let [prepped (vec (mapcat prep-for-put models))
         result (d/transact conn {:tx-data prepped})]
     (map (fn [m]
            (get-in result [:tempids (:db/id m)] (:db/id m)))
@@ -135,12 +166,13 @@
                   (criteria->query options)
                   (update-in [:args] prepend (or (::db options)
                                                  (d/db conn))))
-        result (d/q query)]
-    (map (comp after-read
-               #(mny/model-type % (mny/model-type criteria))
-               unqualify-keys
-               first)
-         result)))
+        raw-result (d/q query)]
+    (->> raw-result
+         (map (comp after-read
+                    #(mny/model-type % (mny/model-type criteria))
+                    unqualify-keys
+                    first))
+         (apply-sort options))))
 
 (defmethod mny/reify-storage :datomic
   [config]
