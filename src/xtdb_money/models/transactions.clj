@@ -12,7 +12,8 @@
             [xtdb-money.core :as mny :refer [dbfn]]
             [xtdb-money.accounts :as a]
             [xtdb-money.models :as mdls]
-            [xtdb-money.models.accounts :as acts]))
+            [xtdb-money.models.accounts :as acts]
+            [xtdb-money.datomic :as d]))
 
 (s/def ::correlation-id (s/nilable uuid?))
 (s/def ::transaction-date local-date?)
@@ -86,6 +87,9 @@
       (update-in [:transaction-date] <-storable-date)
       (mny/prepare :transaction)))
 
+(def ^:private default-opts
+  {:order-by [[:transaction-date :asc]]})
+
 (defn select
   ([criteria]         (select criteria {}))
   ([criteria options] (select (mny/storage) criteria options))
@@ -95,7 +99,7 @@
           (s/valid? ::mny/options options)]}
    (map after-read (mny/select db
                                (mny/model-type criteria :transaction)
-                               options))))
+                               (merge default-opts options)))))
 
 (defn- mark-deleted
   [trx]
@@ -421,5 +425,5 @@
 
   (with-accounts trx
     (mny/put db
-             (cons [::mny/delete (->id trx)]
+             (cons [::mny/delete trx]
                    (propagate (mark-deleted (resolve-accounts trx)))))))
