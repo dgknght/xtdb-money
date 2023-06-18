@@ -51,14 +51,14 @@
   [query {:keys [transaction-date]}]
   (-> query
       (update-in [:query :in] conj '?d)
-      (update-in [:args] conj transaction-date)
+      (update-in [:args] conj (->storable-date transaction-date))
       (update-in [:query :where] conj '[?t :transaction/transaction-date ?d])))
 
 (defmethod apply-transaction-date :comparison
   [query {[oper d] :transaction-date}]
   (-> query
       (update-in [:query :in] conj '?d)
-      (update-in [:args] conj d)
+      (update-in [:args] conj (->storable-date d))
       (update-in [:query :where]
                  (comp vec concat)
                  ['[?t :transaction/transaction-date ?trx-date]
@@ -66,8 +66,14 @@
                          '?trx-date
                          '?d)]])))
 
+(defn- apply-limit
+  [query {:keys [limit]}]
+  (if limit
+    (assoc query :limit limit)
+    query))
+
 (defmethod d/criteria->query :transaction
-  [criteria _options]
+  [criteria options]
   (-> '{:query {:find [(pull ?t [*])]
                 :in [$]
                 :where []}
@@ -75,13 +81,15 @@
       (apply-id criteria)
       (apply-account-id criteria)
       (apply-entity-id criteria)
-      (apply-transaction-date criteria)))
+      (apply-transaction-date criteria)
+      (apply-limit options)))
 
 (defmethod d/before-save :transaction
   [trx]
   (-> trx
       (update-in [:transaction-date] ->storable-date)
-      (select-keys [:entity-id
+      (select-keys [:id
+                    :entity-id
                     :transaction-date
                     :correlation-id
                     :debit-account-id
