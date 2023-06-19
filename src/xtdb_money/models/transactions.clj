@@ -7,13 +7,11 @@
             [clj-time.coerce :refer [to-date-time]]
             [xtdb-money.util :refer [<-storable-date
                                      local-date?
-                                     ->id
                                      non-nil?]]
             [xtdb-money.core :as mny :refer [dbfn]]
             [xtdb-money.accounts :as a]
             [xtdb-money.models :as mdls]
-            [xtdb-money.models.accounts :as acts]
-            [xtdb-money.datomic :as d]))
+            [xtdb-money.models.accounts :as acts]))
 
 (s/def ::correlation-id (s/nilable uuid?))
 (s/def ::transaction-date local-date?)
@@ -397,9 +395,9 @@
     (->> (rest debit-side)
          (concat credit-side)
          (map (comp ensure-model-type
-                     #(if (unilateral? %)
-                        (bilateral %)
-                        %)))
+                    #(if (unilateral? %)
+                       (bilateral %)
+                       %)))
          (remove deleted?)
          (into []))))
 

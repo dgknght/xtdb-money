@@ -140,6 +140,8 @@
   ; This is primarily for delete (retract), which seems to want
   ; the list form instead of the map form, so we retract each datom
   ; that is part of the map
+  ; It's also necessary to nullify an existing value, such as an
+  ; accounts :first-trx-date after deleting the only transaction
   (let [model-type (-> model mny/model-type name)
         op (action-map action)]
     (->> (-> model
