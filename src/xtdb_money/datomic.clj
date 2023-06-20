@@ -157,9 +157,9 @@
   [models {:keys [conn]}]
   {:pre [(satisfies? Connection conn)]}
   (let [prepped (vec (mapcat prep-for-put models))
-        result (d/transact conn {:tx-data prepped})]
-    (map (fn [m]
-           (get-in result [:tempids (:db/id m)] (:db/id m)))
+        {:keys [tempids]} (d/transact conn {:tx-data prepped})]
+    (map #(or (tempids (:db/id %))
+              (:db/id %))
          prepped)))
 
 (defn- select*
