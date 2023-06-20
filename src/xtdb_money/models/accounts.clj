@@ -3,7 +3,6 @@
   (:require [clojure.spec.alpha :as s]
             [xtdb-money.util :refer [->id
                                      local-date?
-                                     update-in-if
                                      non-nil?]]
             [xtdb-money.core :as mny :refer [dbfn]]))
 
