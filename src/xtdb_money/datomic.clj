@@ -171,7 +171,7 @@
         raw-result (d/q query)]
     (->> raw-result
          (map (comp after-read
-                    #(mny/model-type % (mny/model-type criteria))
+                    #(mny/model-type % criteria)
                     unqualify-keys
                     first))
          (apply-sort options))))

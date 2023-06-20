@@ -8,7 +8,7 @@
 
 (dbfn select
   [db criteria]
-  (map #(mny/model-type % :entity)
+  (map #(mny/set-meta % :entity)
     (mny/select db
                 (mny/model-type criteria :entity)
                 {})))

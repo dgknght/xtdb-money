@@ -36,17 +36,28 @@
       (let [active-key (get-in env [:db :active])]
         (reify-storage (get-in env [:db :strategies active-key])))))
 
+(declare model-type)
+
+(defn- extract-model-type
+  [m-or-t]
+  (if (keyword? m-or-t)
+   m-or-t
+    (model-type m-or-t)))
+
 (defn model-type
+  "The 1 arity retrieves the type for the given model. The 2 arity sets
+  the type for the given model. The 2nd argument is either a key identyfying
+  the model type, or another model from which the type is to be extracted"
   ([m]
    (-> m meta :model-type))
-  ([m model-type]
-   (vary-meta m assoc :model-type model-type)))
+  ([m model-or-type]
+   (vary-meta m assoc :model-type (extract-model-type model-or-type))))
 
-(defn prepare
-  [m model-type]
+(defn set-meta
+  [m model-or-type]
   (vary-meta m assoc
-             :model-type model-type
-             :original m))
+               :model-type (extract-model-type model-or-type)
+               :original m))
 
 (defn changed?
   [m]

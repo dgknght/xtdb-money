@@ -21,7 +21,7 @@
 
 (defn- after-read
   [account]
-  (mny/model-type account :account))
+  (mny/set-meta account :account))
 
 (defn select
   ([criteria]         (select criteria {}))

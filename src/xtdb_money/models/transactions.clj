@@ -83,7 +83,7 @@
   [trx]
   (-> trx
       (update-in [:transaction-date] <-storable-date)
-      (mny/prepare :transaction)))
+      (mny/set-meta :transaction)))
 
 (def ^:private default-opts
   {:order-by [[:transaction-date :asc]]})
@@ -410,7 +410,6 @@
 (dbfn put
   [db trx]
   {:pre [(s/valid? ::transaction trx)]}
-
   (with-accounts trx
     (find db (first (mny/put db (-> trx
                                     (mny/model-type :transaction)
