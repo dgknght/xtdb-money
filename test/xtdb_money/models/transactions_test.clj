@@ -366,7 +366,7 @@
   (with-context delete-context
     (let [trx (find-transaction (t/local-date 2000 1 2) "The Landlord")]
       (trxs/delete trx)
-      (testing "the transaction is unavailable"
+      (testing "the transaction is unavailable after delete"
         (is (nil? (trxs/find (:id trx))))))
     (testing "affected transactions are updated"
       (is (seq-of-maps-like? [{:transaction-date "2000-01-01"
@@ -386,23 +386,22 @@
                                     (t/local-date 2000 2 1))))
           "The correct list of transactions is returned"))
     (testing "account balances are set"
-      (is (= {:balance 950M
-              :first-trx-date (t/local-date 2000 1 1)
-              :last-trx-date (t/local-date 2000 1 3)}
-             (select-keys (acts/find (:id (find-account "Checking")))
-                          [:balance :first-trx-date :last-trx-date]))
+      (is (comparable? {:balance 950M
+                        :first-trx-date (t/local-date 2000 1 1)
+                        :last-trx-date (t/local-date 2000 1 3)}
+                       (acts/find (:id (find-account "Checking"))))
           "The checking account balance is updated correctly")
-      (is (= {:balance 0M
-              :first-trx-date nil
-              :last-trx-date nil}
-             (select-keys (acts/find (:id (find-account "Rent")))
-                          [:balance :first-trx-date :last-trx-date]))
-          "The rent account balance is updated correctly")
-      (is (= {:balance 50M
-              :first-trx-date (t/local-date 2000 1 3)
-              :last-trx-date (t/local-date 2000 1 3)}
-             (select-keys (acts/find (:id (find-account "Groceries")))
-                          [:balance :first-trx-date :last-trx-date]))
+      (let [rent (acts/find (:id (find-account "Rent")))]
+        (is (= 0M (:balance rent))
+            "The rent balance is zeroed out.")
+        (is (nil? (:first-trx-date rent))
+            "The :first-trx-date is unset")
+        (is (nil? (:last-trx-date rent))
+            "The :last-trx-date is unset"))
+      (is (comparable? {:balance 50M
+                        :first-trx-date (t/local-date 2000 1 3)
+                        :last-trx-date (t/local-date 2000 1 3)}
+                       (acts/find (:id (find-account "Groceries"))))
           "The groceries account balance is updated correctly"))
     (testing "reports are correct"
       (is (= [{:style :header

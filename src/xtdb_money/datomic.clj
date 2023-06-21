@@ -6,7 +6,8 @@
                                      unqualify-keys
                                      +id
                                      prepend
-                                     apply-sort]]
+                                     apply-sort
+                                     split-nils]]
             [xtdb-money.core :as mny]))
 
 (def schema
@@ -125,11 +126,17 @@
 
 (defmethod prep-for-put :map
   [m]
-  [(-> m
-       before-save
-       (+id (comp str random-uuid))
-       (rename-keys {:id :db/id})
-       qualify-keys)])
+  (let [[m* nils] (split-nils m)
+        mt (mny/model-type m)]
+    (cons (-> m*
+              (mny/model-type mt)
+              before-save
+              (+id (comp str random-uuid))
+              (rename-keys {:id :db/id})
+              qualify-keys)
+          (->> nils
+               (remove #(nil? (-> m meta :original %)))
+               (map #(vector :db/retract (:id m) (keyword (name mt) (name %))))))))
 
 (def ^:private action-map
   {::mny/delete :db/retract
@@ -144,14 +151,16 @@
   ; accounts :first-trx-date after deleting the only transaction
   (let [model-type (-> model mny/model-type name)
         op (action-map action)]
-    (->> (-> model
-             (dissoc :id)
-             before-save)
-         (map (fn [kv] ; qualify the key to make it a datomic attribute
-                (update-in kv [0] #(keyword model-type (name %)))))
-         (reduce (fn [res [k v]]
-                   (conj res [op id k v]))
-                 []))))
+    (if (= :db/retract op)
+      [[:db/retractEntity id]]
+      (->> (-> model
+               (dissoc :id)
+               before-save)
+           (map (fn [kv] ; qualify the key to make it a datomic attribute
+                  (update-in kv [0] #(keyword model-type (name %)))))
+           (reduce (fn [res [k v]]
+                     (conj res [op id k v]))
+                   [])))))
 
 (defn- put*
   [models {:keys [conn]}]
@@ -162,6 +171,13 @@
               (:db/id %))
          prepped)))
 
+; It seems that after an entire entity has been retracted, the id
+; can still be returned
+(def ^:private naked-id?
+  (every-pred #(= :db/id (first (keys %)))
+              #(= 1 (count %))
+              map?))
+
 (defn- select*
   [criteria options {:keys [conn]}]
   (let [query (-> criteria
@@ -170,10 +186,11 @@
                                                  (d/db conn))))
         raw-result (d/q query)]
     (->> raw-result
+         (map first)
+         (remove naked-id?)
          (map (comp after-read
                     #(mny/model-type % criteria)
-                    unqualify-keys
-                    first))
+                    unqualify-keys))
          (apply-sort options))))
 
 (defmethod mny/reify-storage :datomic
