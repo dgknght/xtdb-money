@@ -140,3 +140,16 @@
   (if order-by
     (sort (sort-fn order-by) models)
     models))
+
+(defn split-nils
+  "Given a map, return a tuple containing the map
+  with all nil attributes removed in the first position
+  and a vector containing the keys that had nil values
+  in the second"
+  [m]
+  (reduce (fn [res [k v]]
+            (if v
+              (update-in res [0] assoc k v)
+              (update-in res [1] conj k)))
+          [{} []]
+          m))

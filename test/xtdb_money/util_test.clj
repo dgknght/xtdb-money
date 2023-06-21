@@ -71,3 +71,9 @@
               {:v 3 :d d2}]
              (utl/apply-sort {:order-by [:v :d]}
                              (conj items {:v 2 :d d2})))))))
+
+(deftest separate-nils-from-a-model
+  (is (= [{:present :here}
+          [:absent]]
+         (utl/split-nils {:present :here
+                          :absent nil}))))
