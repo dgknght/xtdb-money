@@ -57,7 +57,7 @@
   [m model-or-type]
   (vary-meta m assoc
                :model-type (extract-model-type model-or-type)
-               :original m))
+               :original (with-meta m nil)))
 
 (defn changed?
   [m]

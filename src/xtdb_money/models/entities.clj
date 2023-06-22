@@ -7,15 +7,15 @@
 (s/def ::entity (s/keys :req-un [::name]))
 
 (dbfn select
-  [db criteria]
+  [db criteria options]
   (map #(mny/set-meta % :entity)
     (mny/select db
                 (mny/model-type criteria :entity)
-                {})))
+                options)))
 
 (dbfn find
   [db id]
-  (first (select db {:id id})))
+  (first (select db {:id id} {:limit 1})))
 
 (dbfn put
   [db entity]

@@ -5,6 +5,7 @@
             [xtdb-money.core :as mny]
             [xtdb-money.util :refer [local-date?
                                      make-id
+                                     unqualify-keys
                                      ->storable-date]])
   (:import org.joda.time.LocalDate))
 
@@ -132,20 +133,25 @@
         :and            :intersection
         :or             :union))))
 
+(defn- arg-ident
+  ([k] (arg-ident k nil))
+  ([k prefix]
+  (symbol (str "?" (name k) prefix))))
+
 (defmethod apply-criterion :default
   [query [k v]]
   (-> query
-      (update-in [:in] (fnil conj []) (symbol k))
+      (update-in [:in] (fnil conj []) (arg-ident k))
       (update-in [::args] (fnil conj []) (->storable v))))
 
 (defmethod apply-criterion :comparison
   [query [k [oper v]]]
-  (let [arg (symbol (str (name k) "-arg"))]
+  (let [arg (arg-ident k "-in")]
     (-> query
         (update-in [::args] (fnil conj []) (->storable v))
         (update-in [:in] (fnil conj []) arg)
         (update-in [:where] conj [(list (symbol (name oper))
-                                        (symbol k)
+                                        (arg-ident k)
                                         arg)]))))
 
 (defmethod apply-criterion :intersection
@@ -193,7 +199,8 @@
   [query order-by]
   (assoc query :order-by (mapv (fn [x]
                                  (if (vector? x)
-                                   (update-in x [0] symbol)
+                                   (update-in x [0] (comp symbol
+                                                          #(str "?" %)))
                                    [(symbol x) :asc]))
                                order-by)))
 
@@ -207,7 +214,18 @@
 (defn- select*
   [node criteria options]
   (let [{::keys [args] :as query} (criteria->query criteria options)]
-    (apply xt/q (xt/db node) query args)))
+
+    (when (= :transaction (mny/model-type criteria))
+      (clojure.pprint/pprint {::select* criteria
+                              ::options options
+                              ::query query}))
+
+    (map (comp unqualify-keys
+               first)
+         (apply xt/q
+                (xt/db node)
+                (dissoc query ::args)
+                args))))
 
 (defmethod mny/reify-storage :xtdb
   [config]
