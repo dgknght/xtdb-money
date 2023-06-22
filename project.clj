@@ -23,8 +23,8 @@
                                                            :system "money-test"
                                                            :storage-dir "/Users/dknight/.datomic-storage"}
 
-                                                          #_"xtdb"
-                                                          #_{:xtdb-money.core/provider :xtdb}}}}}
+                                                          "xtdb"
+                                                          {:xtdb-money.core/provider :xtdb}}}}}
                    :dev [:project/dev :profiles/dev]
                    :project/dev {:env {:db {:active "xtdb"
                                             :strategies {"datomic"
@@ -33,7 +33,7 @@
                                                           :system "money-dev"
                                                           :storage-dir "/Users/dknight/.datomic-storage"}
 
-                                                         #_"xtdb"
-                                                         #_{:xtdb-money.core/provider :xtdb}}}}}}
+                                                         "xtdb"
+                                                         {:xtdb-money.core/provider :xtdb}}}}}}
         :repl-options {:init-ns xtdb-money.repl
                        :wilcome (println "Welcome to money management with persistent data!")})

@@ -100,12 +100,6 @@
     (xt/sync node)
     (map #(get-in % [1 :xt/id]) prepped)))
 
-(defn select
-  ([node query]
-   (xt/q (xt/db node) query))
-  ([node query params]
-   (xt/q (xt/db node) query params)))
-
 (defmacro query-map
   [model-type & fields]
   {:pre [(keyword? model-type)
@@ -210,13 +204,16 @@
     offset (assoc :offset offset)
     order-by (apply-sort order-by)))
 
+(defn- select*
+  [node criteria options]
+  (let [{::keys [args] :as query} (criteria->query criteria options)]
+    (apply xt/q (xt/db node) query args)))
+
 (defmethod mny/reify-storage :xtdb
   [config]
   (let [node (xt/start-node (dissoc config ::mny/provider))]
     (reify mny/Storage
-      (put [_ models] (submit node models))
-      (select [_ criteria options]
-        (let [{::keys [args] :as query} (criteria->query criteria options)]
-          (apply xt/q (xt/db node) query args)))
-      (delete [_ models] (submit node (map #(vector :xt/delete %) models)))
+      (put [_ models]              (submit node models))
+      (select [_ criteria options] (select* node criteria options))
+      (delete [_ models]           (submit node (map #(vector :xt/delete %) models)))
       (reset [_] (comment "This is a no-op with in-memory implementation")))))

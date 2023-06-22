@@ -1,17 +1,30 @@
 (ns xtdb-money.models.xtdb.accounts
-  (:require [xtdb-money.models.accounts :as acts]
-            [xtdb-money.xtdb :as x]))
+  (:require [xtdb-money.xtdb :as x]))
 
 (def ^:private query-base
-  (x/query-map :account entity-id name type balance first-trx-date last-trx-date))
+  '{:find [(pull ?a [*])]
+    :where []})
+
+(defn- apply-id
+  [query {:keys [id]}]
+  (if id
+    (-> query
+        (update-in [:in] (fnil conj []) '?id)
+        (update-in [:where] conj '[?a :account/id ?id])
+        (update-in [::args] (fnil conj []) id))
+    query))
+
+(defn- apply-entity-id
+  [query {:keys [entity-id]}]
+  (if entity-id
+    (-> query
+        (update-in [:in] (fnil conj []) '?entity-id)
+        (update-in [:where] conj '[?a :account/entity-id ?entity-id])
+        (update-in [::args] (fnil conj []) entity-id))
+    query))
 
 (defmethod x/criteria->query :account
   [criteria _]
-  (reduce (fn [res [k v]]
-            (-> res
-                (update-in [:in]
-                           (fnil conj [])
-                           (symbol (name k)))
-                (update-in [::x/args] (fnil conj []) v)))
-          query-base
-          (select-keys criteria [:id :entity-id])))
+  (-> query-base
+      (apply-id criteria)
+      (apply-entity-id criteria)))
