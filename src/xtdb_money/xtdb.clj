@@ -86,6 +86,14 @@
   [t]
   [::xt/put t]) ; assume put if no action is specified
 
+(defn- simplify-deletions
+  "Given a tuple with a delete operation, extracts the
+  :id from the model in the second position"
+  [[oper :as tuple]]
+  (if (= ::xt/delete oper)
+    (update-in tuple [1] :id)
+    tuple))
+
 (defn submit
   "Give a list of model maps, or vector tuples with an action in the
   1st position and a model in the second, execute the actions and
@@ -95,6 +103,7 @@
 
   (let [prepped (->> docs
                      (map (comp ->xt-map
+                                simplify-deletions
                                 wrap-trans))
                      (into []))]
     (xt/submit-tx node prepped)
@@ -214,11 +223,17 @@
                 (dissoc query ::args)
                 args))))
 
+(defn- delete*
+  [node models]
+  (->> models
+       (map #(vector :xt/delete %))
+       (submit node)))
+
 (defmethod mny/reify-storage :xtdb
   [config]
   (let [node (xt/start-node (dissoc config ::mny/provider))]
     (reify mny/Storage
       (put [_ models]              (submit node models))
       (select [_ criteria options] (select* node criteria options))
-      (delete [_ models]           (submit node (map #(vector :xt/delete %) models)))
+      (delete [_ models]           (delete* node models))
       (reset [_] (comment "This is a no-op with in-memory implementation")))))
