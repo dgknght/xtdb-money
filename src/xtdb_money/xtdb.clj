@@ -101,18 +101,8 @@
     (xt/sync node)
     (map #(get-in % [1 :xt/id]) prepped)))
 
-(defmacro query-map
-  [model-type & fields]
-  {:pre [(keyword? model-type)
-         (every? symbol? fields)]}
-
-  (let [type (name model-type)
-        flds (cons 'id fields)]
-    `{:find (quote ~(vec flds))
-      :keys (quote ~(vec flds))
-      :where (quote ~(mapv (fn [field]
-                             ['id (keyword type (name field)) field])
-                           fields))}))
+(defmulti after-read mny/model-type)
+(defmethod after-read :default [m] m)
 
 (defmulti criteria->query
   (fn [criteria _opts] (mny/model-type criteria)))
@@ -162,7 +152,7 @@
              (map (fn [[oper x]]
                     (vector
                       (list (-> oper name symbol)
-                            (symbol k)
+                            (symbol (str "?" (name k)))
                             (->storable x))))
                   v)))
 
@@ -175,7 +165,7 @@
   (update-in query [:where] conj [(list 'or
                                         (map (fn [[oper x]]
                                                (list (-> oper name symbol)
-                                                     (symbol k)
+                                                     (symbol (str "?" k))
                                                      x))
                                              v))]))
 
@@ -193,15 +183,16 @@
 
 (defmethod apply-sort :single
   [query order-by]
-  (assoc query :order-by [[(symbol order-by) :asc]]))
+  (assoc query :order-by [[(symbol (name order-by)) :asc]]))
 
 (defmethod apply-sort :multi
   [query order-by]
   (assoc query :order-by (mapv (fn [x]
                                  (if (vector? x)
                                    (update-in x [0] (comp symbol
-                                                          #(str "?" %)))
-                                   [(symbol x) :asc]))
+                                                          #(str "?" %)
+                                                          name))
+                                   [(symbol (str "?" (name x))) :asc]))
                                order-by)))
 
 (defn apply-options
@@ -214,13 +205,9 @@
 (defn- select*
   [node criteria options]
   (let [{::keys [args] :as query} (criteria->query criteria options)]
-
-    (when (= :transaction (mny/model-type criteria))
-      (clojure.pprint/pprint {::select* criteria
-                              ::options options
-                              ::query query}))
-
-    (map (comp unqualify-keys
+    (map (comp after-read
+               #(mny/model-type % criteria)
+               unqualify-keys
                first)
          (apply xt/q
                 (xt/db node)

@@ -1,5 +1,7 @@
 (ns xtdb-money.models.xtdb.accounts
-  (:require [xtdb-money.xtdb :as x]))
+  (:require [dgknght.app-lib.core :refer [update-in-if]]
+            [xtdb-money.util :refer [<-storable-date]]
+            [xtdb-money.xtdb :as x]))
 
 (def ^:private query-base
   '{:find [(pull ?a [*])]
@@ -37,3 +39,9 @@
       (apply-id criteria)
       (apply-entity-id criteria)
       (apply-options options)))
+
+(defmethod x/after-read :account
+  [account]
+  (-> account
+      (update-in-if [:first-trx-date] <-storable-date)
+      (update-in-if [:last-trx-date] <-storable-date)))

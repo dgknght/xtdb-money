@@ -9,13 +9,13 @@
         (update-in [:in] conj '?account-id)
         (update-in [:where]
                    conj
-                   '(or [id :transaction/debit-account-id ?account-id]
-                        [id :transaction/credit-account-id ?account-id])))
+                   '(or [?t :transaction/debit-account-id ?account-id]
+                        [?t :transaction/credit-account-id ?account-id])))
     query))
 
 (defmethod x/criteria->query :transaction
   [criteria options]
-  (-> '{:find [(pull ?t [*])]
+  (-> '{:find [(pull ?t [*]) ?transaction-date]
         :in [$]
         :where [[?t :transaction/transaction-date ?transaction-date]]
         ::x/args []}
