@@ -13,12 +13,22 @@
                         [?t :transaction/credit-account-id ?account-id])))
     query))
 
+(defn- apply-id
+  [query {:keys [id]}]
+  (if id
+    (-> query
+        (update-in [::x/args] conj id)
+        (update-in [:in] conj '?id)
+        (update-in [:where] conj '[?t :xt/id ?id]))
+    query))
+
 (defmethod x/criteria->query :transaction
   [criteria options]
   (-> '{:find [(pull ?t [*]) ?transaction-date]
         :in [$]
         :where [[?t :transaction/transaction-date ?transaction-date]]
         ::x/args []}
-      (x/apply-criteria (dissoc criteria :account-id))
+      (x/apply-criteria (dissoc criteria :id :account-id))
+      (apply-id criteria)
       (apply-account-id criteria)
       (x/apply-options options)))
