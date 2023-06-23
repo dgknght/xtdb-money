@@ -418,7 +418,7 @@
 
 (dbfn delete
   [db trx]
-  {:pre [(s/valid? ::transaction trx)]}
+  {:pre [trx (s/valid? ::transaction trx)]}
 
   (with-accounts trx
     (mny/put db
