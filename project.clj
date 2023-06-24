@@ -8,6 +8,9 @@
                        [com.xtdb/xtdb-core "1.23.1"]
                        [com.datomic/dev-local "1.0.243"]
                        [com.datomic/client-pro "1.0.76"]
+                       [com.github.seancorfield/next.jdbc "1.3.874"]
+                       [org.postgresql/postgresql "42.6.0"]
+                       [dev.weavejester/ragtime "0.9.3"]
                        [com.github.dgknght/app-lib "0.3.2"]
                        [yogthos/config "1.2.0"]]
         :main ^:skip-aot xtdb-money.core
@@ -18,13 +21,10 @@
                    :test [:project/test :profiles/test] ; this performs a deep merge, so it's only necessary to override the specific attributes that need to change in profiles.clj
                    :project/test {:env {:db {:active "xtdb"
                                              :strategies {"datomic"
-                                                          {:xtdb-money.core/provider :datomic
-                                                           :server-type :dev-local
-                                                           :system "money-test"
-                                                           :storage-dir "/Users/dknight/.datomic-storage"}
+                                                          {:system "money-test"}
 
-                                                          "xtdb"
-                                                          {:xtdb-money.core/provider :xtdb}}}}}
+                                                          "sql"
+                                                          {:dbname"xtdb_money_test"}}}}}
                    :dev [:project/dev :profiles/dev]
                    :project/dev {:env {:db {:active "xtdb"
                                             :strategies {"datomic"
@@ -34,6 +34,16 @@
                                                           :storage-dir "/Users/dknight/.datomic-storage"}
 
                                                          "xtdb"
-                                                         {:xtdb-money.core/provider :xtdb}}}}}}
+                                                         {:xtdb-money.core/provider :xtdb}
+
+                                                         "sql"
+                                                         {:xtdb-money.core/provider :sql
+                                                          :dbtype "postgresql"
+                                                          :dbname "xtdb_money_development"
+                                                          :user "app_user"
+                                                          :password "please01"}}}}}}
         :repl-options {:init-ns xtdb-money.repl
-                       :wilcome (println "Welcome to money management with persistent data!")})
+                       :wilcome (println "Welcome to money management with persistent data!")}
+        :aliases {"migrate" ["run" "-m" "xtdb-money.models.sql.migrations/migrate"]
+                  "rollback" ["run" "-m" "xtdb-money.models.sql.migrations/rollback"]
+                  "remigrate" ["run" "-m" "xtdb-money.models.sql.migrations/remigrate"]})
