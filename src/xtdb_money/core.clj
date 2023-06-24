@@ -13,6 +13,10 @@
 (s/def ::order-by vector?) ; TODO: flesh out this spec
 (s/def ::options (s/keys :opt-un [::offset ::limit ::order-by]))
 
+; To add a new storage implemenation, add a new namespace and a new
+; implementation of the multi method reify-storage, which should
+; return an implemention of Storage
+
 (defprotocol Storage
   "Defines the functions necessary to provider storage for the application"
   (put [this models] "Saves the models to the database in an atomic transaction")
