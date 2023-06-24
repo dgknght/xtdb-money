@@ -9,8 +9,8 @@ on:
 jobs:
   build:
 
-    runs-on: dgknght/datomic-client
-
+    runs-on: ubuntu-latest
+    container: dgknght/datomic-client
     steps:
     - uses: actions/checkout@v3
     - name: Install dependencies
