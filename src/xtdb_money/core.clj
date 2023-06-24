@@ -1,129 +1,80 @@
 (ns xtdb-money.core
-  (:require [clojure.walk :refer [postwalk]]
-            [xtdb.api :as xt]
-            [cljs.core :as c]
-            [xtdb-money.util :refer [local-date?
-                                     uuid
-                                     ->storable-date]])
-  (:gen-class))
+  (:require [clojure.spec.alpha :as s]
+            [clojure.set :refer [union]]
+            [config.core :refer [env]]))
+
+(def comparison-opers #{:< :<= :> :>=})
+(def set-opers #{:and :or})
+(def opers (union comparison-opers set-opers))
+(def oper? (partial contains? opers))
+
+(s/def ::offset integer?)
+(s/def ::limit integer?)
+(s/def ::order-by vector?) ; TODO: flesh out this spec
+(s/def ::options (s/keys :opt-un [::offset ::limit ::order-by]))
+
+(defprotocol Storage
+  "Defines the functions necessary to provider storage for the application"
+  (put [this models] "Saves the models to the database in an atomic transaction")
+  (select [this criteria options] "Retrieves models from the database")
+  (delete [this models] "Removes the models from the database in an atomic transaction")
+  (reset [this] "Resets the database")) ; TODO: Is there someplace to put this so it's only available in tests?
+
+
+(defn storage-dispatch [config & _]
+  (::provider config))
+
+(defmulti reify-storage storage-dispatch)
+(defmulti start storage-dispatch)
+(defmulti stop storage-dispatch)
+(defmulti reset-db storage-dispatch)
+
+(def ^:dynamic *storage*)
+
+(defn storage []
+  (or *storage*
+      (let [active-key (get-in env [:db :active])]
+        (reify-storage (get-in env [:db :strategies active-key])))))
+
+(declare model-type)
+
+(defn- extract-model-type
+  [m-or-t]
+  (if (keyword? m-or-t)
+   m-or-t
+    (model-type m-or-t)))
 
 (defn model-type
+  "The 1 arity retrieves the type for the given model. The 2 arity sets
+  the type for the given model. The 2nd argument is either a key identyfying
+  the model type, or another model from which the type is to be extracted"
   ([m]
    (-> m meta :model-type))
-  ([m model-type]
-   (vary-meta m assoc :model-type model-type)))
+  ([m model-or-type]
+   (vary-meta m assoc :model-type (extract-model-type model-or-type))))
 
-(defn prepare
-  [m model-type]
+(defn set-meta
+  [m model-or-type]
   (vary-meta m assoc
-             :model-type model-type
-             :original m))
+               :model-type (extract-model-type model-or-type)
+               :original (with-meta m nil)))
 
 (defn changed?
   [m]
   (not= m (-> m meta :original)))
 
-(defonce ^:private node (atom nil))
+(defmacro with-storage
+  [bindings & body]
+  `(let [storage# (reify-storage ~(first bindings))]
+     (binding [*storage* storage#]
+       ~@body)))
 
-(defn start []
-  (reset! node (xt/start-node {})))
-
-(defn stop []
-  (reset! node nil))
-
-(defn- make-id
-  [id]
-  (if id id (uuid)))
-
-(defn- two-count?
-  [coll]
-  (= 2 (count coll)))
-
-(defn- f-keyword?
-  [[x]]
-  (keyword? x))
-
-(def map-tuple?
-  (every-pred vector?
-              two-count?
-              f-keyword?))
-
-(defmulti ^:private ->xt*
-  (fn [x _]
-    (c/cond
-      (map-tuple? x) :tuple
-      (local-date? x) :date)))
-
-(defmethod ->xt* :default
-  [x _]
-  x)
-
-(defmethod ->xt* :date
-  [x _]
-  (->storable-date x))
-
-(defmethod ->xt* :tuple
-  [x model-type-name]
-  (if (= :id (first x))
-    (assoc-in x [0] :xt/id)
-    (update-in x [0] #(keyword model-type-name
-                               (name %)))))
-
-(defn- ->xt-keys
-  [m model-type]
-  (postwalk #(->xt* % (name model-type)) m))
-
-(defn- ->xt-map
-  [m]
-  {:pre [(-> m meta :model-type)]}
-
-  (let [model-type (-> m meta :model-type)]
-    (-> m
-        (update-in [:id] make-id)
-        (->xt-keys model-type))))
-
-(defn- wrap-trans
-  [t]
-  [::xt/put t])
-
-(defn- prepare-trans
-  [t]
-  (if (vector? t)
-    t
-    (-> t ->xt-map wrap-trans)))
-
-(defn submit
-  [& docs]
-  {:pre [(seq docs)
-         (every? (some-fn map?
-                          vector?) docs)]}
-
-  (let [n @node
-        prepped (->> docs
-                     (map prepare-trans)
-                     (into []))]
-    (xt/submit-tx n prepped)
-    (xt/sync n)
-    (map #(get-in % [1 :xt/id]) prepped)))
-
-(defn select
-  ([query]
-   (xt/q (xt/db @node)
-         query))
-  ([query param]
-   (xt/q (xt/db @node)
-         query
-         param)))
-
-(defmacro query-map
-  [model-type & fields]
-  {:pre [(keyword? model-type)
-         (every? symbol? fields)]}
-
-  (let [type (name model-type)
-        flds (cons 'id fields)]
-    `{:find (quote ~(vec flds))
-      :keys (quote ~(vec flds))
-      :where (quote ~(mapv (fn [field]
-                             ['id (keyword type (name field)) field])
-                           fields))}))
+(defmacro dbfn
+  [fn-name bindings & body]
+  (let [fname (symbol (name fn-name))
+        alt-bindings (vec (rest bindings))]
+    `(defn ~fname
+       (~alt-bindings
+         (apply ~fname (storage) ~alt-bindings))
+       (~bindings
+               ~@body))))

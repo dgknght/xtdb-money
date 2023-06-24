@@ -1,5 +1,5 @@
 (ns xtdb-money.models
-  (:require [clojure.spec.alpha :as s]))
+  (:require [clojure.spec.alpha :as s]
+            [xtdb-money.util :refer [non-nil?]]))
 
-(s/def ::id uuid?)
-(s/def ::entity-id uuid?)
+(s/def ::id non-nil?)

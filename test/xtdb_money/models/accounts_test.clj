@@ -1,17 +1,20 @@
 (ns xtdb-money.models.accounts-test
-  (:require [clojure.test :refer [deftest is use-fixtures]]
+  (:require [clojure.test :refer [is use-fixtures]]
             [dgknght.app-lib.test-assertions]
             [xtdb-money.test-context :refer [with-context
                                              find-entity]]
-            [xtdb-money.helpers :refer [reset-db]]
-            [xtdb-money.models.accounts :as acts]))
+            [xtdb-money.helpers :refer [reset-db
+                                        dbtest]]
+            [xtdb-money.models.accounts :as acts]
+            [xtdb-money.models.xtdb.ref]
+            [xtdb-money.models.datomic.ref]))
 
 (use-fixtures :each reset-db)
 
 (def ^:private create-ctx
   {:entities [{:name "Personal"}]})
 
-(deftest create-an-account
+(dbtest create-an-account
   (with-context create-ctx
     (let [entity (find-entity "Personal")
           account {:entity-id (:id entity)
@@ -31,7 +34,7 @@
                      :name "Checking"
                      :type :asset}]))
 
-(deftest find-by-entity
+(dbtest find-by-entity
   (with-context find-ctx
     (is (= #{{:name "Salary"
               :type :income}

@@ -3,17 +3,16 @@
   (:require [clojure.spec.alpha :as s]
             [xtdb-money.util :refer [->id
                                      local-date?
-                                     <-storable-date
-                                     update-in-if]]
-            [xtdb-money.core :as mny]
-            [xtdb-money.models :as models]))
+                                     non-nil?]]
+            [xtdb-money.core :as mny :refer [dbfn]]))
 
+(s/def ::entity-id non-nil?)
 (s/def ::name string?)
 (s/def ::type #{:asset :liability :equity :income :expense})
 (s/def ::balance decimal?)
 (s/def ::first-trx-date (s/nilable local-date?))
 (s/def ::last-trx-date (s/nilable local-date?))
-(s/def ::account (s/keys :req-un [::models/entity-id
+(s/def ::account (s/keys :req-un [::entity-id
                                   ::name
                                   ::type]
                          :opt-un [::balance
@@ -22,46 +21,35 @@
 
 (defn- after-read
   [account]
-  (-> account
-      (mny/model-type :account)
-      (update-in-if [:first-trx-date] <-storable-date)
-      (update-in-if [:last-trx-date] <-storable-date)))
-
-(def ^:private query-base
-  (mny/query-map :account entity-id name type balance first-trx-date last-trx-date))
+  (mny/set-meta account :account))
 
 (defn select
-  [{:keys [id entity-id] :as criteria}]
-  {:per [(or (uuid? (:id criteria))
-             (uuid? (:entity-id criteria)))]}
+  ([criteria]         (select criteria {}))
+  ([criteria options] (select (mny/storage) criteria options))
+  ([db criteria options]
+  {:per [(satisfies? mny/Storage db)
+         (s/valid? ::mny/options options)
+         ((some-fn :id :entity) criteria)]}
 
-  (let [query (cond-> query-base
-                entity-id (assoc :in '[entity-id])
-                id (assoc :in '[id]))]
-    (map after-read
-         (mny/select query (or id entity-id)))))
+  (map after-read
+       (mny/select db
+                   (mny/model-type criteria :account)
+                   options))))
 
-(defn find
-  [id]
-  (first (select {:id (->id id)})))
-
-(defn- find-first
-  [[id]]
-  (find id))
+(dbfn find
+  [db id]
+  (first (select db
+                 {:id (->id id)}
+                 {:limit 1})))
 
 (defn- before-save
   [account]
   (-> account
-      (update-in [:first-trx-date] identity) ; force a key with nil value is absent
-      (update-in [:last-trx-date] identity)
       (update-in [:balance] (fnil identity 0M))
       (mny/model-type :account)))
 
-(defn put
-  [account]
+(dbfn put
+  [db account]
   {:pre [(s/valid? ::account account)]}
 
-  (-> account
-      before-save
-      (mny/submit)
-      find-first))
+  (find db (first (mny/put db [(before-save account)]))))

@@ -2,25 +2,22 @@
   (:refer-clojure :exclude [find])
   (:require [clojure.spec.alpha :as s]
             [clojure.pprint :as pp]
-            [xtdb.api :as xt]
             [clj-time.core :as t]
             [clj-time.format :refer [formatters unparse]]
             [clj-time.coerce :refer [to-date-time]]
-            [xtdb-money.util :refer [->storable-date
-                                     <-storable-date
+            [xtdb-money.util :refer [<-storable-date
                                      local-date?
-                                     ->id]]
-            [xtdb-money.core :as mny]
+                                     non-nil?]]
+            [xtdb-money.core :as mny :refer [dbfn]]
             [xtdb-money.accounts :as a]
             [xtdb-money.models :as mdls]
-            [xtdb-money.models.accounts :as acts])
-  (:import org.joda.time.LocalDate))
+            [xtdb-money.models.accounts :as acts]))
 
 (s/def ::correlation-id (s/nilable uuid?))
 (s/def ::transaction-date local-date?)
 (s/def ::description string?)
-(s/def ::debit-account-id uuid?)
-(s/def ::credit-account-id uuid?)
+(s/def ::debit-account-id non-nil?)
+(s/def ::credit-account-id non-nil?)
 (s/def ::amount (s/and decimal?
                        #(< 0M %)))
 (s/def ::debit-index integer?)
@@ -40,10 +37,16 @@
                                       ::credit-balance
                                       ::correlation-id]))
 
-(s/def ::start-date (partial instance? LocalDate))
-(s/def ::end-date (partial instance? LocalDate))
+(defn- criterion?
+  [pred]
+  (some-fn pred
+           (every-pred vector?
+                       #(mny/oper? (first %))
+                       #((criterion? pred) (second %)))))
 
-(defn- criteria-dispatch
+(s/def ::transaction-date (criterion? local-date?))
+
+(defn criteria-dispatch
   [& args]
   (let [{:keys [entity-id account-id id]} (last args)]
     (cond
@@ -58,21 +61,13 @@
 (defmethod criteria :account-id
   [_]
   (s/keys :req-un [::account-id
-                   ::start-date
-                   ::end-date]))
+                   ::transaction-date]))
 (defmethod criteria :entity-id
   [_]
   (s/keys :req-un [::entity-id
-                   ::start-date
-                   ::end-date]))
+                   ::transaction-date]))
 
 (s/def ::criteria (s/multi-spec criteria :account-id))
-
-(s/def ::offset integer?)
-(s/def ::limit integer?)
-(s/def ::options (s/keys :opt-un [::offset ::limit]))
-
-(defmulti ^:private apply-criteria criteria-dispatch)
 
 (def ^{:private true :dynamic true} *accounts* nil)
 
@@ -84,70 +79,25 @@
                              (into {}))]
      ~@body))
 
-(defmethod apply-criteria :id
-  [query {:keys [id]}]
-  [(assoc query :in '[id])
-   id])
-
-(defn- apply-date-range
-  [query]
-  (-> query
-      (update-in [:where] conj '[(<= start-date transaction-date)])
-      (update-in [:where] conj '[(< transaction-date end-date)])))
-
-(defmethod apply-criteria :account-id
-  [query {:keys [account-id] :as criteria}]
-  [(-> query
-       (assoc :in '[[account-id start-date end-date]])
-       (apply-date-range))
-   (cons account-id (map (comp ->storable-date criteria)
-                         [:start-date :end-date]))])
-
-(defmethod apply-criteria :entity-id
-  [query {:keys [entity-id] :as criteria}]
-  [(-> query
-       (assoc :in '[[entity-id start-date end-date]])
-       (apply-date-range))
-   (cons entity-id (map (comp ->storable-date criteria)
-                        [:start-date :end-date]))])
-
-(defn- apply-options
-  [query {:keys [limit offset]}]
-  (cond-> query
-    limit (assoc :limit limit)
-    offset (assoc :offset offset)))
-
 (defn- after-read
   [trx]
   (-> trx
       (update-in [:transaction-date] <-storable-date)
-      (mny/prepare :transaction)))
+      (mny/set-meta :transaction)))
 
-(def ^:private base-query
-  (mny/query-map :transaction
-                 entity-id
-                 correlation-id
-                 transaction-date
-                 description
-                 debit-account-id
-                 debit-index
-                 debit-balance
-                 credit-account-id
-                 credit-index
-                 credit-balance
-                 amount))
+(def ^:private default-opts
+  {:order-by [[:transaction-date :asc]]})
 
 (defn select
-  ([] (select {}))
-  ([criteria] (select criteria {}))
-  ([criteria options]
-   {:pre [(s/valid? ::criteria criteria)
-          (s/valid? ::options options)]}
-   (let [[query param] (-> base-query
-                           (assoc :order-by [['transaction-date :asc]])
-                           (apply-options options)
-                           (apply-criteria criteria))]
-     (map after-read (mny/select query param)))))
+  ([criteria]         (select criteria {}))
+  ([criteria options] (select (mny/storage) criteria options))
+  ([db criteria options]
+   {:pre [(satisfies? mny/Storage db)
+          (s/valid? ::criteria criteria)
+          (s/valid? ::mny/options options)]}
+   (map after-read (mny/select db
+                               (mny/model-type criteria :transaction)
+                               (merge default-opts options)))))
 
 (defn- mark-deleted
   [trx]
@@ -292,74 +242,63 @@
        (filter #(= (:id account)
                    (account-id %)))))
 
+(defn between
+  "Applies a :transaction-date attribute to a criteria map where
+  :start-date is inclusive and :end-date is exclusive"
+  [criteria start-date end-date]
+  (assoc criteria :transaction-date [:and
+                                     [:>= start-date]
+                                     [:< end-date]]))
+
 (defn select-by-account
   [account start-date end-date]
   (with-accounts account
-    (->> (select {:account-id (:id account)
-                  :start-date start-date
-                  :end-date end-date})
+    (->> (select (between {:account-id (:id account)}
+                           start-date
+                           end-date)
+                 {})
          (split-and-filter account)
          (sort-by index))))
 
-(defn- apply-account-id
-  [query]
-  (-> query
-      (update-in [:where]
-                 conj
-                 '(or [id :transaction/debit-account-id account-id]
-                      [id :transaction/credit-account-id account-id]))))
+(defn- preceding
+  [transaction-date account-id limit]
+  (select {:transaction-date [:< transaction-date]
+           :account-id account-id}
+          {:limit limit
+           :order-by [[:transaction-date :desc]]}))
 
-(defn- precedent
-  ([unilateral] (precedent (bilateral unilateral) (account unilateral)))
+(defn precedent
+  ([unilateral] (precedent (bilateral unilateral)
+                           (account unilateral)))
   ([{:keys [transaction-date id]} account]
-   (let [query (-> base-query
-                   (apply-account-id)
-                   (update-in [:where]
-                              conj
-                              ['(< transaction-date d)])
-                   (assoc :order-by [['transaction-date :desc]] ; TODO: put back index
-                          :limit 2
-                          :in '[[account-id d]]))]
-     (->> (mny/select query
-                      [(:id account)
-                       (->storable-date transaction-date)])
-          (map after-read)
-          (remove #(= id (:id %)))
-          (split-and-filter account)
-          first))))
+   (->> (preceding transaction-date (:id account) 2)
+        (remove #(= id (:id %)))
+        (split-and-filter account)
+        first)))
 
-(defn- subsequents
+(defn- subsequents*
+  [transaction-date account-id]
+
+  (select {:transaction-date [:>= transaction-date]
+           :account-id account-id}
+          {:order-by [:transaction-date]}))
+
+(defn subsequents
   ([unilateral] (subsequents (bilateral unilateral) (account unilateral)))
   ([{:keys [transaction-date id]} account]
-   (let [query (-> base-query
-                   (apply-account-id)
-                   (update-in [:where]
-                              conj
-                              ['(<= d transaction-date)])
-                   (assoc :order-by [['transaction-date :asc]] ; TODO: put back the index
-                          :in '[[account-id d]]))]
-     (->> (mny/select query
-                      [(:id account)
-                       (->storable-date transaction-date)])
-          (remove #(= id (:id %)))
-          (map after-read)
-          (split-and-filter account)))))
+   (->> (subsequents* transaction-date (:id account))
+        (remove #(= id (:id %)))
+        (split-and-filter account))))
 
-(defn find
-  [id]
-  (first (select {:id id})))
+(dbfn find
+  [db id]
+  (first (select db {:id id} {:limit 1})))
 
 (defn- ensure-model-type
   [m]
   (if (mny/model-type m)
     m
     (mny/model-type m :transaction)))
-
-(defn- before-save
-  [trx]
-  (-> trx
-      (update-in [:correlation-id] identity) ; ensure there is a key in the map
-      ensure-model-type))
 
 (defmulti ^:private propagate-rec
   (fn [_state m]
@@ -430,25 +369,24 @@
   [trx]
   (let [prev (precedent trx)
         following (subsequents trx)]
-        (->> (concat (cons trx following)
-                             [(account trx)])
-                     (reduce propagate-rec
-                             (merge {:out []}
-                                    (if prev
-                                      {:last-index (index prev)
-                                       :last-balance (balance prev)}
-                                      {:last-index 0
-                                       :last-balance 0M})))
-                     :out
-                     (apply-first-trx-date-change trx prev)
-                     (into []))))
+    (->> (concat (cons trx following)
+                 [(account trx)])
+         (reduce propagate-rec
+                 (merge {:out []}
+                        (if prev
+                          {:last-index (index prev)
+                           :last-balance (balance prev)}
+                          {:last-index 0
+                           :last-balance 0M})))
+         :out
+         (apply-first-trx-date-change trx prev)
+         (into []))))
 
 (defn- propagate
   [trx]
   {:pre [(= (:entity-id trx)
             (-> trx :debit-account :entity-id)
             (-> trx :credit-account :entity-id))]}
-
   (let [{:keys [debit]} (split trx)
         debit-side (propagate-side debit)
         credit-side (propagate-side (other-side (first debit-side)))]
@@ -456,10 +394,10 @@
     ; The calling fn expects the transaction to be in the first position
     (->> (rest debit-side)
          (concat credit-side)
-         (map (comp before-save
-                     #(if (unilateral? %)
-                        (bilateral %)
-                        %)))
+         (map (comp ensure-model-type
+                    #(if (unilateral? %)
+                       (bilateral %)
+                       %)))
          (remove deleted?)
          (into []))))
 
@@ -469,24 +407,20 @@
       (assoc :debit-account (get-in *accounts* [debit-account-id]))
       (assoc :credit-account (get-in *accounts* [credit-account-id]))))
 
-(defn put
-  [trx]
+(dbfn put
+  [db trx]
   {:pre [(s/valid? ::transaction trx)]}
+  (with-accounts trx
+    (find db (first (mny/put db (-> trx
+                                    (mny/model-type :transaction)
+                                    resolve-accounts
+                                    propagate))))))
+
+(dbfn delete
+  [db trx]
+  {:pre [trx (s/valid? ::transaction trx)]}
 
   (with-accounts trx
-    (-> (apply mny/submit
-               (-> trx
-                   (mny/model-type :transaction)
-                   resolve-accounts
-                   propagate))
-        first
-        find)))
-
-(defn delete
-  [trx]
-  {:pre [(s/valid? ::transaction trx)]}
-
-  (with-accounts trx
-    (apply mny/submit
-           (cons [::xt/delete (->id trx)] ; TODO: Can we avoid the explicit reference to the underlying database ns?
-                 (propagate (mark-deleted (resolve-accounts trx)))))))
+    (mny/put db
+             (cons [::mny/delete trx]
+                   (propagate (mark-deleted (resolve-accounts trx)))))))
