@@ -23,15 +23,23 @@
 
 (defmethod insert :default
   [db model]
-  (let [s (for-insert (infer-table-name model)
+  (let [table (infer-table-name model)
+        s (for-insert table
                       (before-save model)
-                      jdbc/snake-kebab-opts)]
+                      jdbc/snake-kebab-opts)
+        result (jdbc/execute-one! db s {:return-keys [:id]})]
 
     ; TODO: add logging
 
-    (jdbc/execute-one! db s {:return-keys true})))
+    (get-in result [(keyword (name table) "id")])))
 
 (defmulti apply-criteria (fn [_s c] (mny/model-type c)))
+
+(defn apply-id
+  [s {:keys [id]}]
+  (if id
+    (h/where s [:= :id id])
+    s))
 
 (defmulti after-read mny/model-type)
 (defmethod after-read :default [m] m)
@@ -57,8 +65,7 @@
 (defn- put*
   [db models]
   (jdbc/with-transaction [tx db]
-    (mapv (comp :entities/id
-                #(insert tx %))
+    (mapv #(insert tx %)
           models)))
 
 (defn- select*

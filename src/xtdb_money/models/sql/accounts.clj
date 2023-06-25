@@ -10,12 +10,6 @@
   [account]
   (update-in account [:type] keyword))
 
-(defn- apply-id
-  [sql {:keys [id]}]
-  (if id
-    (where sql [:= :id id])
-    sql))
-
 (defn- apply-entity-id
   [sql {:keys [entity-id]}]
   (if entity-id
@@ -25,7 +19,7 @@
 (defmethod sql/apply-criteria :account
   [s criteria]
   (-> s
-      (apply-id criteria)
+      (sql/apply-id criteria)
       (apply-entity-id criteria)))
 
 (defmethod sql/attributes :account [_]

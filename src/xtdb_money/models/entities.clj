@@ -8,10 +8,13 @@
 
 (dbfn select
   [db criteria options]
+  {:pre [(satisfies? mny/Storage db)
+         (s/valid? ::mny/options options)
+         (:id criteria)]}
   (map #(mny/set-meta % :entity)
-    (mny/select db
-                (mny/model-type criteria :entity)
-                options)))
+       (mny/select db
+                   (mny/model-type criteria :entity)
+                   options)))
 
 (dbfn find
   [db id]

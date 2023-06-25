@@ -1,12 +1,9 @@
 (ns xtdb-money.models.sql.entities
-  (:require [honey.sql.helpers :refer [where]]
-            [xtdb-money.sql :as sql]))
+  (:require [xtdb-money.sql :as sql]))
 
 (defmethod sql/apply-criteria :entity
-  [s {:keys [id]}]
-  (if id
-    (where s [:= :id id])
-    s))
+  [s criteria]
+  (sql/apply-id s criteria))
 
 (defmethod sql/attributes :entity [_]
   [:id :name])
