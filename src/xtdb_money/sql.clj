@@ -25,7 +25,7 @@
 
 (defn- reset*
   [db]
-  (jdbc/execute! db ["truncate table entities"]))
+  (jdbc/execute! db ["truncate table entities cascade"]))
 
 (defmethod mny/reify-storage :sql
   [config]

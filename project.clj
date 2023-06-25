@@ -11,6 +11,7 @@
                        [com.github.seancorfield/next.jdbc "1.3.874"]
                        [org.postgresql/postgresql "42.6.0"]
                        [dev.weavejester/ragtime "0.9.3"]
+                       [com.github.seancorfield/honeysql "2.4.1033"]
                        [com.github.dgknght/app-lib "0.3.2"]
                        [yogthos/config "1.2.0"]]
         :main ^:skip-aot xtdb-money.core
