@@ -1,12 +1,12 @@
 (ns xtdb-money.models.sql.entities
-  (:require [next.jdbc.sql :refer [insert!]]
-            [next.jdbc.plan :refer [select!]]
+  (:require [honey.sql.helpers :refer [where]]
             [xtdb-money.sql :as sql]))
 
-(defmethod sql/insert :entity
-  [db model]
-  (insert! db :entities model))
+(defmethod sql/apply-criteria :entity
+  [s {:keys [id]}]
+  (if id
+    (where s [:= :id id])
+    s))
 
-(defmethod sql/select :entity
-  [db criteria _options]
-  (select! db [:id :name] ["select * from entities where id = ? limit 1" (:id criteria)]))
+(defmethod sql/attributes :entity [_]
+  [:id :name])

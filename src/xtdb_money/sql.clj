@@ -1,6 +1,11 @@
 (ns xtdb-money.sql
   (:require [xtdb-money.core :as mny]
-            [next.jdbc :as jdbc]))
+            [next.jdbc :as jdbc]
+            [next.jdbc.plan :refer [select!]]
+            [next.jdbc.sql.builder :refer [for-insert]]
+            [honey.sql.helpers :as h]
+            [honey.sql :as hsql]
+            [dgknght.app-lib.inflection :refer [plural]]))
 
 (defn- dispatch
   [_db model & _]
@@ -8,6 +13,46 @@
 
 (defmulti insert dispatch)
 (defmulti select dispatch)
+
+(defmulti before-save mny/model-type)
+(defmethod before-save :default [m] m)
+
+(def ^:private infer-table-name
+  (comp plural
+        mny/model-type))
+
+(defmethod insert :default
+  [db model]
+  (let [s (for-insert (infer-table-name model)
+                      (before-save model)
+                      jdbc/snake-kebab-opts)]
+
+    ; TODO: add logging
+
+    (jdbc/execute-one! db s {:return-keys true})))
+
+(defmulti apply-criteria (fn [_s c] (mny/model-type c)))
+
+(defmulti after-read mny/model-type)
+(defmethod after-read :default [m] m)
+
+(defmulti attributes identity)
+
+(defmethod select :default
+  [db criteria _options]
+  (let [query (-> (h/select :*)
+                  (h/from (infer-table-name criteria))
+                  (apply-criteria criteria)
+                  hsql/format)]
+
+    ; TODO: add logging
+
+    (map (comp after-read
+               #(mny/model-type % criteria))
+         (select! db
+                  (attributes (mny/model-type criteria))
+                  query
+                  jdbc/snake-kebab-opts))))
 
 (defn- put*
   [db models]
