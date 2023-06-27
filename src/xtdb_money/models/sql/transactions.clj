@@ -4,21 +4,39 @@
             [xtdb-money.sql :as sql]
             [clojure.core :as c]))
 
-(defn- apply-transaction-date
+; local-date ->                  [:= :transaction-date local-date}
+; [:< local-date] ->             [:<= :transaction-date local-date]]
+; [:and [:>= start] [:< end]] -> [:and [:>= :transaction-date start] [:< :transaction-date end]]]
+
+(defmulti apply-transaction-date
+  (fn [_s {:keys [transaction-date]}]
+    (if (vector? transaction-date)
+      (if (#{:and :or} (first transaction-date))
+        :conjunction
+        :explicit)
+      :implicit)))
+
+(defmethod apply-transaction-date :implicit
   [s {:keys [transaction-date]}]
-  ; TODO: Change this to support conjunctions
-  (where s
-         (if (vector? transaction-date)
-           [(first transaction-date)
-            :transaction-date
-            (to-sql-date (second transaction-date))]
-           [:= :transaction-date (to-sql-date transaction-date)])))
+  (where s [:= :transaction-date (to-sql-date transaction-date)]))
+
+(defmethod apply-transaction-date :explicit
+  [s {[oper transaction-date] :transaction-date}]
+  (where s [oper :transaction-date (to-sql-date transaction-date)])) ; TODO: when this is generalized, to-sql-date needs to be generalized too
+
+(defmethod apply-transaction-date :conjunction
+  [s {[oper & stmts] :transaction-date}]
+  (apply where s oper (map (fn [[oper v]]
+                             [oper :transaction-date (to-sql-date v)])
+                           stmts)))
 
 (defn- apply-account-id
   [s {:keys [account-id]}]
-  (where s [:or
-            [:= :debit-account-id account-id]
-            [:= :credit-account-id account-id]]))
+  (if account-id
+    (where s [:or
+              [:= :debit-account-id account-id]
+              [:= :credit-account-id account-id]])
+    s))
 
 (defmethod sql/apply-criteria :transaction
   [s criteria]
