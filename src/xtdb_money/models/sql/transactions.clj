@@ -6,12 +6,13 @@
 
 (defn- apply-transaction-date
   [s {:keys [transaction-date]}]
+  ; TODO: Change this to support conjunctions
   (where s
-         (cond
-           (vector? transaction-date) [(first transaction-date)
-                                       :transaction-date
-                                       (to-sql-date (second transaction-date))]
-           :else [:= :transaction-date (to-sql-date transaction-date)])))
+         (if (vector? transaction-date)
+           [(first transaction-date)
+            :transaction-date
+            (to-sql-date (second transaction-date))]
+           [:= :transaction-date (to-sql-date transaction-date)])))
 
 (defn- apply-account-id
   [s {:keys [account-id]}]
@@ -26,7 +27,7 @@
       (apply-account-id criteria)
       (apply-transaction-date criteria)))
 
-(defmethod sql/attributes :transaction [_]
+(def ^:private attr
   [:id
    :entity-id
    :transaction-date
@@ -40,6 +41,10 @@
    :credit-balance
    :correlation-id])
 
+(defmethod sql/attributes :transaction [_] attr)
+
 (defmethod sql/before-save :transaction
   [transaction]
-  (update-in transaction [:transaction-date] to-sql-date))
+  (-> transaction
+      (update-in [:transaction-date] to-sql-date)
+      (select-keys attr)))

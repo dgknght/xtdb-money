@@ -1,6 +1,7 @@
 CREATE TABLE transactions (
     id serial,
     entity_id int NOT NULL references entities (id),
+    correlation_id varchar(40),
     transaction_date date,
     description varchar(100),
     amount numeric(12, 4),

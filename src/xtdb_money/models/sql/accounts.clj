@@ -1,10 +1,15 @@
 (ns xtdb-money.models.sql.accounts
   (:require [honey.sql.helpers :refer [where]]
+            [clj-time.coerce :refer [to-sql-date]]
+            [dgknght.app-lib.core :refer [update-in-if]]
             [xtdb-money.sql :as sql]))
 
 (defmethod sql/before-save :account
   [account]
-  (update-in account [:type] name))
+  (-> account
+      (update-in-if [:first-trx-date] to-sql-date)
+      (update-in-if [:last-trx-date] to-sql-date)
+      (update-in [:type] name)))
 
 (defmethod sql/after-read :account
   [account]

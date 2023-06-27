@@ -1,8 +1,10 @@
 (ns xtdb-money.sql
+  (:refer-clojure :exclude [update])
   (:require [xtdb-money.core :as mny]
             [next.jdbc :as jdbc]
             [next.jdbc.plan :refer [select!]]
-            [next.jdbc.sql.builder :refer [for-insert]]
+            [next.jdbc.sql.builder :refer [for-insert
+                                           for-update]]
             [honey.sql.helpers :as h]
             [honey.sql :as hsql]
             [dgknght.app-lib.inflection :refer [plural]]))
@@ -13,6 +15,7 @@
 
 (defmulti insert dispatch)
 (defmulti select dispatch)
+(defmulti update dispatch)
 
 (defmulti before-save mny/model-type)
 (defmethod before-save :default [m] m)
@@ -26,6 +29,19 @@
   (let [table (infer-table-name model)
         s (for-insert table
                       (before-save model)
+                      jdbc/snake-kebab-opts)
+        result (jdbc/execute-one! db s {:return-keys [:id]})]
+
+    ; TODO: add logging
+
+    (get-in result [(keyword (name table) "id")])))
+
+(defmethod update :default
+  [db {:keys [id] :as model}]
+  (let [table (infer-table-name model)
+        s (for-update table
+                      (dissoc (before-save model) :id)
+                      {:id id}
                       jdbc/snake-kebab-opts)
         result (jdbc/execute-one! db s {:return-keys [:id]})]
 
@@ -62,10 +78,16 @@
                   query
                   jdbc/snake-kebab-opts))))
 
+(defn- upsert
+  [db m]
+  (if (:id m)
+    (update db m)
+    (insert db m)))
+
 (defn- put*
   [db models]
   (jdbc/with-transaction [tx db]
-    (mapv #(insert tx %)
+    (mapv #(upsert tx %)
           models)))
 
 (defn- select*
