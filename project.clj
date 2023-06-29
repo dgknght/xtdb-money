@@ -17,6 +17,7 @@
         :main ^:skip-aot xtdb-money.core
         :target-path "target/%s"
         :plugins [[lein-environ "1.2.0"]]
+        :jvm-opts ["-Duser.timezone=UTC"]
         :profiles {:uberjar {:aot :all
                              :jvm-opts ["-Dclojure.compiler.direct-linking=true"]}
                    :test [:project/test :profiles/test] ; this performs a deep merge, so it's only necessary to override the specific attributes that need to change in profiles.clj
