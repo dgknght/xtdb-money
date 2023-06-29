@@ -78,7 +78,7 @@
                   query
                   jdbc/snake-kebab-opts))))
 
-(defn- upsert
+(defn- upsert ; TODO: this could also be a delete
   [db m]
   (if (:id m)
     (update db m)
