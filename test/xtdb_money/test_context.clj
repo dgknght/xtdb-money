@@ -56,6 +56,11 @@
   ([model ctx k]
    (update-in model [k] (comp :id find-entity) ctx)))
 
+(defn- put-with
+  [m f]
+  (or (f m)
+      (clojure.pprint/pprint {::unable-to-create m})))
+
 (defn- throw-on-failure
   [model-type]
   (fn [m]
@@ -97,7 +102,7 @@
       (resolve-entity ctx)
       (resolve-account ctx :debit-account-id)
       (resolve-account ctx :credit-account-id)
-      (trxs/put)))
+      (put-with trxs/put)))
 
 (defn- realize-transactions
   [ctx]
