@@ -1,6 +1,7 @@
 (ns xtdb-money.models.sql.transactions
   (:require [honey.sql.helpers :refer [where]]
-            [clj-time.coerce :refer [to-sql-date]]
+            [clj-time.coerce :refer [to-sql-date
+                                     to-local-date]]
             [xtdb-money.sql :as sql]
             [clojure.core :as c]))
 
@@ -10,11 +11,16 @@
 
 (defmulti apply-transaction-date
   (fn [_s {:keys [transaction-date]}]
-    (if (vector? transaction-date)
-      (if (#{:and :or} (first transaction-date))
-        :conjunction
-        :explicit)
-      :implicit)))
+    (when transaction-date
+      (if (vector? transaction-date)
+        (if (#{:and :or} (first transaction-date))
+          :conjunction
+          :explicit)
+        :implicit))))
+
+(defmethod apply-transaction-date :default
+  [s _]
+  s)
 
 (defmethod apply-transaction-date :implicit
   [s {:keys [transaction-date]}]
@@ -66,3 +72,7 @@
   (-> transaction
       (update-in [:transaction-date] to-sql-date)
       (select-keys attr)))
+
+(defmethod sql/after-read :transaction
+  [transaction]
+  (update-in transaction [:transaction-date] to-local-date))
