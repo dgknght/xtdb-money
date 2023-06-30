@@ -5,6 +5,7 @@
                   :url "https://www.eclipse.org/legal/epl-2.0/"}
         :dependencies [[org.clojure/clojure "1.11.1"]
                        [clj-time "0.15.2"]
+                       [ch.qos.logback/logback-classic "1.2.3"]
                        [com.xtdb/xtdb-core "1.23.1"]
                        [com.datomic/dev-local "1.0.243" :exclusions [com.cognitect/transit-clj
                                                                      com.cognitect/transit-java]]
@@ -20,10 +21,12 @@
                        [org.postgresql/postgresql "42.6.0" :exclusions [org.checkerframework/checker-qual]]
                        [dev.weavejester/ragtime "0.9.3"]
                        [com.github.seancorfield/honeysql "2.4.1033"]
-                       [com.github.dgknght/app-lib "0.3.2" :exclusions [args4j]]
+                       [com.github.dgknght/app-lib "0.3.2" :exclusions [args4j
+                                                                        commons-logging]]
                        [yogthos/config "1.2.0"]]
         :main ^:skip-aot xtdb-money.core
         :target-path "target/%s"
+        :resource-paths ["resources"]
         :plugins [[lein-environ "1.2.0"]]
         :jvm-opts ["-Duser.timezone=UTC"]
         :profiles {:uberjar {:aot :all

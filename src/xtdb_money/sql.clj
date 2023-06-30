@@ -1,6 +1,7 @@
 (ns xtdb-money.sql
   (:refer-clojure :exclude [update])
-  (:require [xtdb-money.core :as mny]
+  (:require [clojure.tools.logging :as log]
+            [xtdb-money.core :as mny]
             [next.jdbc :as jdbc]
             [next.jdbc.plan :refer [select!]]
             [next.jdbc.sql.builder :refer [for-insert
@@ -33,7 +34,8 @@
                       jdbc/snake-kebab-opts)
         result (jdbc/execute-one! db s {:return-keys [:id]})]
 
-    ; TODO: add logging
+    ; TODO: scrub for sensitive data
+    (log/debugf "database insert %s -> %s" model s)
 
     (get-in result [(keyword (name table) "id")])))
 
@@ -46,7 +48,8 @@
                       jdbc/snake-kebab-opts)
         result (jdbc/execute-one! db s {:return-keys [:id]})]
 
-    ; TODO: add logging
+    ; TODO: scrub sensitive data
+    (log/debugf "database update %s -> %s" model s)
 
     (get-in result [(keyword (name table) "id")])))
 
@@ -64,13 +67,14 @@
 (defmulti attributes identity)
 
 (defmethod select :default
-  [db criteria _options]
+  [db criteria options]
   (let [query (-> (h/select :*)
                   (h/from (infer-table-name criteria))
                   (apply-criteria criteria)
                   hsql/format)]
 
-    ; TODO: add logging
+    ; TODO: scrub sensitive data
+    (log/debugf "database select %s with options %s -> %s" criteria options query)
 
     (map (comp after-read
                #(mny/model-type % criteria))
@@ -85,7 +89,8 @@
                       (select-keys m [:id])
                       {})]
 
-    ; TODO: add logging
+    ; TODO: scrub sensitive data
+    (log/debugf "database delete %s -> %s" m s)
 
     (jdbc/execute! db s)))
 
