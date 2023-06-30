@@ -65,8 +65,8 @@
                                                          "mongodb"
                                                          {:xtdb-money.core/provider :mongodb
                                                           :database "money_development"}}}}}}
-        :repl-options {:init-ns xtdb-money.repl
-                       :wilcome (println "Welcome to money management with persistent data!")}
+        :repl-options {:init-ns xtdb-money.core
+                       :welcome (println "Welcome to money management with persistent data!")}
         :aliases {"migrate" ["run" "-m" "xtdb-money.models.sql.migrations/migrate"]
                   "rollback" ["run" "-m" "xtdb-money.models.sql.migrations/rollback"]
                   "remigrate" ["run" "-m" "xtdb-money.models.sql.migrations/remigrate"]
