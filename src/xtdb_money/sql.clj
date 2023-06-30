@@ -61,6 +61,12 @@
     (h/where s [:= :id id])
     s))
 
+(defn- apply-options
+  [s {:keys [limit order-by]}]
+  (cond-> s
+    limit (assoc :limit limit)
+    order-by (assoc :order-by order-by)))
+
 (defmulti after-read mny/model-type)
 (defmethod after-read :default [m] m)
 
@@ -71,6 +77,7 @@
   (let [query (-> (h/select :*)
                   (h/from (infer-table-name criteria))
                   (apply-criteria criteria)
+                  (apply-options options)
                   hsql/format)]
 
     ; TODO: scrub sensitive data
