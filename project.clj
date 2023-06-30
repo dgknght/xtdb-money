@@ -37,7 +37,7 @@
                                                           {:system "money-test"}
 
                                                           "sql"
-                                                          {:dbname"xtdb_money_test"}}}}}
+                                                          {:dbname "xtdb_money_test"}}}}}
                    :dev [:project/dev :profiles/dev]
                    :project/dev {:env {:db {:active "xtdb"
                                             :strategies {"datomic"
@@ -53,6 +53,7 @@
                                                          {:xtdb-money.core/provider :sql
                                                           :dbtype "postgresql"
                                                           :dbname "xtdb_money_development"
+                                                          :host "localhost"
                                                           :user "app_user"
                                                           :password "please01"}}}}}}
         :repl-options {:init-ns xtdb-money.repl
