@@ -27,14 +27,13 @@
   ([criteria]         (select criteria {}))
   ([criteria options] (select (mny/storage) criteria options))
   ([db criteria options]
-  {:per [(satisfies? mny/Storage db)
-         (s/valid? ::mny/options options)
-         ((some-fn :id :entity) criteria)]}
-
-  (map after-read
-       (mny/select db
-                   (mny/model-type criteria :account)
-                   options))))
+   {:pre [(satisfies? mny/Storage db)
+          (s/valid? ::mny/options options)
+          ((some-fn :id :entity-id) criteria)]}
+   (map after-read
+        (mny/select db
+                    (mny/model-type criteria :account)
+                    options))))
 
 (dbfn find
   [db id]
@@ -52,4 +51,5 @@
   [db account]
   {:pre [(s/valid? ::account account)]}
 
-  (find db (first (mny/put db [(before-save account)]))))
+  (let [ids (mny/put db [(before-save account)])]
+    (find db (first ids))))

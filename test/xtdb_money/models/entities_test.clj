@@ -4,6 +4,7 @@
             [xtdb-money.helpers :refer [reset-db
                                         dbtest]]
             [xtdb-money.models.entities :as ents]
+            [xtdb-money.models.sql.ref]
             [xtdb-money.models.xtdb.ref]
             [xtdb-money.models.datomic.ref]))
 

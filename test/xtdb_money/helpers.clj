@@ -9,11 +9,10 @@
 (defn reset-db [f]
   (let [dbs (->> (get-in env [:db :strategies])
                  vals
-                 (map mny/reify-storage))]
+                 (mapv mny/reify-storage))]
     (doseq [db dbs]
-      (mny/reset db)
-      (binding [mny/*storage* db]
-        (f)))))
+      (mny/reset db))
+    (f)))
 
 (defmacro dbtest
   [test-name & body]

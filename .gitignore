@@ -1,6 +1,7 @@
 /target
 /classes
 /checkouts
+/log
 profiles.clj
 pom.xml
 pom.xml.asc
@@ -13,3 +14,4 @@ pom.xml.asc
 .hg/
 .lsp/
 .clj-kondo/.cache
+.clj-kondo/com.github.seancorfield
