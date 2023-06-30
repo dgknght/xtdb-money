@@ -5,9 +5,7 @@
             [config.core :refer [env]]))
 
 (defn- config []
-  {:datastore (let [host-override (env :sql-database-host)]
-                (jdbc/sql-database (cond-> (get-in env [:db :strategies "sql"])
-                                     host-override (assoc :host host-override))))
+  {:datastore (jdbc/sql-database (get-in env [:db :strategies "sql"]))
    :migrations (jdbc/load-resources "migrations")})
 
 (defn migrate []

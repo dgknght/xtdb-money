@@ -31,6 +31,6 @@ jobs:
       - name: Migrate the database
         run: lein with-profile dev,test migrate
         env:
-          SQL_DATABASE_HOST: postgres
+          DB: '{:strategies {"sql" {:host "postgres"}}}'
       - name: Run tests
         run: lein test
