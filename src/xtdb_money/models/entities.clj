@@ -20,9 +20,15 @@
   [db id]
   (first (select db {:id id} {:limit 1})))
 
+(defn- resolve-put-result
+  [db x]
+  (if (map? x)
+    (mny/model-type x :entity)
+    (find db x)))
+
 (dbfn put
   [db entity]
   {:pre [(s/valid? ::entity entity)]}
 
-  (let [ids (mny/put db [(mny/model-type entity :entity)])]
-    (find db (first ids)))) ; TODO: return all of the saved models instead of the first?
+  (let [records-or-ids (mny/put db [(mny/model-type entity :entity)])]
+    (resolve-put-result db (first records-or-ids)))) ; TODO: return all of the saved models instead of the first?
