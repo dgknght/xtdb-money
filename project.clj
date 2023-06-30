@@ -66,4 +66,5 @@
                        :wilcome (println "Welcome to money management with persistent data!")}
         :aliases {"migrate" ["run" "-m" "xtdb-money.models.sql.migrations/migrate"]
                   "rollback" ["run" "-m" "xtdb-money.models.sql.migrations/rollback"]
-                  "remigrate" ["run" "-m" "xtdb-money.models.sql.migrations/remigrate"]})
+                  "remigrate" ["run" "-m" "xtdb-money.models.sql.migrations/remigrate"]
+                  "index-mongodb" ["run" "-m" "xtdb-money.models.mongodb.indexes/ensure"]})
