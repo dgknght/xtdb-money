@@ -9,9 +9,6 @@
                                      ->storable-date]])
   (:import org.joda.time.LocalDate))
 
-; This is a no-op with the memory implementation
-(defmethod mny/reset-db :xtdb [_])
-
 (defn- two-count?
   [coll]
   (= 2 (count coll)))
