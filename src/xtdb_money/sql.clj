@@ -4,7 +4,8 @@
             [next.jdbc :as jdbc]
             [next.jdbc.plan :refer [select!]]
             [next.jdbc.sql.builder :refer [for-insert
-                                           for-update]]
+                                           for-update
+                                           for-delete]]
             [honey.sql.helpers :as h]
             [honey.sql :as hsql]
             [dgknght.app-lib.inflection :refer [plural]]))
@@ -78,16 +79,37 @@
                   query
                   jdbc/snake-kebab-opts))))
 
-(defn- upsert ; TODO: this could also be a delete
+(defn delete
   [db m]
-  (if (:id m)
-    (update db m)
-    (insert db m)))
+  (let [s (for-delete (infer-table-name m)
+                      (select-keys m [:id])
+                      {})]
+
+    ; TODO: add logging
+
+    (jdbc/execute! db s)))
+
+(defn- wrap-oper
+  [m]
+  (if (vector? m)
+    m
+    [(if (:id m)
+       ::mny/update
+       ::mny/insert)
+     m]))
+
+(defn- put-one
+  [db [oper model]]
+  (case oper
+    ::mny/insert (insert db model)
+    ::mny/update (update db model)
+    ::mny/delete (delete db model)))
 
 (defn- put*
   [db models]
   (jdbc/with-transaction [tx db]
-    (mapv #(upsert tx %)
+    (mapv (comp #(put-one tx %)
+                wrap-oper)
           models)))
 
 (defn- select*
