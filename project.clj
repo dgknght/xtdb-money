@@ -6,13 +6,21 @@
         :dependencies [[org.clojure/clojure "1.11.1"]
                        [clj-time "0.15.2"]
                        [com.xtdb/xtdb-core "1.23.1"]
-                       [com.datomic/dev-local "1.0.243"]
-                       [com.datomic/client-pro "1.0.76"]
+                       [com.datomic/dev-local "1.0.243" :exclusions [com.cognitect/transit-clj
+                                                                     com.cognitect/transit-java]]
+                       [com.datomic/client-pro "1.0.76" :exclusions [com.cognitect/transit-clj
+                                                                     com.cognitect/transit-java
+                                                                     com.datomic/client
+                                                                     com.datomic/client-api
+                                                                     com.datomic/client-impl-shared
+                                                                     org.eclipse.jetty/jetty-http
+                                                                     org.eclipse.jetty/jetty-io
+                                                                     org.eclipse.jetty/jetty-util]]
                        [com.github.seancorfield/next.jdbc "1.3.874"]
-                       [org.postgresql/postgresql "42.6.0"]
+                       [org.postgresql/postgresql "42.6.0" :exclusions [org.checkerframework/checker-qual]]
                        [dev.weavejester/ragtime "0.9.3"]
                        [com.github.seancorfield/honeysql "2.4.1033"]
-                       [com.github.dgknght/app-lib "0.3.2"]
+                       [com.github.dgknght/app-lib "0.3.2" :exclusions [args4j]]
                        [yogthos/config "1.2.0"]]
         :main ^:skip-aot xtdb-money.core
         :target-path "target/%s"
