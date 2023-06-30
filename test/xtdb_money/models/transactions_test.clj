@@ -84,10 +84,10 @@
                 :debit-account-id (:id checking)
                 :amount 1000M}
           result (trxs/put attr)]
-      #_(testing "return value"
+      (testing "return value"
         (is (comparable? attr result)
             "The correct attributes are returned"))
-      #_(testing "transaction query by account"
+      (testing "transaction query by account"
         (is (seq-of-maps-like? [{:index 1
                                  :description "Paycheck"
                                  :amount "1000.00"
@@ -110,7 +110,7 @@
                                       (t/local-date 2000 1 1)
                                       (t/local-date 2000 2 1))))
             "The transaction is included in the credit account query"))
-      #_(testing "account updates"
+      (testing "account updates"
         (is (= {:balance 1000M
                 :first-trx-date (t/local-date 2000 1 1)
                 :last-trx-date (t/local-date 2000 1 1)}
