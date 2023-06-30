@@ -29,6 +29,6 @@ jobs:
     - name: Install dependencies
       run: lein deps
     - name: Migrate the database
-      run: lein with-profile dev,test migrate
+      run: lein migrate
     - name: Run tests
       run: lein test
