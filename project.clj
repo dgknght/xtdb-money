@@ -54,6 +54,7 @@
                                                           :dbtype "postgresql"
                                                           :dbname "xtdb_money_development"
                                                           :host "localhost"
+                                                          :port 5432
                                                           :user "app_user"
                                                           :password "please01"}}}}}}
         :repl-options {:init-ns xtdb-money.repl
