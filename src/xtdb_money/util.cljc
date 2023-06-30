@@ -18,12 +18,6 @@
   #?(:clj (partial instance? LocalDate)
      :cljs (throw (js/Error "Not implemented"))))
 
-(defn update-in-if
-  [m k f & args]
-  (if (= :absent (get-in m k :absent))
-    m
-    (apply update-in m k f args)))
-
 (defn make-id
   [id]
   (or id (random-uuid)))
