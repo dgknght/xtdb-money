@@ -38,7 +38,10 @@
                                                           {:system "money-test"}
 
                                                           "sql"
-                                                          {:dbname "xtdb_money_test"}}}}}
+                                                          {:dbname "xtdb_money_test"}
+
+                                                          "mongodb"
+                                                          {:database "money_test"}}}}}
                    :dev [:project/dev :profiles/dev]
                    :project/dev {:env {:db {:active "xtdb"
                                             :strategies {"datomic"

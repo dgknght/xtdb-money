@@ -14,10 +14,13 @@
       (mny/reset db))
     (f)))
 
+(def ^:dynamic *strategy* nil)
+
 (defmacro dbtest
   [test-name & body]
   `(deftest ~test-name
      (doseq [[name# config#] (dbs)]
-       (testing (format "database strategy %s" name#)
-         (mny/with-storage [config#]
-           ~@body)))))
+       (binding [*strategy* (keyword name#)]
+         (testing (format "database strategy %s" name#)
+           (mny/with-storage [config#]
+             ~@body))))))
