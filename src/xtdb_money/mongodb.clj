@@ -34,32 +34,45 @@
                     models
                     {:many? true}))))
 
+(def ^:private oper-map
+  {:> :$gt
+   :>= :$gte
+   :< :$lt
+   :<= :$lte})
+
 (defmulti ^:private adjust-complex-criterion
   (fn [[_k v]]
     (when (vector? v)
-      (if (#{:and :or} (first v))
-        :conjunction
-        :comparison))))
+      (let [[oper] v]
+        (or (#{:and :or} oper)
+            (when (oper-map oper) :comparison)
+            (first v))))))
 
 (defn- ->mongodb-op
   [op]
-  (keyword (str "$" (name op))))
+  (get-in oper-map
+          [op]
+          (keyword (str "$" (name op)))))
 
 (defmethod adjust-complex-criterion :default [c] c)
 
 (defmethod adjust-complex-criterion :comparison
-  [c]
+  [[f [op v]]]
   ; e.g. [:transaction-date [:< #inst "2020-01-01"]]
-  ; ->   [:transcation-date [:$< #inst "2020-01-01"]]
-  (update-in c [1 0] ->mongodb-op))
+  ; ->   [:transaction-date {:$lt #inst "2020-01-01"}]
+  {f {(->mongodb-op op) v}})
 
-(defmethod adjust-complex-criterion :conjunction
-  [[f [op & criteria]]]
-  (apply vector
-         (->mongodb-op op)
-         (map (fn [c]
-                [f c])
-              criteria)))
+(defmethod adjust-complex-criterion :and
+  [[f [_ & cs]]]
+  {f (->> cs
+          (map #(update-in % [0] ->mongodb-op))
+          (into {}))})
+
+(defmethod adjust-complex-criterion :or
+  [[f [_ & cs]]]
+  {f {:$or (mapv (fn [[op v]]
+                   {(->mongodb-op op) v})
+                 cs)}})
 
 (defn- adjust-complex-criteria
   [criteria]
@@ -67,12 +80,23 @@
        (map adjust-complex-criterion)
        (into {})))
 
-(defn- apply-criteria
+(defn apply-criteria
   [query criteria]
   (if (seq criteria)
     (assoc query :where (-> criteria
                             (rename-keys {:id :_id})
                             adjust-complex-criteria))
+    query))
+
+(defn apply-account-id
+  [{:keys [where] :as query} {:keys [account-id]}]
+  (if account-id
+    (let [c {:$or
+             [{:debit-account-id account-id}
+              {:credit-account-id account-id}]}]
+      (assoc query :where (if where
+                            {:$and [where c]}
+                            c)))
     query))
 
 (defmulti ^:private ->mongodb-sort
@@ -99,7 +123,8 @@
   [conn criteria options]
   (m/with-mongo conn
     (let [query (-> {}
-                    (apply-criteria criteria)
+                    (apply-criteria (dissoc criteria :account-id))
+                    (apply-account-id criteria)
                     (apply-options options))]
       (log/debugf "fetch %s with options %s -> %s" criteria options query)
       (map (comp after-read
