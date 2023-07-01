@@ -4,6 +4,9 @@
             [xtdb-money.core :as mny]
             [dgknght.app-lib.inflection :refer [plural]]))
 
+(defmulti after-read mny/model-type)
+(defmethod after-read :default [m] m)
+
 (def ^:private infer-collection-name
   (comp plural
         mny/model-type))
@@ -16,8 +19,27 @@
                     models
                     {:many? true}))))
 
+(defn- apply-criteria
+  [query criteria]
+  (if (seq criteria)
+    (assoc query :where (rename-keys criteria {:id :_id}))
+    query))
+
+(defn- apply-options
+  [query {:keys [limit order-by]}]
+  (cond-> query
+    limit (assoc :limit limit)
+    order-by (assoc :sort order-by)))
+
 (defn- select*
-  [_conn _criteria _options])
+  [conn criteria options]
+  (m/with-mongo conn
+    (map (comp after-read
+               #(mny/model-type % criteria))
+         (m/fetch (infer-collection-name criteria)
+                  (-> {}
+                      (apply-criteria criteria)
+                      (apply-options options))))))
 
 (defn- delete*
   [_conn _models])
