@@ -27,6 +27,26 @@
   (comp plural
         mny/model-type))
 
+(defmulti put-model
+  (fn [m]
+    (if (vector? m)
+      ({::mny/delete :delete} (first m))
+      (if (:id m)
+        :insert
+        :update))))
+
+(defmethod put-model :insert
+  [m]
+  (rename-keys (m/insert! (infer-collection-name m)
+                          m)
+               {:_id :id}))
+
+(defmethod put-model :update
+  [m]
+  (m/update! (infer-collection-name m)
+             {:_id (:id m)}
+             {:$set (dissoc m :id)}))
+
 (defn- put*
   [conn models]
   (m/with-mongo conn
@@ -102,13 +122,12 @@
 
 (defmulti ^:private ->mongodb-sort
   (fn [x]
-    (if (vector? x)
-      :explicit
-      :implicit)))
+    (when (vector? x)
+      :explicit)))
 
-(defmethod ->mongodb-sort :implicit
-  [f]
-  [f 1])
+(defmethod ->mongodb-sort :default
+  [x]
+  [x 1])
 
 (defmethod ->mongodb-sort :explicit
   [sort]
