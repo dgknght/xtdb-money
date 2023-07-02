@@ -65,3 +65,24 @@
          (mdb/apply-account-id {:where {:entity-id 201}}
                                {:account-id 101}))
       "The existing where clause is preserved and an intersection is specified"))
+
+(deftest apply-a-limit-to-a-query
+  (is (= {:limit 1}
+         (mdb/apply-options {} {:limit 1}))))
+
+(deftest specify-sort-order-for-a-query
+  (is (= {:sort {"transaction-date" 1}}
+         (mdb/apply-options {} {:order-by [:transaction-date]}))
+      "A simple field spec is copied directly")
+  (is (= {:sort {"transaction-date" 1}}
+         (mdb/apply-options {} {:order-by [[:transaction-date :asc]]}))
+      ":asc is translated to 1")
+  (is (= {:sort {"transaction-date" -1}}
+         (mdb/apply-options {} {:order-by [[:transaction-date :desc]]}))
+      ":desc is translated to -1")
+  ; TODO: I'm not convinced that this will work
+  (is (= {:sort {"transaction-date" -1
+                 "index" 1}}
+         (mdb/apply-options {} {:order-by [[:transaction-date :desc]
+                                           [:index :asc]]}))
+      ":desc is translated to -1"))

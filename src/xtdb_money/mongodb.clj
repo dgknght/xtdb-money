@@ -5,7 +5,8 @@
                                      to-date]]
             [somnium.congomongo :as m]
             [somnium.congomongo.coerce :refer [ConvertibleFromMongo
-                                               ConvertibleToMongo]]
+                                               ConvertibleToMongo
+                                               coerce-ordered-fields]]
             [xtdb-money.core :as mny]
             [dgknght.app-lib.inflection :refer [plural]])
   (:import org.joda.time.LocalDate
@@ -113,11 +114,11 @@
   [sort]
   (update-in sort [1] #(if (= :asc %) 1 -1)))
 
-(defn- apply-options
+(defn apply-options
   [query {:keys [limit order-by]}]
   (cond-> query
     limit (assoc :limit limit)
-    order-by (assoc :sort (mapv ->mongodb-sort order-by))))
+    order-by (assoc :sort (coerce-ordered-fields (map ->mongodb-sort order-by)))))
 
 (defn- select*
   [conn criteria options]
