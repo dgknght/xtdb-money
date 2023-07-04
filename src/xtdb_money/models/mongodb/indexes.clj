@@ -7,7 +7,9 @@
 
 (def ^:private all-indexes
   {:entities {"uk_entity_name" {:fields [:name]
-                                :options {:unique true}} }})
+                                :options {:unique true}}}
+   :accounts {"ix_account_entity" {:fields [:entity-id]}}
+   :transactions {"ix_transaction_date" {:fields [:transaction-date]}}})
 
 (defn- config []
   (get-in env [:db :strategies "mongodb"]))
