@@ -24,13 +24,14 @@ jobs:
           --health-retries 5
         ports:
           - 5432:5432
+      mongo:
+        image: mongo
+        restart: always
     env:
-      DB: '{:strategies {"sql" {:host "postgres"}}}'
+      DB: '{:strategies {"sql" {:host "postgres"}} {"mongodb" {:instance {:host "mongo"}}}}'
     steps:
       - name: Checkout source code
         uses: actions/checkout@v3
-      - name: Setup MongoDB
-        run: docker run -d -p 27017:27017 mongo:6.0
       - name: Install dependencies
         run: lein deps
       - name: Migrate the SQL database
