@@ -27,10 +27,15 @@ jobs:
     env:
       DB: '{:strategies {"sql" {:host "postgres"}}}'
     steps:
-      - uses: actions/checkout@v3
+      - name: Checkout source code
+        uses: actions/checkout@v3
+      - name: Setup MongoDB
+        uses: supercharge/mongodb-github-action@1.8.0
       - name: Install dependencies
         run: lein deps
-      - name: Migrate the database
+      - name: Migrate the SQL database
         run: lein with-profile dev,test migrate
+      - name: Index the MongoDB database
+        run: lein index-mongodb
       - name: Run tests
         run: lein test
