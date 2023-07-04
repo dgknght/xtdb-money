@@ -10,7 +10,8 @@
             [xtdb-money.core :as mny]
             [dgknght.app-lib.inflection :refer [plural]])
   (:import org.joda.time.LocalDate
-           java.util.Date))
+           java.util.Date
+           org.bson.types.Decimal128))
 
 (extend-protocol ConvertibleToMongo
   LocalDate
@@ -18,7 +19,10 @@
 
 (extend-protocol ConvertibleFromMongo
   Date
-  (mongo->clojure [^Date d _kwd] (to-local-date d)))
+  (mongo->clojure [^Date d _kwd] (to-local-date d))
+
+  Decimal128
+  (mongo->clojure [^Decimal128 d _kwd] (.bigDecimalValue d)))
 
 (defmulti after-read mny/model-type)
 (defmethod after-read :default [m] m)
@@ -28,32 +32,34 @@
         mny/model-type))
 
 (defmulti put-model
-  (fn [m]
+  (fn [_conn m]
     (if (vector? m)
       ({::mny/delete :delete} (first m))
       (if (:id m)
-        :insert
-        :update))))
+        :update
+        :insert))))
 
 (defmethod put-model :insert
-  [m]
-  (rename-keys (m/insert! (infer-collection-name m)
-                          m)
-               {:_id :id}))
+  [conn m]
+  (m/with-mongo conn
+    (m/insert! (infer-collection-name m)
+               m)))
 
 (defmethod put-model :update
-  [m]
-  (m/update! (infer-collection-name m)
-             {:_id (:id m)}
-             {:$set (dissoc m :id)}))
+  [conn m]
+  (m/with-mongo conn
+    (m/update! (infer-collection-name m)
+               {:_id (:id m)}
+               {:$set (dissoc m :id)})
+    (:id m)))
 
 (defn- put*
   [conn models]
-  (m/with-mongo conn
-    (map #(rename-keys % {:_id :id})
-         (m/insert! (infer-collection-name (first models))
-                    models
-                    {:many? true}))))
+  (mapv (comp #(if (map? %)
+                 (rename-keys % {:_id :id})
+                 %)
+              #(put-model conn %))
+        models))
 
 (def ^:private oper-map
   {:> :$gt
@@ -159,7 +165,7 @@
 (defn- reset*
   [conn]
   (m/with-mongo conn
-    (doseq [c [:entities]]
+    (doseq [c [:transactions :accounts :entities]]
       (m/destroy! c {}))))
 
 (defn connect

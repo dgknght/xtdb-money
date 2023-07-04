@@ -12,8 +12,7 @@
                                              find-account
                                              find-transaction]]
             [xtdb-money.helpers :refer [reset-db
-                                        dbtest
-                                        *strategy*]]
+                                        dbtest]]
             [xtdb-money.models.accounts :as acts]
             [xtdb-money.models.transactions :as trxs]
             [xtdb-money.reports :as rpts]

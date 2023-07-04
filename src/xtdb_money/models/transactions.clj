@@ -411,10 +411,13 @@
   [db trx]
   {:pre [(s/valid? ::transaction trx)]}
   (with-accounts trx
-    (find db (first (mny/put db (-> trx
-                                    (mny/model-type :transaction)
-                                    resolve-accounts
-                                    propagate))))))
+    (let [result (first (mny/put db (-> trx
+                                        (mny/model-type :transaction)
+                                        resolve-accounts
+                                        propagate)))]
+      (if (map? result)
+        (mny/model-type result :transaction)
+        (find db result)))))
 
 (dbfn delete
   [db trx]
