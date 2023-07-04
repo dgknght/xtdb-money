@@ -9,7 +9,8 @@
                                            for-delete]]
             [honey.sql.helpers :as h]
             [honey.sql :as hsql]
-            [dgknght.app-lib.inflection :refer [plural]]))
+            [dgknght.app-lib.inflection :refer [plural]]
+            [cljs.spec.alpha :as s]))
 
 (defn- dispatch
   [_db model & _]
@@ -54,6 +55,23 @@
     (get-in result [(keyword (name table) "id")])))
 
 (defmulti apply-criteria (fn [_s c] (mny/model-type c)))
+
+(defmulti apply-criterion
+  (fn [_s _k v]
+    (when (vector? v)
+      :complex)))
+
+(defmethod apply-criterion :default
+  [s k v]
+  (h/where s [:= k v]))
+
+(defmethod apply-criteria :default
+  [s criteria]
+  (if (empty? criteria)
+    s
+    (reduce-kv apply-criterion
+               s
+               criteria)))
 
 (defn apply-id
   [s {:keys [id]}]
