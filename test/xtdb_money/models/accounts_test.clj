@@ -6,6 +6,7 @@
             [xtdb-money.helpers :refer [reset-db
                                         dbtest]]
             [xtdb-money.models.accounts :as acts]
+            [xtdb-money.models.mongodb.ref]
             [xtdb-money.models.sql.ref]
             [xtdb-money.models.xtdb.ref]
             [xtdb-money.models.datomic.ref]))

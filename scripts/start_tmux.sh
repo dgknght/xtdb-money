@@ -16,10 +16,13 @@ tmux split-window -h
 tmux send-keys 'git status' C-m
 
 # SQL window
-tmux new-window -t $session:2 -n 'database' 'psql -d xtdb_money_development'
+tmux new-window -t $session:2 -n 'sql' 'psql -d xtdb_money_development'
+
+# MongoDB window
+tmux new-window -t $session:3 -n 'mongodb' 'mongosh'
 
 # Log window
-tmux new-window -t $session:3 -n 'logs'
+tmux new-window -t $session:4 -n 'logs'
 tmux send-keys 'tail -f log/development.log | grep -e ERROR -e WARN -e dbk' C-m
 tmux split-window -v
 tmux send-keys 'tail -f log/development.log' C-m

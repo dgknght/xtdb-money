@@ -21,6 +21,7 @@
                        [org.postgresql/postgresql "42.6.0" :exclusions [org.checkerframework/checker-qual]]
                        [dev.weavejester/ragtime "0.9.3"]
                        [com.github.seancorfield/honeysql "2.4.1033"]
+                       [congomongo "2.6.0"]
                        [com.github.dgknght/app-lib "0.3.2" :exclusions [args4j
                                                                         commons-logging]]
                        [yogthos/config "1.2.0"]]
@@ -37,7 +38,10 @@
                                                           {:system "money-test"}
 
                                                           "sql"
-                                                          {:dbname "xtdb_money_test"}}}}}
+                                                          {:dbname "xtdb_money_test"}
+
+                                                          "mongodb"
+                                                          {:database "money_test"}}}}}
                    :dev [:project/dev :profiles/dev]
                    :project/dev {:env {:db {:active "xtdb"
                                             :strategies {"datomic"
@@ -56,9 +60,14 @@
                                                           :host "localhost"
                                                           :port 5432
                                                           :user "app_user"
-                                                          :password "please01"}}}}}}
+                                                          :password "please01"}
+
+                                                         "mongodb"
+                                                         {:xtdb-money.core/provider :mongodb
+                                                          :database "money_development"}}}}}}
         :repl-options {:init-ns xtdb-money.repl
                        :wilcome (println "Welcome to money management with persistent data!")}
         :aliases {"migrate" ["run" "-m" "xtdb-money.models.sql.migrations/migrate"]
                   "rollback" ["run" "-m" "xtdb-money.models.sql.migrations/rollback"]
-                  "remigrate" ["run" "-m" "xtdb-money.models.sql.migrations/remigrate"]})
+                  "remigrate" ["run" "-m" "xtdb-money.models.sql.migrations/remigrate"]
+                  "index-mongodb" ["run" "-m" "xtdb-money.models.mongodb.indexes/ensure"]})

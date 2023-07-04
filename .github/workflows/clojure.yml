@@ -24,13 +24,20 @@ jobs:
           --health-retries 5
         ports:
           - 5432:5432
+      mongo:
+        image: mongo
     env:
-      DB: '{:strategies {"sql" {:host "postgres"}}}'
+      DB: |-
+        {:strategies {"sql"     {:host "postgres"}
+                      "mongodb" {:instance {:host "mongo"}}}}
     steps:
-      - uses: actions/checkout@v3
+      - name: Checkout source code
+        uses: actions/checkout@v3
       - name: Install dependencies
         run: lein deps
-      - name: Migrate the database
+      - name: Migrate the SQL database
         run: lein with-profile dev,test migrate
+      - name: Index the MongoDB database
+        run: lein index-mongodb
       - name: Run tests
         run: lein test

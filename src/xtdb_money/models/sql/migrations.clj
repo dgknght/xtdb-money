@@ -1,6 +1,5 @@
 (ns xtdb-money.models.sql.migrations
-  (:require [clojure.pprint :refer [pprint]]
-            [ragtime.jdbc :as jdbc]
+  (:require [ragtime.jdbc :as jdbc]
             [ragtime.repl :as repl]
             [config.core :refer [env]]))
 
@@ -10,7 +9,6 @@
 
 (defn migrate []
   (let [cfg(config)]
-    (pprint {::migrate cfg})
     (repl/migrate cfg)))
 
 (defn rollback []

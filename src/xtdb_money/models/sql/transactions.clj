@@ -3,7 +3,8 @@
             [clj-time.coerce :refer [to-sql-date
                                      to-local-date]]
             [xtdb-money.sql :as sql]
-            [clojure.core :as c]))
+            [dgknght.app-lib.core :refer [uuid
+                                          update-in-if]]))
 
 ; local-date ->                  [:= :transaction-date local-date}
 ; [:< local-date] ->             [:<= :transaction-date local-date]]
@@ -75,4 +76,6 @@
 
 (defmethod sql/after-read :transaction
   [transaction]
-  (update-in transaction [:transaction-date] to-local-date))
+  (-> transaction
+      (update-in-if [:correlation-id] uuid)
+      (update-in [:transaction-date] to-local-date)))
