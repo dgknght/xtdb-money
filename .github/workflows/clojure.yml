@@ -30,7 +30,7 @@ jobs:
       - name: Checkout source code
         uses: actions/checkout@v3
       - name: Setup MongoDB
-        uses: supercharge/mongodb-github-action@1.8.0
+        run: sudo docker run -d -p 27017:27017 mongo:6.0
       - name: Install dependencies
         run: lein deps
       - name: Migrate the SQL database
