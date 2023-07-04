@@ -27,7 +27,9 @@ jobs:
       mongo:
         image: mongo
     env:
-      DB: '{:strategies {"sql" {:host "postgres"}} {"mongodb" {:instance {:host "mongo"}}}}'
+      DB: |-
+        {:strategies {"sql"     {:host "postgres"}
+                      "mongodb" {:instance {:host "mongo"}}}}
     steps:
       - name: Checkout source code
         uses: actions/checkout@v3
