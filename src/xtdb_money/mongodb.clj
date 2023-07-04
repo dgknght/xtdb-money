@@ -32,33 +32,44 @@
         mny/model-type))
 
 (defmulti put-model
-  (fn [_conn m]
-    (if (vector? m)
-      ({::mny/delete :delete} (first m))
-      (if (:id m)
-        :update
-        :insert))))
+  (fn [_conn [op _m]]
+    op))
 
-(defmethod put-model :insert
-  [conn m]
+(defmethod put-model ::mny/insert
+  [conn [_ m]]
   (m/with-mongo conn
     (m/insert! (infer-collection-name m)
                m)))
 
-(defmethod put-model :update
-  [conn m]
+(defmethod put-model ::mny/update
+  [conn [_ m]]
   (m/with-mongo conn
     (m/update! (infer-collection-name m)
                {:_id (:id m)}
                {:$set (dissoc m :id)})
     (:id m)))
 
+(defmethod put-model ::mny/delete
+  [conn [_ m]]
+  (m/with-mongo conn
+    (m/destroy! (infer-collection-name m)
+                {:_id (:id m)})))
+
+(defn- wrap-oper
+  [m]
+  (if (vector? m)
+    m
+    (if (:id m)
+      [::mny/update m]
+      [::mny/insert m])))
+
 (defn- put*
   [conn models]
   (mapv (comp #(if (map? %)
                  (rename-keys % {:_id :id})
                  %)
-              #(put-model conn %))
+              #(put-model conn %)
+              wrap-oper)
         models))
 
 (def ^:private oper-map
