@@ -26,7 +26,6 @@ jobs:
           - 5432:5432
       mongo:
         image: mongo
-        restart: always
     env:
       DB: '{:strategies {"sql" {:host "postgres"}} {"mongodb" {:instance {:host "mongo"}}}}'
     steps:
