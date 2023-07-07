@@ -1,6 +1,8 @@
 (ns xtdb-money.sql
   (:refer-clojure :exclude [update])
   (:require [clojure.tools.logging :as log]
+            [clj-time.coerce :refer [to-sql-date
+                                     to-local-date]]
             [xtdb-money.core :as mny]
             [next.jdbc :as jdbc]
             [next.jdbc.plan :refer [select!]]
@@ -9,7 +11,21 @@
                                            for-delete]]
             [honey.sql.helpers :as h]
             [honey.sql :as hsql]
-            [dgknght.app-lib.inflection :refer [plural]]))
+            [dgknght.app-lib.inflection :refer [plural]])
+  (:import org.joda.time.LocalDate
+           java.sql.Date))
+
+(defmulti ->storable type)
+(defmethod ->storable :default [x] x)
+(defmethod ->storable LocalDate
+  [d]
+  (to-sql-date d))
+
+(defmulti <-storable type)
+(defmethod <-storable :default [x] x)
+(defmethod <-storable Date
+  [d]
+  (to-local-date d))
 
 (defn- dispatch
   [_db model & _]
@@ -54,6 +70,37 @@
     (get-in result [(keyword (name table) "id")])))
 
 (defmulti apply-criteria (fn [_s c] (mny/model-type c)))
+
+(defmulti apply-criterion
+  (fn [_s _k v]
+    (when (vector? v)
+      (case (first v)
+        (:< :<= :> :>= :!=) :explicit-oper
+        (:and :or)          :conjunction
+        (throw (ex-info (str "Unknown operator: " (first v))
+                        {:criterion v}))))))
+
+(defmethod apply-criterion :default
+  [s k v]
+  (h/where s [:= k (->storable v)]))
+
+(defmethod apply-criterion :explicit-oper
+  [s k [oper v]]
+  (h/where s [oper k (->storable v)]))
+
+(defmethod apply-criterion :conjunction
+  [s k [oper & stmts]]
+  (apply h/where s oper (map (fn [[op v]]
+                               [op k (->storable v)])
+                             stmts)))
+
+(defmethod apply-criteria :default
+  [s criteria]
+  (if (empty? criteria)
+    s
+    (reduce-kv apply-criterion
+               s
+               criteria)))
 
 (defn apply-id
   [s {:keys [id]}]
