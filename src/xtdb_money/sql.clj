@@ -75,7 +75,7 @@
   (fn [_s _k v]
     (when (vector? v)
       (case (first v)
-        (:< :<= :> :>= :!=) :explict-oper
+        (:< :<= :> :>= :!=) :explicit-oper
         (:and :or)          :conjunction
         (throw (ex-info (str "Unknown operator: " (first v))
                         {:criterion v}))))))
