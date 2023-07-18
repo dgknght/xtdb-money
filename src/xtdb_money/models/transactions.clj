@@ -254,8 +254,8 @@
   [account start-date end-date]
   (with-accounts account
     (->> (select (between {:account-id (:id account)}
-                           start-date
-                           end-date)
+                          start-date
+                          end-date)
                  {})
          (split-and-filter account)
          (sort-by index))))

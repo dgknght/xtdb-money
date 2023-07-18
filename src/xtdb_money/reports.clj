@@ -62,8 +62,7 @@
                        (trxs/between
                          {:entity-id entity-id}
                          start-date
-                         end-date)
-                       {})]
+                         end-date))]
     (->> transactions
          (lookup-accounts accounts)
          (split-actions)

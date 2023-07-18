@@ -1,5 +1,6 @@
 (ns xtdb-money.models.xtdb.transactions
-  (:require [xtdb-money.xtdb :as x]))
+  (:require [xtdb-money.datalog :as dtl]
+            [xtdb-money.xtdb :as x]))
 
 (defn- apply-account-id
   [query {:keys [account-id]}]
@@ -9,26 +10,30 @@
         (update-in [:in] conj '?account-id)
         (update-in [:where]
                    conj
-                   '(or [?t :transaction/debit-account-id ?account-id]
-                        [?t :transaction/credit-account-id ?account-id])))
+                   '(or [?x :transaction/debit-account-id ?account-id]
+                        [?x :transaction/credit-account-id ?account-id])))
     query))
 
-(defn- apply-id
-  [query {:keys [id]}]
-  (if id
-    (-> query
-        (update-in [::x/args] conj id)
-        (update-in [:in] conj '?id)
-        (update-in [:where] conj '[?t :xt/id ?id]))
-    query))
+(defn- ensure-transaction-date
+  [{:keys [where] :as query}]
+  (if (some #(= :transaction/transaction-date
+                      (second %))
+            where)
+    query
+    (update-in query
+               [:where]
+               (fnil conj [])
+               '[?x :transaction/transaction-date ?transaction-date])))
 
 (defmethod x/criteria->query :transaction
   [criteria options]
-  (-> '{:find [(pull ?t [*]) ?transaction-date]
+  (-> '{:find [(pull ?x [*]) ?transaction-date]
         :in [$]
-        :where [[?t :transaction/transaction-date ?transaction-date]]
         ::x/args []}
-      (x/apply-criteria (dissoc criteria :id :account-id))
-      (apply-id criteria)
+      (dtl/apply-criteria (dissoc criteria :account-id)
+                          {:coerce x/->storable
+                           :args-key [::x/args]
+                           :remap {:id :xt/id}})
+      ensure-transaction-date
       (apply-account-id criteria)
-      (x/apply-options options)))
+      (dtl/apply-options options)))

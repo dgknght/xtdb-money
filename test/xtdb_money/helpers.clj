@@ -3,17 +3,6 @@
             [config.core :refer [env]]
             [xtdb-money.core :as mny]))
 
-(defn dbs []
-  (get-in env [:db :strategies]))
-
-(defn reset-db [f]
-  (let [dbs (->> (get-in env [:db :strategies])
-                 vals
-                 (mapv mny/reify-storage))]
-    (doseq [db dbs]
-      (mny/reset db))
-    (f)))
-
 (def ^:dynamic *strategy* nil)
 
 (defn ->set
@@ -29,6 +18,21 @@
     exclude `(complement ~(->set exclude))
     :else   '(constantly true)))
 
+(def ignore-strategy (->set (env :ignore-strategy)))
+(def honor-strategy (complement ignore-strategy))
+
+(defn dbs []
+  (get-in env [:db :strategies]))
+
+(defn reset-db [f]
+  (let [dbs (->> (get-in env [:db :strategies])
+                 (remove (comp ignore-strategy first))
+                 vals
+                 (mapv mny/reify-storage))]
+    (doseq [db dbs]
+      (mny/reset db))
+    (f)))
+
 (defn ensure-opts
   [args]
   (if (map? (first args))
@@ -39,7 +43,8 @@
   [test-name & body]
   (let [[opts & bod] (ensure-opts body)]
     `(deftest ~test-name
-       (doseq [[name# config#] (filter (comp ~(include-strategy opts)
+       (doseq [[name# config#] (filter (comp (every-pred ~(include-strategy opts)
+                                                         honor-strategy)
                                              first)
                                        (dbs))]
          (binding [*strategy* (keyword name#)]

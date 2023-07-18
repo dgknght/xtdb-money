@@ -2,6 +2,7 @@
   (:require [clojure.walk :refer [postwalk]]
             [xtdb.api :as xt]
             [cljs.core :as c]
+            [xtdb-money.datalog :as dtl]
             [xtdb-money.core :as mny]
             [xtdb-money.util :refer [local-date?
                                      make-id
@@ -113,7 +114,15 @@
 (defmulti criteria->query
   (fn [criteria _opts] (mny/model-type criteria)))
 
-(defmulti ^:private ->storable type)
+(defmethod criteria->query :default
+  [criteria opts]
+  (-> '{:find [(pull ?x [*])]
+        :in [$]}
+      (dtl/apply-criteria criteria {:args-key [::args]
+                                    :remap {:id :xt/id}})
+      (dtl/apply-options opts)))
+
+(defmulti ->storable type)
 
 (defmethod ->storable :default [v] v)
 
@@ -131,8 +140,8 @@
 
 (defn- arg-ident
   ([k] (arg-ident k nil))
-  ([k prefix]
-  (symbol (str "?" (name k) prefix))))
+  ([k suffix]
+  (symbol (str "?" (name k) suffix))))
 
 (defmethod apply-criterion :default
   [query [k v]]
@@ -174,39 +183,6 @@
                                                      (symbol (str "?" k))
                                                      x))
                                              v))]))
-
-(defn apply-criteria
-  [query criteria]
-  (reduce apply-criterion
-          query
-          criteria))
-
-(defmulti ^:private apply-sort
-  (fn [_query order-by]
-    (cond
-      (vector? order-by) :multi
-      order-by           :single)))
-
-(defmethod apply-sort :single
-  [query order-by]
-  (assoc query :order-by [[(symbol (name order-by)) :asc]]))
-
-(defmethod apply-sort :multi
-  [query order-by]
-  (assoc query :order-by (mapv (fn [x]
-                                 (if (vector? x)
-                                   (update-in x [0] (comp symbol
-                                                          #(str "?" %)
-                                                          name))
-                                   [(symbol (str "?" (name x))) :asc]))
-                               order-by)))
-
-(defn apply-options
-  [query {:keys [limit offset order-by]}]
-  (cond-> query
-    limit (assoc :limit limit)
-    offset (assoc :offset offset)
-    order-by (apply-sort order-by)))
 
 (defn- select*
   [node criteria options]

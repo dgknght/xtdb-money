@@ -1,88 +1,44 @@
 (ns xtdb-money.models.datomic.transactions
   (:require [xtdb-money.util :refer [->storable-date
                                      <-storable-date]]
-            [xtdb-money.datomic :as d]))
+            [xtdb-money.datalog :as dtl]
+            [xtdb-money.datomic :as d])
+  (:import org.joda.time.LocalDate))
 
-(defn- apply-id
-  [query {:keys [id]}]
-  (if id
-    (-> query
-        (update-in [:query :in] conj '?t)
-        (update-in [:args] conj id))
-    query))
+(defmulti ->storable type)
+
+(defmethod ->storable :default [v] v)
+
+(defmethod ->storable LocalDate
+  [v]
+  (->storable-date v))
 
 (defn- apply-account-id
   [query {:keys [account-id]}]
   (if account-id
     (-> query
-        (update-in [:query :in] conj '?a)
+        (update-in [:query :in] conj '?account-id)
         (update-in [:args] conj account-id)
         (update-in [:query :where]
                    (comp vec concat)
-                   '[(or [?t :transaction/debit-account-id ?a]
-                         [?t :transaction/credit-account-id ?a])]))
-    query))
-
-(defn- apply-entity-id
-  [query {:keys [entity-id]}]
-  (if entity-id
-    (-> query
-        (update-in [:query :in] conj '?e)
-        (update-in [:args] conj entity-id)
-        (update-in [:query :where]
-                  conj '[?t :transaction/entity-id ?e]))
-    query))
-
-(defmulti ^:private apply-transaction-date
-  (fn [_query {:keys [transaction-date]}]
-    (when transaction-date
-      (if (vector? transaction-date)
-        (case (first transaction-date)
-          (:< :<= :> :>=) :comparison
-          :and            :intersection
-          :or             :union)
-        :simple))))
-
-(defmethod apply-transaction-date :default
-  [query _criteria]
-  query)
-
-(defmethod apply-transaction-date :simple
-  [query {:keys [transaction-date]}]
-  (-> query
-      (update-in [:query :in] conj '?d)
-      (update-in [:args] conj (->storable-date transaction-date))
-      (update-in [:query :where] conj '[?t :transaction/transaction-date ?d])))
-
-(defmethod apply-transaction-date :comparison
-  [query {[oper d] :transaction-date}]
-  (-> query
-      (update-in [:query :in] conj '?d)
-      (update-in [:args] conj (->storable-date d))
-      (update-in [:query :where]
-                 (comp vec concat)
-                 ['[?t :transaction/transaction-date ?trx-date]
-                  [(list (symbol (name oper))
-                         '?trx-date
-                         '?d)]])))
-
-(defn- apply-limit
-  [query {:keys [limit]}]
-  (if limit
-    (assoc query :limit limit)
+                   '[(or [?x :transaction/debit-account-id ?account-id]
+                         [?x :transaction/credit-account-id ?account-id])]))
     query))
 
 (defmethod d/criteria->query :transaction
   [criteria options]
-  (-> '{:query {:find [(pull ?t [*])]
+  (-> '{:query {:find [(pull ?x [*])]
                 :in [$]
                 :where []}
         :args []}
-      (apply-id criteria)
       (apply-account-id criteria)
-      (apply-entity-id criteria)
-      (apply-transaction-date criteria)
-      (apply-limit options)))
+      (d/apply-id criteria)
+      (dtl/apply-criteria (dissoc criteria
+                                  :id
+                                  :account-id)
+                          {:query-prefix [:query]
+                           :coerce ->storable})
+      (dtl/apply-options (dissoc options :order-by))))
 
 (defmethod d/before-save :transaction
   [trx]

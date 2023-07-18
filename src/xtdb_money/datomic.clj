@@ -2,6 +2,7 @@
   (:require [clojure.set :refer [rename-keys]]
             [datomic.client.api :as d]
             [datomic.client.api.protocols :refer [Connection]]
+            [xtdb-money.datalog :as dtl]
             [xtdb-money.util :refer [qualify-keys
                                      unqualify-keys
                                      +id
@@ -112,6 +113,24 @@
   (fn [m _opts]
     (mny/model-type m)))
 
+(defn apply-id
+  [query {:keys [id]}]
+  (if id
+    (-> query
+        (update-in [:args] (fnil conj []) id)
+        (update-in [:query :in] (fnil conj []) '?x))
+    query))
+
+(defmethod criteria->query :default
+  [criteria opts]
+  (-> '{:query {:find [(pull ?x [*])]
+                :in [$]}
+        :args []}
+      (apply-id criteria)
+      (dtl/apply-criteria (dissoc criteria :id)
+                          {:query-prefix [:query]})
+      (dtl/apply-options opts)))
+
 (defmulti before-save mny/model-type)
 (defmulti after-read mny/model-type)
 
@@ -182,8 +201,10 @@
   [criteria options {:keys [conn]}]
   (let [query (-> criteria
                   (criteria->query options)
-                  (update-in [:args] prepend (or (::db options)
-                                                 (d/db conn))))
+                  (update-in [:args]
+                             prepend
+                             (or (::db options)
+                                 (d/db conn))))
         raw-result (d/q query)]
     (->> raw-result
          (map first)
