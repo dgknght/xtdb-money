@@ -23,7 +23,7 @@
    :entity-id
    :transaction-date
    :description
-   :amount
+   :quantity
    :debit-account-id
    :debit-index
    :debit-balance
