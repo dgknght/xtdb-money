@@ -18,8 +18,8 @@
 (s/def ::description string?)
 (s/def ::debit-account-id non-nil?)
 (s/def ::credit-account-id non-nil?)
-(s/def ::amount (s/and decimal?
-                       #(< 0M %)))
+(s/def ::quantity (s/and decimal?
+                         #(< 0M %)))
 (s/def ::debit-index integer?)
 (s/def ::debit-balance decimal?)
 (s/def ::credit-index integer?)
@@ -29,7 +29,7 @@
                                       ::description
                                       ::credit-account-id
                                       ::debit-account-id
-                                      ::amount]
+                                      ::quantity]
                              :opt-un [::mdls/id
                                       ::debit-index
                                       ::debit-balance
@@ -107,7 +107,7 @@
   (account [this] "Returns the account for the transaction")
   (account-id [this] "Retrieves the ID for the account to which the transaction belongs")
   (other-account [this] "Returns the account on the other side of the transaction")
-  (amount [this] "The polarized amount of the transaction")
+  (quantity [this] "The polarized quantity of the transaction")
   (index [this] "Ordinal position of this transaction within the account")
   (set-index [this index] "Set the ordinal position")
   (balance [this] "Balance of the account as of this transaction")
@@ -147,8 +147,8 @@
   (account [_] (-> trx :credit-account-id accounts))
   (account-id [_] (:credit-account-id trx))
   (other-account [_] (-> trx :debit-account-id accounts))
-  (amount [this]
-    (a/polarize {:amount (:amount trx)
+  (quantity [this]
+    (a/polarize {:quantity (:quantity trx)
                  :account (account this)
                  :action :credit}))
   (index [_] (:credit-index trx))
@@ -174,8 +174,8 @@
   (account [_] (-> trx :debit-account-id accounts))
   (account-id [_] (:debit-account-id trx))
   (other-account [_] (-> trx :credit-account-id accounts))
-  (amount [this]
-    (a/polarize {:amount (:amount trx)
+  (quantity [this]
+    (a/polarize {:quantity (:quantity trx)
                  :account (account this)
                  :action :debit}))
   (index [_] (:debit-index trx))
@@ -208,7 +208,7 @@
 
 (defn- pprintable
   [t]
-  {:amount (format "%.2f" (amount t))
+  {:quantity (format "%.2f" (quantity t))
    :action (action t)
    :account (:name (account t))
    :description (description t)
@@ -314,7 +314,7 @@
     (update-in result [:out] conj trx)
     (let [idx (+ 1 last-index)
           bln (+ last-balance
-                 (amount trx))
+                 (quantity trx))
           updated (-> trx
                       (set-index idx)
                       (set-balance bln))

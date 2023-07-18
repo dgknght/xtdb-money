@@ -78,10 +78,10 @@
     :db/valueType :db.type/bigdec
     :db/cardinality :db.cardinality/one
     :db/doc "The balance of the account being credited as a result of this transaction"}
-   {:db/ident :transaction/amount
+   {:db/ident :transaction/quantity
     :db/valueType :db.type/bigdec
     :db/cardinality :db.cardinality/one
-    :db/doc "The amount of the transaction"}
+    :db/doc "The quantity of the transaction"}
    {:db/ident :transaction/description
     :db/valueType :db.type/string
     :db/cardinality :db.cardinality/one

@@ -18,13 +18,13 @@
 (defn- split-actions
   "Given a list of transactions with debit and credit accounts
   resolved, for each transaction, yield one credit and one debit
-  transaction with polarized amounts"
+  transaction with polarized quantitys"
   [transactions]
-  (mapcat (fn [{:keys [credit-account debit-account amount]}]
+  (mapcat (fn [{:keys [credit-account debit-account quantity]}]
             [{:account credit-account
-              :amount (polarize amount :credit credit-account)}
+              :quantity (polarize quantity :credit credit-account)}
              {:account debit-account
-              :amount (polarize amount :debit debit-account)}])
+              :quantity (polarize quantity :debit debit-account)}])
           transactions))
 
 (defn- aggregate-by-account
@@ -38,7 +38,7 @@
                         [1]
                         (fn [ts]
                           (->> ts
-                               (map :amount)
+                               (map :quantity)
                                (reduce + 0M)))))))
 
 (defn- aggregate

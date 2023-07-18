@@ -66,7 +66,7 @@
   "Accept a UnilateralTransaction and return a map of the attributes"
   [t]
   {:index (trxs/index t)
-   :amount (format-money (trxs/amount t))
+   :quantity (format-money (trxs/quantity t))
    :balance (format-money (trxs/balance t))
    :transaction-date (format-date (trxs/transaction-date t))
    :description (trxs/description t)
@@ -83,7 +83,7 @@
                 :entity-id (:id entity)
                 :credit-account-id (:id salary)
                 :debit-account-id (:id checking)
-                :amount 1000M}
+                :quantity 1000M}
           result (trxs/put attr)]
       (testing "return value"
         (is (comparable? attr result)
@@ -91,7 +91,7 @@
       (testing "transaction query by account"
         (is (seq-of-maps-like? [{:index 1
                                  :description "Paycheck"
-                                 :amount "1000.00"
+                                 :quantity "1000.00"
                                  :balance "1000.00"
                                  :transaction-date "2000-01-01"}]
                                (map mapify
@@ -102,7 +102,7 @@
             "The transaction is included in the debit account query")
         (is (seq-of-maps-like? [{:index 1
                                  :description "Paycheck"
-                                 :amount "1000.00"
+                                 :quantity "1000.00"
                                  :balance "1000.00"
                                  :transaction-date "2000-01-01"}]
                                (map mapify
@@ -167,19 +167,19 @@
                          :description "Paycheck"
                          :credit-account-id "Salary"
                          :debit-account-id "Checking"
-                         :amount 1000M}
+                         :quantity 1000M}
                         {:entity-id "Personal"
                          :transaction-date (t/local-date 2000 1 2)
                          :description "The Landlord"
                          :credit-account-id "Checking"
                          :debit-account-id "Rent"
-                         :amount 500M}
+                         :quantity 500M}
                         {:entity-id "Personal"
                          :transaction-date (t/local-date 2000 1 2)
                          :credit-account-id "Credit Card"
                          :description "Kroger"
                          :debit-account-id "Groceries"
-                         :amount 50M}]))
+                         :quantity 50M}]))
 
 (dbtest create-multiple-transactions
   (with-context multi-context
@@ -219,12 +219,12 @@
       (is (seq-of-maps-like? [{:transaction-date "2000-01-01"
                                :index 1
                                :description "Paycheck"
-                               :amount "1000.00"
+                               :quantity "1000.00"
                                :balance "1000.00"}
                               {:transaction-date "2000-01-02"
                                :index 2
                                :description "The Landlord"
-                               :amount "-500.00"
+                               :quantity "-500.00"
                                :balance "500.00"}]
                              (map mapify
                                   (trxs/select-by-account
@@ -287,25 +287,25 @@
                          :credit-account-id "Salary"
                          :description "Paycheck"
                          :debit-account-id "Checking"
-                         :amount 1000M}
+                         :quantity 1000M}
                         {:entity-id "Personal"
                          :transaction-date (t/local-date 2000 1 2)
                          :description "Kroger"
                          :credit-account-id "Checking"
                          :debit-account-id "Groceries"
-                         :amount 50M}
+                         :quantity 50M}
                         {:entity-id "Personal"
                          :transaction-date (t/local-date 2000 1 3)
                          :description "Nice Restaurant"
                          :credit-account-id "Checking"
                          :debit-account-id "Dining"
-                         :amount 20M}
+                         :quantity 20M}
                         {:entity-id "Personal"
                          :transaction-date (t/local-date 2000 1 2)
                          :description "The Landlord"
                          :credit-account-id "Checking"
                          :debit-account-id "Rent"
-                         :amount 500M}]))
+                         :quantity 500M}]))
 
 (dbtest insert-a-transaction-before-another
   (with-context insert-before-context
@@ -313,25 +313,25 @@
                              :other-account "Salary"
                              :description "Paycheck"
                              :index 1
-                             :amount "1000.00"
+                             :quantity "1000.00"
                              :balance "1000.00"}
                             {:transaction-date "2000-01-02"
                              :other-account "Rent"
                              :description "The Landlord"
                              :index 2
-                             :amount "-500.00"
+                             :quantity "-500.00"
                              :balance "500.00"}
                             {:transaction-date "2000-01-02"
                              :other-account "Groceries"
                              :description "Kroger"
                              :index 3
-                             :amount "-50.00"
+                             :quantity "-50.00"
                              :balance "450.00"}
                             {:transaction-date "2000-01-03"
                              :other-account "Dining"
                              :description "Nice Restaurant"
                              :index 4
-                             :amount "-20.00"
+                             :quantity "-20.00"
                              :balance "430.00"}]
                            (->> (trxs/select-by-account
                                   (find-account "Checking")
@@ -350,19 +350,19 @@
                          :description "Paycheck"
                          :credit-account-id "Salary"
                          :debit-account-id "Checking"
-                         :amount 1000M}
+                         :quantity 1000M}
                         {:entity-id "Personal"
                          :transaction-date (t/local-date 2000 1 2)
                          :description "The Landlord"
                          :credit-account-id "Checking"
                          :debit-account-id "Rent"
-                         :amount 500M}
+                         :quantity 500M}
                         {:entity-id "Personal"
                          :transaction-date (t/local-date 2000 1 3)
                          :credit-account-id "Checking"
                          :description "Kroger"
                          :debit-account-id "Groceries"
-                         :amount 50M}]))
+                         :quantity 50M}]))
 
 (dbtest delete-a-transaction
   (with-context delete-context
@@ -374,12 +374,12 @@
       (is (seq-of-maps-like? [{:transaction-date "2000-01-01"
                                :index 1
                                :description "Paycheck"
-                               :amount "1000.00"
+                               :quantity "1000.00"
                                :balance "1000.00"}
                               {:transaction-date "2000-01-03"
                                :index 2
                                :description "Kroger"
-                               :amount "-50.00"
+                               :quantity "-50.00"
                                :balance "950.00"}]
                              (map mapify
                                   (trxs/select-by-account
@@ -452,25 +452,25 @@
                          :description "Paycheck"
                          :credit-account-id "Salary"
                          :debit-account-id "Checking"
-                         :amount 1000M}
+                         :quantity 1000M}
                         {:entity-id "Personal"
                          :transaction-date (t/local-date 2000 1 3)
                          :description "The Landlord"
                          :credit-account-id "Checking"
                          :debit-account-id "Rent"
-                         :amount 500M}
+                         :quantity 500M}
                         {:entity-id "Personal"
                          :transaction-date (t/local-date 2000 1 4)
                          :credit-account-id "Checking"
                          :description "Kroger"
                          :debit-account-id "Groceries"
-                         :amount 50M}
+                         :quantity 50M}
                         {:entity-id "Personal"
                          :transaction-date (t/local-date 2000 1 9)
                          :credit-account-id "Checking"
                          :description "Kroger"
                          :debit-account-id "Groceries"
-                         :amount 51M}]))
+                         :quantity 51M}]))
 
 (dbtest shortcut-propagation 
   (with-context prop-context
@@ -486,22 +486,22 @@
         (is (seq-of-maps-like? [{:transaction-date "2000-01-01"
                                  :index 1
                                  :description "Paycheck"
-                                 :amount "1000.00"
+                                 :quantity "1000.00"
                                  :balance "1000.00"}
                                 {:transaction-date "2000-01-02"
                                  :index 2
                                  :description "Kroger"
-                                 :amount "-50.00"
+                                 :quantity "-50.00"
                                  :balance "950.00"}
                                 {:transaction-date "2000-01-03"
                                  :index 3
                                  :description "The Landlord"
-                                 :amount "-500.00"
+                                 :quantity "-500.00"
                                  :balance "450.00"}
                                 {:transaction-date "2000-01-09"
                                  :index 4
                                  :description "Kroger"
-                                 :amount "-51.00"
+                                 :quantity "-51.00"
                                  :balance "399.00"}]
                                (map mapify
                                     (trxs/select-by-account

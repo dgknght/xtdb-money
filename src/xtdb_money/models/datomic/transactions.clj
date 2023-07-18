@@ -55,7 +55,7 @@
                     :credit-index
                     :credit-balance
                     :description
-                    :amount])))
+                    :quantity])))
 
 (defmethod d/after-read :transaction
   [trx]

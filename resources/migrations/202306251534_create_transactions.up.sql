@@ -4,7 +4,7 @@ CREATE TABLE transactions (
     correlation_id varchar(40),
     transaction_date date,
     description varchar(100),
-    amount numeric(12, 4),
+    quantity numeric(12, 4),
     debit_account_id int NOT NULL references accounts (id),
     debit_index int NOT NULL,
     debit_balance numeric(12, 4) NOT NULL,

@@ -12,11 +12,11 @@
 (s/def ::action #{:credit :debit})
 (s/def ::account-id (s/or :integer integer?
                           :uuid uuid?))
-(s/def ::amount (s/and decimal?
+(s/def ::quantity (s/and decimal?
                        #(<= 0M %)))
 (s/def ::item (s/keys :req-un [::action
                                ::account-id
-                               ::amount]))
+                               ::quantity]))
 (s/def ::items (s/coll-of ::item))
 
 (defn- credits-equal-debits?
@@ -24,7 +24,7 @@
   (->> items
        (group-by :action)
        (map (comp #(reduce + 0M %)
-                  #(update-in % [1] :amount)))))
+                  #(update-in % [1] :quantity)))))
 
 (s/def ::complex-transaction (s/and (s/keys :req-un [::transaction-date
                                               ::description
@@ -37,15 +37,15 @@
        (group-by :action)
        (map #(update-in % [1] (fn [i]
                                 (->> i
-                                     (sort-by :amount >)
+                                     (sort-by :quantity >)
                                      (into [])))))
        (into {})))
 
-(defn- subtract-amount
-  [[item :as items] amount]
-  (if (= amount (:amount item))
+(defn- subtract-quantity
+  [[item :as items] quantity]
+  (if (= quantity (:quantity item))
     (vec (rest items))
-    (update-in items [0 :amount] - amount)))
+    (update-in items [0 :quantity] - quantity)))
 
 (defn- account-id-key
   [action]
@@ -60,22 +60,22 @@
   a tuple containing the basic transaction and the remaining
   transaction items"
   [sides complex whole part]
-  (let [amount (get-in sides [whole 0 :amount])]
+  (let [quantity (get-in sides [whole 0 :quantity])]
     [(-> complex
          (select-keys [:description
                        :transaction-date])
-         (assoc :amount amount
+         (assoc :quantity quantity
                 (account-id-key part) (get-in sides [part 0 :account-id])
                 (account-id-key whole) (get-in sides [whole 0 :account-id])))
      (-> sides
-         (update-in [part] subtract-amount amount)
+         (update-in [part] subtract-quantity quantity)
          (update-in [whole] (comp vec rest)))]))
 
 (defn- pair
   "Take the available transaction items and yield a simple transaction
   and the remaining transaction items"
   [{[d] :debit [c] :credit :as sides} complex]
-  (if (< (:amount d) (:amount c))
+  (if (< (:quantity d) (:quantity c))
     (extract sides complex :debit :credit)
     (extract sides complex :credit :debit)))
 
@@ -95,19 +95,19 @@
   [trxs]
   ; We're assuming these have already been correctly identified as members of the
   ; same complex transaction
-  (let [sides (reduce (fn [acc {:keys [debit-account-id amount credit-account-id]}]
+  (let [sides (reduce (fn [acc {:keys [debit-account-id quantity credit-account-id]}]
                         (-> acc
-                            (update-in [:debit debit-account-id] (fnil + 0M) amount)
-                            (update-in [:credit credit-account-id] (fnil + 0M) amount)))
+                            (update-in [:debit debit-account-id] (fnil + 0M) quantity)
+                            (update-in [:credit credit-account-id] (fnil + 0M) quantity)))
                       {:debit {} :credit {}}
                       trxs)]
     (-> (first trxs)
         (select-keys [:description :transaction-date])
         (assoc :items (->> sides
                            (mapcat (fn [[action accounts]]
-                                     (map (fn [[account-id amount]]
+                                     (map (fn [[account-id quantity]]
                                             {:action action
-                                             :amount amount
+                                             :quantity quantity
                                              :account-id account-id})
                                           accounts)))
                            (into #{}))))))

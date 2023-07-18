@@ -15,41 +15,41 @@
    :description "Paycheck"
    :items #{{:action :credit
              :account-id salary
-             :amount 1000M}
+             :quantity 1000M}
             {:action :debit
              :account-id fit
-             :amount 100M}
+             :quantity 100M}
             {:action :debit
              :account-id soc-sec
-             :amount 6.2M}
+             :quantity 6.2M}
             {:action :debit
              :account-id medicare
-             :amount 0.45M}
+             :quantity 0.45M}
             {:action :debit
              :account-id checking
-             :amount 893.35M}}})
+             :quantity 893.35M}}})
 
 (def ^:private trxs
   #{{:transaction-date (t/local-date 2000 1 1)
      :debit-account-id medicare
      :credit-account-id salary
      :description "Paycheck"
-     :amount 0.45M}
+     :quantity 0.45M}
     {:transaction-date (t/local-date 2000 1 1)
      :debit-account-id soc-sec
      :credit-account-id salary
      :description "Paycheck"
-     :amount 6.2M}
+     :quantity 6.2M}
     {:transaction-date (t/local-date 2000 1 1)
      :debit-account-id fit
      :credit-account-id salary
      :description "Paycheck"
-     :amount 100M}
+     :quantity 100M}
     {:transaction-date (t/local-date 2000 1 1)
      :debit-account-id checking
      :credit-account-id salary
      :description "Paycheck"
-     :amount 893.35M}})
+     :quantity 893.35M}})
 
 (deftest convert-a-complex-transaction-into-simple-transactions
   (testing "One to one"
@@ -57,14 +57,14 @@
              :debit-account-id rent
              :credit-account-id checking
              :description "Landlord"
-             :amount 100M}]
+             :quantity 100M}]
            (seq (trx/split {:transaction-date (t/local-date 2000 1 1)
                             :description "Landlord"
                             :items #{{:action :credit
-                                      :amount 100M
+                                      :quantity 100M
                                       :account-id checking}
                                      {:action :debit
-                                      :amount 100M
+                                      :quantity 100M
                                       :account-id rent}}})))))
   (testing "Uneven distribution"
     (is (= trxs
