@@ -1,5 +1,7 @@
 (ns xtdb-money.test-context
-  (:require [xtdb-money.models.entities :as ents]
+  (:require [clojure.pprint :refer [pprint]]
+            [xtdb-money.models.entities :as ents]
+            [xtdb-money.models.commodities :as cty]
             [xtdb-money.models.accounts :as acts]
             [xtdb-money.models.transactions :as trxs]))
 
@@ -59,7 +61,7 @@
 (defn- put-with
   [m f]
   (or (f m)
-      (clojure.pprint/pprint {::unable-to-create m})))
+      (pprint {::unable-to-create m})))
 
 (defn- throw-on-failure
   [model-type]
@@ -77,6 +79,19 @@
                                (mapv (comp (throw-on-failure "entity")
                                            #(realize-entity % ctx))
                                      entities))))
+
+(defn- realize-commodity
+  [commodity ctx]
+  (-> commodity
+      (resolve-entity ctx)
+      (cty/put)))
+
+(defn- realize-commodities
+  [ctx]
+  (update-in ctx [:commodities] (fn [commodities]
+                               (mapv (comp (throw-on-failure "commodity")
+                                           #(realize-commodity % ctx))
+                                     commodities))))
 
 (defn- resolve-account
   ([model ctx] (resolve-account model ctx :account-id))
@@ -115,6 +130,7 @@
   [ctx]
   (-> ctx
       realize-entities
+      realize-commodities
       realize-accounts
       realize-transactions))
 

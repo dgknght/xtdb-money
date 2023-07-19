@@ -14,5 +14,4 @@
   [account]
   (-> account
       (update-in-if [:first-trx-date] <-storable-date)
-      (update-in-if [:last-trx-date] <-storable-date)
-      (update-in [:entity-id] :id)))
+      (update-in-if [:last-trx-date] <-storable-date)))

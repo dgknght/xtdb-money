@@ -19,6 +19,24 @@
     :db/cardinality :db.cardinality/one
     :db/doc "The name of the entity"}
    
+   ; Commodity
+   {:db/ident :commodity/entity-id
+    :db/valueType :db.type/ref
+    :db/cardinality :db.cardinality/one
+    :db/doc "Identifies the entity to which the commodity belongs"}
+   {:db/ident :commodity/name
+    :db/valueType :db.type/string
+    :db/cardinality :db.cardinality/one
+    :db/doc "The name of the commodity"}
+   {:db/ident :commodity/symbol
+    :db/valueType :db.type/string
+    :db/cardinality :db.cardinality/one
+    :db/doc "The symbol for the commodity"}
+   {:db/ident :commodity/type
+    :db/valueType :db.type/keyword
+    :db/cardinality :db.cardinality/one
+    :db/doc "The type of the commodity (currency, stock, fund)"}
+   
    ; Account
    {:db/ident :account/entity-id
     :db/valueType :db.type/ref
@@ -193,9 +211,20 @@
 ; It seems that after an entire entity has been retracted, the id
 ; can still be returned
 (def ^:private naked-id?
-  (every-pred #(= :db/id (first (keys %)))
+  (every-pred map?
               #(= 1 (count %))
-              map?))
+              #(= :db/id (first (keys %)))))
+
+(defn- extract-ref-ids
+  [m]
+  (->> m
+       (map #(update-in %
+                        [1]
+                        (fn [v]
+                          (if (naked-id? v)
+                            (:db/id v)
+                            v))))
+       (into {})))
 
 (defn- select*
   [criteria options {:keys [conn]}]
@@ -211,7 +240,8 @@
          (remove naked-id?)
          (map (comp after-read
                     #(mny/model-type % criteria)
-                    unqualify-keys))
+                    unqualify-keys
+                    extract-ref-ids))
          (apply-sort options))))
 
 (defmethod mny/reify-storage :datomic
