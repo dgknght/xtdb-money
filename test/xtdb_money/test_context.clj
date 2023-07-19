@@ -39,6 +39,11 @@
   ([entity-name {:keys [entities]}]
    (find-model entities :name entity-name)))
 
+(defn find-commodity
+  ([sym] (find-commodity sym *context*))
+  ([sym {:keys [commodities]}]
+   (find-model commodities :symbol sym)))
+
 (defn find-account
   ([account-name] (find-account account-name *context*))
   ([account-name {:keys [accounts]}]
@@ -57,6 +62,12 @@
   ([model ctx] (resolve-entity model ctx :entity-id))
   ([model ctx k]
    (update-in model [k] (comp :id find-entity) ctx)))
+
+(defn- resolve-commodity
+  ([model ctx] (resolve-commodity model ctx :commodity-id))
+  ([model ctx k]
+   (clojure.pprint/pprint {::resolve-commodity model})
+   (update-in model [k] (comp :id find-commodity) ctx)))
 
 (defn- put-with
   [m f]
@@ -101,6 +112,7 @@
 (defn- realize-account
   [account ctx]
   (-> account
+      (resolve-commodity ctx)
       (resolve-entity ctx)
       (acts/put)))
 

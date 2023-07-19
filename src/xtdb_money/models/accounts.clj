@@ -7,12 +7,14 @@
             [xtdb-money.core :as mny :refer [dbfn]]))
 
 (s/def ::entity-id non-nil?)
+(s/def ::commodity-id non-nil?)
 (s/def ::name string?)
 (s/def ::type #{:asset :liability :equity :income :expense})
 (s/def ::balance decimal?)
 (s/def ::first-trx-date (s/nilable local-date?))
 (s/def ::last-trx-date (s/nilable local-date?))
 (s/def ::account (s/keys :req-un [::entity-id
+                                  ::commodity-id
                                   ::name
                                   ::type]
                          :opt-un [::balance

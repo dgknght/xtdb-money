@@ -42,6 +42,10 @@
     :db/valueType :db.type/ref
     :db/cardinality :db.cardinality/one
     :db/doc "Identifies the entity to which the account belongs"}
+   {:db/ident :account/commodity-id
+    :db/valueType :db.type/ref
+    :db/cardinality :db.cardinality/one
+    :db/doc "Identifies the commodity tracked by the account"}
    {:db/ident :account/name
     :db/valueType :db.type/string
     :db/cardinality :db.cardinality/one
