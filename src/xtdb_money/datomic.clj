@@ -46,6 +46,10 @@
     :db/valueType :db.type/ref
     :db/cardinality :db.cardinality/one
     :db/doc "Identifies the commodity tracked by the account"}
+   {:db/ident :account/parent-id
+    :db/valueType :db.type/ref
+    :db/cardinality :db.cardinality/one
+    :db/doc "Identifies the parent account to this account"}
    {:db/ident :account/name
     :db/valueType :db.type/string
     :db/cardinality :db.cardinality/one

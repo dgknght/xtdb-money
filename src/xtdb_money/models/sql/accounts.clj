@@ -19,4 +19,12 @@
       (update-in [:type] keyword)))
 
 (defmethod sql/attributes :account [_]
-  [:id :entity-id :commodity-id :type :name :balance :first-trx-date :last-trx-date])
+  [:id
+   :entity-id
+   :commodity-id
+   :parent-id
+   :type
+   :name
+   :balance
+   :first-trx-date
+   :last-trx-date])
