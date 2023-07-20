@@ -26,6 +26,11 @@ Commodity {
     string name
     string symbol
 }
+Commodity ||--|{ Price : "has been sold at"
+Price {
+    date trade-date
+    decimal value
+}
 Account }|--|{ Transaction : "has many"
 Transaction {
     date transaction-date
