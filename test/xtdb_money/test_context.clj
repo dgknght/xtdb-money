@@ -9,6 +9,10 @@
 
 (def basic-context
   {:entities [{:name "Personal"}]
+   :commodities [{:entity-id "Personal"
+                  :type :currency
+                  :name "United States Dollar"
+                  :symbol "USD"}]
    :accounts [{:entity-id "Personal"
                :name "Checking"
                :type :asset}
@@ -66,8 +70,15 @@
 (defn- resolve-commodity
   ([model ctx] (resolve-commodity model ctx :commodity-id))
   ([model ctx k]
-   (clojure.pprint/pprint {::resolve-commodity model})
-   (update-in model [k] (comp :id find-commodity) ctx)))
+   (update-in model
+              [k]
+              (fn [id]
+                (:id (or (find-commodity id ctx)
+                         (when-let [entity-id (:entity-id model)]
+                           (->> (:commodities ctx)
+                                (filter #(= (:entity-id %)
+                                            entity-id))
+                                first))))))))
 
 (defn- put-with
   [m f]
@@ -112,8 +123,8 @@
 (defn- realize-account
   [account ctx]
   (-> account
-      (resolve-commodity ctx)
       (resolve-entity ctx)
+      (resolve-commodity ctx) ; must resolve the entity first
       (acts/put)))
 
 (defn- realize-accounts

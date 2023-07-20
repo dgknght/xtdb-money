@@ -1,6 +1,6 @@
 create table commodities (
     id serial,
-    entity_id not null references entities (id),
+    entity_id int not null references entities (id),
     name varchar(100),
     symbol varchar(10),
     type varchar(20),
@@ -10,3 +10,6 @@ create table commodities (
 );
 
 create index uk_commodities_entity_id_type_symbol on commodities(entity_id, type, symbol);
+
+alter table accounts
+    add column commodity_id int not null references commodities(id);
