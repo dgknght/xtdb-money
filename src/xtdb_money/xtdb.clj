@@ -186,15 +186,16 @@
 
 (defn- select*
   [node criteria options]
-  (let [{::keys [args] :as query} (criteria->query criteria options)]
+  (let [{::keys [args] :as query} (criteria->query criteria options)
+        raw-result (apply xt/q
+                          (xt/db node)
+                          (dissoc query ::args)
+                          args)]
     (map (comp after-read
                #(mny/model-type % criteria)
                unqualify-keys
                first)
-         (apply xt/q
-                (xt/db node)
-                (dissoc query ::args)
-                args))))
+         raw-result)))
 
 (defn- delete*
   [node models]

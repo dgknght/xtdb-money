@@ -2,7 +2,8 @@
   (:require [clojure.test :refer [is use-fixtures]]
             [dgknght.app-lib.test-assertions]
             [xtdb-money.test-context :refer [with-context
-                                             find-entity]]
+                                             find-entity
+                                             find-commodity]]
             [xtdb-money.helpers :refer [reset-db
                                         dbtest]]
             [xtdb-money.models.accounts :as acts]
@@ -14,14 +15,20 @@
 (use-fixtures :each reset-db)
 
 (def ^:private create-ctx
-  {:entities [{:name "Personal"}]})
+  {:entities [{:name "Personal"}]
+   :commodities [{:entity-id "Personal"
+                  :type :currency
+                  :name "United States Dollar"
+                  :symbol "USD"}]})
 
 (dbtest create-an-account
   (with-context create-ctx
     (let [entity (find-entity "Personal")
+          commodity (find-commodity "USD")
           account {:entity-id (:id entity)
                    :name "Checking"
-                   :type :asset}]
+                   :type :asset
+                   :commodity-id (:id commodity)}]
       (acts/put account)
       (is (seq-of-maps-like? [account]
                              (acts/select {:entity-id (:id entity)}))
@@ -30,9 +37,11 @@
 (def ^:private find-ctx
   (assoc create-ctx
          :accounts [{:entity-id "Personal"
+                     :commodity-id "USD"
                      :name "Salary"
                      :type :income}
                     {:entity-id "Personal"
+                     :commodity-id "USD"
                      :name "Checking"
                      :type :asset}]))
 

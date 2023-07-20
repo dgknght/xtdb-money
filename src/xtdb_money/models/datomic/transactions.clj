@@ -59,8 +59,4 @@
 
 (defmethod d/after-read :transaction
   [trx]
-  (-> trx
-      (update-in [:debit-account-id] :id)
-      (update-in [:credit-account-id] :id)
-      (update-in [:entity-id] :id)
-      (update-in [:transaction-date] <-storable-date)))
+  (update-in trx [:transaction-date] <-storable-date))

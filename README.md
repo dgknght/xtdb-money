@@ -3,6 +3,45 @@
 
 Double-entry accounting application with multiple backend storage options
 
+# ERD
+```mermaid
+erDiagram
+Entity ||--|{ Account  : "consists of"
+Entity {
+    string name
+    date first-trx-date
+    date last-trx-date
+}
+Entity ||--|{ Commodity : "uses"
+Account {
+    string type
+    string name
+    date first-trx-date
+    date last-trx-date
+}
+Account ||--o{ Account : "has children"
+Account ||--|| Commodity : "tracks units of"
+Commodity {
+    string type
+    string name
+    string symbol
+}
+Commodity ||--|{ Price : "has been sold at"
+Price {
+    date trade-date
+    decimal value
+}
+Account }|--|{ Transaction : "has many"
+Transaction {
+    date transaction-date
+    string description
+    decimal quantity
+    ref debit-account
+    ref credit-account
+    uuid correlation-id
+}
+```
+
 Copyright © 2023
 
 This program and the accompanying materials are made available under the

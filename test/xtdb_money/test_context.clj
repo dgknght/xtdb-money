@@ -1,5 +1,7 @@
 (ns xtdb-money.test-context
-  (:require [xtdb-money.models.entities :as ents]
+  (:require [clojure.pprint :refer [pprint]]
+            [xtdb-money.models.entities :as ents]
+            [xtdb-money.models.commodities :as cty]
             [xtdb-money.models.accounts :as acts]
             [xtdb-money.models.transactions :as trxs]))
 
@@ -7,6 +9,10 @@
 
 (def basic-context
   {:entities [{:name "Personal"}]
+   :commodities [{:entity-id "Personal"
+                  :type :currency
+                  :name "United States Dollar"
+                  :symbol "USD"}]
    :accounts [{:entity-id "Personal"
                :name "Checking"
                :type :asset}
@@ -37,6 +43,11 @@
   ([entity-name {:keys [entities]}]
    (find-model entities :name entity-name)))
 
+(defn find-commodity
+  ([sym] (find-commodity sym *context*))
+  ([sym {:keys [commodities]}]
+   (find-model commodities :symbol sym)))
+
 (defn find-account
   ([account-name] (find-account account-name *context*))
   ([account-name {:keys [accounts]}]
@@ -56,10 +67,23 @@
   ([model ctx k]
    (update-in model [k] (comp :id find-entity) ctx)))
 
+(defn- resolve-commodity
+  ([model ctx] (resolve-commodity model ctx :commodity-id))
+  ([model ctx k]
+   (update-in model
+              [k]
+              (fn [id]
+                (:id (or (find-commodity id ctx)
+                         (when-let [entity-id (:entity-id model)]
+                           (->> (:commodities ctx)
+                                (filter #(= (:entity-id %)
+                                            entity-id))
+                                first))))))))
+
 (defn- put-with
   [m f]
   (or (f m)
-      (clojure.pprint/pprint {::unable-to-create m})))
+      (pprint {::unable-to-create m})))
 
 (defn- throw-on-failure
   [model-type]
@@ -78,6 +102,19 @@
                                            #(realize-entity % ctx))
                                      entities))))
 
+(defn- realize-commodity
+  [commodity ctx]
+  (-> commodity
+      (resolve-entity ctx)
+      (cty/put)))
+
+(defn- realize-commodities
+  [ctx]
+  (update-in ctx [:commodities] (fn [commodities]
+                               (mapv (comp (throw-on-failure "commodity")
+                                           #(realize-commodity % ctx))
+                                     commodities))))
+
 (defn- resolve-account
   ([model ctx] (resolve-account model ctx :account-id))
   ([model ctx k]
@@ -87,6 +124,7 @@
   [account ctx]
   (-> account
       (resolve-entity ctx)
+      (resolve-commodity ctx) ; must resolve the entity first
       (acts/put)))
 
 (defn- realize-accounts
@@ -115,6 +153,7 @@
   [ctx]
   (-> ctx
       realize-entities
+      realize-commodities
       realize-accounts
       realize-transactions))
 
