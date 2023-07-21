@@ -121,18 +121,26 @@
    (update-in model [k] (comp :id find-account) ctx)))
 
 (defn- realize-account
-  [account ctx]
+  [account ctx by-name]
   (-> account
       (resolve-entity ctx)
       (resolve-commodity ctx) ; must resolve the entity first
+      (update-in [:parent-id] (comp :id by-name))
       (acts/put)))
 
 (defn- realize-accounts
   [ctx]
-  (update-in ctx [:accounts] (fn [accounts]
-                               (mapv (comp (throw-on-failure "account")
-                                           #(realize-account % ctx))
-                                     accounts))))
+  (update-in ctx
+             [:accounts]
+             (fn [accounts]
+               (:created (reduce (fn [{:keys [by-name] :as r} input]
+                                   (let [account (realize-account input ctx by-name)]
+                                     (-> r
+                                         (update-in [:created] conj account)
+                                         (assoc-in [:by-name (:name account)] account))))
+                                 {:created []
+                                  :by-name {}}
+                                 accounts)))))
 
 (defn- realize-transaction
   [trx ctx]

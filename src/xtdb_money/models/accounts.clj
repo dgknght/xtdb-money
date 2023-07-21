@@ -1,6 +1,7 @@
 (ns xtdb-money.models.accounts
   (:refer-clojure :exclude [find])
   (:require [clojure.spec.alpha :as s]
+            [dgknght.app-lib.core :refer [index-by]]
             [xtdb-money.util :refer [->id
                                      local-date?
                                      non-nil?]]
