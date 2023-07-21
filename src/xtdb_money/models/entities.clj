@@ -1,6 +1,7 @@
 (ns xtdb-money.models.entities
   (:refer-clojure :exclude [find])
   (:require [clojure.spec.alpha :as s]
+            [xtdb-money.util :refer [->id]]
             [xtdb-money.core :as mny :refer [dbfn]]))
 
 (s/def ::name string?)
@@ -18,7 +19,7 @@
 
 (dbfn find
   [db id]
-  (first (select db {:id id} {:limit 1})))
+  (first (select db {:id (->id id)} {:limit 1})))
 
 (defn- resolve-put-result
   [db x]
