@@ -41,6 +41,20 @@
     :db/cardinality :db.cardinality/one
     :db/doc "The type of the commodity (currency, stock, fund)"}
    
+   ; Price
+   {:db/ident :price/commodity-id
+    :db/valueType :db.type/ref
+    :db/cardinality :db.cardinality/one
+    :db/doc "Identifies the commodity to which the price belongs"}
+   {:db/ident :price/trade-date
+    :db/valueType :db.type/long
+    :db/cardinality :db.cardinality/one
+    :db/doc "The date on which this price was paid for the commodity"}
+   {:db/ident :price/value
+    :db/valueType :db.type/bigdec
+    :db/cardinality :db.cardinality/one
+    :db/doc "The amount paid for one unit of the commodity"}
+   
    ; Account
    {:db/ident :account/entity-id
     :db/valueType :db.type/ref
