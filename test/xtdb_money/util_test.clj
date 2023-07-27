@@ -1,5 +1,5 @@
 (ns xtdb-money.util-test
-  (:require [clojure.test :refer [deftest testing is]]
+  (:require [clojure.test :refer [deftest testing is are]]
             [clj-time.core :as t]
             [dgknght.app-lib.test-assertions]
             [xtdb-money.util :as utl]))
@@ -77,3 +77,23 @@
           [:absent]]
          (utl/split-nils {:present :here
                           :absent nil}))))
+
+(deftest identify-a-scalar-value
+  (are [input expected] (= expected (utl/scalar? input))
+       1        true
+       :keyword true
+       "string" true
+       {}       false
+       []       false
+       '()      false
+       #{}      false))
+
+(deftest identify-a-valid-id-value
+  (are [input expected] (= expected (utl/valid-id? input))
+       1             true
+       (random-uuid) true
+       "mything"     true
+       :mything      true
+       {:id 1}       false
+       [1]           false
+       #{1}          false))

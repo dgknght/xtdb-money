@@ -147,3 +147,10 @@
               (update-in res [1] conj k)))
           [{} []]
           m))
+
+(def scalar?
+  (complement coll?))
+
+(def valid-id?
+  (every-pred non-nil?
+              scalar?))
