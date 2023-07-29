@@ -58,16 +58,16 @@
                        :trade-date (t/local-date 2000 7 1)
                        :value 9.99M}])))
 
-(dbtest find-by-commodity
-   (with-context find-ctx
-     (let [commodity (find-commodity "AAPL")]
-       (assert commodity "Unable to find the commodity")
-       (is (seq-of-maps-like? [{:trade-date (t/local-date 2000 7 1)
-                                :value 13.45M}
-                               {:trade-date (t/local-date 2000 6 1)
-                                :value 12.34M}]
-                              (prcs/find {:commodity-id (:id commodity)
-                                          :trade-date [:and
-                                                       [:>= (t/local-date 2000 1 1)]
-                                                       [:< (t/local-date 2001 1 1)]]}))
-           "The prices for the commodity are returned"))))
+(dbtest select-by-commodity
+  (with-context find-ctx
+    (let [commodity (find-commodity "AAPL")]
+      (assert commodity "Unable to find the commodity")
+      (is (seq-of-maps-like? [{:trade-date (t/local-date 2000 7 1)
+                               :value 13.45M}
+                              {:trade-date (t/local-date 2000 6 1)
+                               :value 12.34M}]
+                             (prcs/select {:commodity-id (:id commodity)
+                                           :trade-date [:and
+                                                        [:>= (t/local-date 2000 1 1)]
+                                                        [:< (t/local-date 2001 1 1)]]}))
+          "The prices for the commodity are returned"))))

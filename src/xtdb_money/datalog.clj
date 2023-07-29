@@ -1,6 +1,5 @@
 (ns xtdb-money.datalog
-  (:require [clojure.spec.alpha :as s]
-            [xtdb-money.core :as mny]))
+  (:require [clojure.spec.alpha :as s]))
 
 (def ^:private concat*
   (fnil (comp vec concat) []))
@@ -38,8 +37,8 @@
 
 (defn- arg-ident
   ([k] (arg-ident k nil))
-  ([k prefix]
-  (symbol (str "?" (name k) prefix))))
+  ([k suffix]
+  (symbol (str "?" (name k) suffix))))
 
 (defn- field-ref
   [k]
@@ -105,42 +104,59 @@
 
 (s/def ::args-key (s/coll-of keyword? :kind vector?))
 (s/def ::query-prefix (s/coll-of keyword :kind vector?))
-(s/def ::options (s/keys :opt-un [::args-key
+(s/def ::model-type keyword?)
+(s/def ::options (s/keys :req-un [::model-type]
+                         :opt-un [::args-key
                                   ::query-prefix]))
 
+(defmacro ^:private with-options
+  [opts & body]
+  `(binding [*opts* (merge *opts* ~opts)]
+     ~@body))
+
 (defn apply-criteria
-  ([query criteria] (apply-criteria query criteria {}))
-  ([query criteria opts]
-   {:pre [(s/valid? ::options opts)
-          (mny/model-type criteria)]}
-   (binding [*opts* (merge *opts*
-                           opts
-                           {:model-type (mny/model-type criteria)})]
-     (reduce apply-criterion
-             query
-             criteria))))
+  [query criteria & {:as opts}]
+  {:pre [(s/valid? ::options opts)]}
+  (with-options opts criteria
+    (reduce apply-criterion
+            query
+            criteria)))
 
-(defmulti ^:private apply-sort
-  (fn [_query order-by]
-    (cond
-      (vector? order-by) :multi
-      order-by           :single)))
+(defn- ensure-attr
+  [{:keys [where] :as query} k arg-ident]
+  (if (some #(= arg-ident (last %))
+            where)
+    query
+    (update-in query [:where] conj* ['?x (field-ref k) arg-ident])))
 
-(defmethod apply-sort :single
+(defmulti apply-sort-segment
+  (fn [_query seg]
+    (when (vector? seg) :vector)))
+
+(defmethod apply-sort-segment :default
+  [query seg]
+  (apply-sort-segment query [seg :asc]))
+
+(defmethod apply-sort-segment :vector
+  [query [k dir]]
+  (let [arg-ident (arg-ident k)]
+    (-> query
+        (ensure-attr k arg-ident)
+        (update-in [:find] conj* arg-ident)
+        (update-in [:order-by] conj* [arg-ident dir]))))
+
+(defn- apply-sort
   [query order-by]
-  (assoc query :order-by [[(arg-ident order-by) :asc]]))
-
-(defmethod apply-sort :multi
-  [query order-by]
-  (assoc query :order-by (mapv (fn [x]
-                                 (if (vector? x)
-                                   (update-in x [0] arg-ident)
-                                   [(symbol (str "?" (name x))) :asc]))
-                               order-by)))
+  (reduce apply-sort-segment
+          query
+          (if (coll? order-by)
+            order-by
+            [order-by])))
 
 (defn apply-options
-  [query {:keys [limit offset order-by]}]
-  (cond-> query
-    limit (assoc :limit limit)
-    offset (assoc :offset offset)
-    order-by (apply-sort order-by)))
+  [query {:keys [limit offset order-by]} & {:as opts}]
+  (with-options opts
+    (cond-> query
+      limit (assoc :limit limit)
+      offset (assoc :offset offset)
+      order-by (apply-sort order-by))))

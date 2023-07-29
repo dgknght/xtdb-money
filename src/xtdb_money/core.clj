@@ -24,7 +24,6 @@
   (delete [this models] "Removes the models from the database in an atomic transaction")
   (reset [this] "Resets the database")) ; TODO: Is there someplace to put this so it's only available in tests?
 
-
 (defn storage-dispatch [config & _]
   (::provider config))
 

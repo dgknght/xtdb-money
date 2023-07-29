@@ -1,7 +1,7 @@
 create table prices (
     id serial,
     commodity_id int not null references commodities (id),
-    trade_date int not null,
+    trade_date date not null,
     value  numeric(12, 4) not null,
     created_at timestamp with time zone DEFAULT now() NOT NULL,
     updated_at timestamp with time zone DEFAULT now() NOT NULL,

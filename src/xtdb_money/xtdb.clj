@@ -111,17 +111,6 @@
 (defmulti after-read mny/model-type)
 (defmethod after-read :default [m] m)
 
-(defmulti criteria->query
-  (fn [criteria _opts] (mny/model-type criteria)))
-
-(defmethod criteria->query :default
-  [criteria opts]
-  (-> '{:find [(pull ?x [*])]
-        :in [$]}
-      (dtl/apply-criteria criteria {:args-key [::args]
-                                    :remap {:id :xt/id}})
-      (dtl/apply-options opts)))
-
 (defmulti ->storable type)
 
 (defmethod ->storable :default [v] v)
@@ -129,6 +118,21 @@
 (defmethod ->storable LocalDate
   [v]
   (->storable-date v))
+
+(defmulti criteria->query
+  (fn [criteria _opts] (mny/model-type criteria)))
+
+(defmethod criteria->query :default
+  [criteria opts]
+  (let [model-type (mny/model-type criteria)]
+    (-> '{:find [(pull ?x [*])]
+        :in [$]}
+      (dtl/apply-criteria criteria
+                          :coerce ->storable
+                          :model-type model-type
+                          :args-key [::args]
+                          :remap {:id :xt/id})
+      (dtl/apply-options opts :model-type model-type))))
 
 (defmulti ^:private apply-criterion
   (fn [_query [_k v]]

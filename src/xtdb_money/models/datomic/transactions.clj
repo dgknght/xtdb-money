@@ -36,8 +36,9 @@
       (dtl/apply-criteria (dissoc criteria
                                   :id
                                   :account-id)
-                          {:query-prefix [:query]
-                           :coerce ->storable})
+                          :model-type :transaction
+                          :query-prefix [:query]
+                          :coerce ->storable)
       (dtl/apply-options (dissoc options :order-by))))
 
 (defmethod d/before-save :transaction
