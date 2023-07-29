@@ -2,6 +2,7 @@
   (:require [clojure.pprint :refer [pprint]]
             [xtdb-money.models.entities :as ents]
             [xtdb-money.models.commodities :as cty]
+            [xtdb-money.models.prices :as prcs]
             [xtdb-money.models.accounts :as acts]
             [xtdb-money.models.transactions :as trxs]))
 
@@ -110,10 +111,27 @@
 
 (defn- realize-commodities
   [ctx]
-  (update-in ctx [:commodities] (fn [commodities]
-                               (mapv (comp (throw-on-failure "commodity")
-                                           #(realize-commodity % ctx))
-                                     commodities))))
+  (update-in ctx
+             [:commodities]
+             (fn [commodities]
+               (mapv (comp (throw-on-failure "commodity")
+                           #(realize-commodity % ctx))
+                     commodities))))
+
+(defn- realize-price
+  [ctx]
+  (fn [price]
+    (-> price
+        (resolve-commodity ctx)
+        prcs/put)))
+
+(defn- realize-prices
+  [ctx]
+  (update-in ctx
+             [:prices]
+             #(mapv (comp (throw-on-failure "price")
+                          (realize-price ctx))
+                    %)))
 
 (defn- resolve-account
   ([model ctx] (resolve-account model ctx :account-id))
@@ -162,6 +180,7 @@
   (-> ctx
       realize-entities
       realize-commodities
+      realize-prices
       realize-accounts
       realize-transactions))
 

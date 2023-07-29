@@ -2,6 +2,7 @@
   (:require [clojure.set :refer [rename-keys]]
             [datomic.client.api :as d]
             [datomic.client.api.protocols :refer [Connection]]
+            [clj-time.coerce :as tc]
             [xtdb-money.datalog :as dtl]
             [xtdb-money.util :refer [qualify-keys
                                      unqualify-keys
@@ -9,7 +10,8 @@
                                      prepend
                                      apply-sort
                                      split-nils]]
-            [xtdb-money.core :as mny]))
+            [xtdb-money.core :as mny])
+  (:import org.joda.time.LocalDate))
 
 (def schema
   [
@@ -40,6 +42,20 @@
     :db/valueType :db.type/keyword
     :db/cardinality :db.cardinality/one
     :db/doc "The type of the commodity (currency, stock, fund)"}
+   
+   ; Price
+   {:db/ident :price/commodity-id
+    :db/valueType :db.type/ref
+    :db/cardinality :db.cardinality/one
+    :db/doc "Identifies the commodity to which the price belongs"}
+   {:db/ident :price/trade-date
+    :db/valueType :db.type/long
+    :db/cardinality :db.cardinality/one
+    :db/doc "The date on which this price was paid for the commodity"}
+   {:db/ident :price/value
+    :db/valueType :db.type/bigdec
+    :db/cardinality :db.cardinality/one
+    :db/doc "The amount paid for one unit of the commodity"}
    
    ; Account
    {:db/ident :account/entity-id
@@ -123,6 +139,10 @@
 
 (def ^:private db-name "money")
 
+(defmulti ->storable type)
+(defmethod ->storable :default [x] x)
+(defmethod ->storable LocalDate [d] (tc/to-long d))
+
 (defn- init-conn
   [client]
   (try
@@ -153,13 +173,17 @@
 
 (defmethod criteria->query :default
   [criteria opts]
-  (-> '{:query {:find [(pull ?x [*])]
-                :in [$]}
-        :args []}
-      (apply-id criteria)
-      (dtl/apply-criteria (dissoc criteria :id)
-                          {:query-prefix [:query]})
-      (dtl/apply-options opts)))
+  (let [m-type (or (mny/model-type criteria)
+                   (:model-type opts))]
+    (-> '{:query {:find [(pull ?x [*])]
+                  :in [$]}
+          :args []}
+        (apply-id criteria)
+        (dtl/apply-criteria (dissoc criteria :id)
+                            :model-type m-type
+                            :query-prefix [:query]
+                            :coerce ->storable)
+        (dtl/apply-options opts :model-type m-type))))
 
 (defmulti before-save mny/model-type)
 (defmulti after-read mny/model-type)

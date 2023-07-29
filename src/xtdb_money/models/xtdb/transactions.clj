@@ -31,9 +31,10 @@
         :in [$]
         ::x/args []}
       (dtl/apply-criteria (dissoc criteria :account-id)
-                          {:coerce x/->storable
-                           :args-key [::x/args]
-                           :remap {:id :xt/id}})
+                          :model-type :transaction
+                          :coerce x/->storable
+                          :args-key [::x/args]
+                          :remap {:id :xt/id})
       ensure-transaction-date
       (apply-account-id criteria)
-      (dtl/apply-options options)))
+      (dtl/apply-options options :model-type :transaction)))

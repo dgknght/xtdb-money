@@ -18,7 +18,11 @@
     exclude `(complement ~(->set exclude))
     :else   '(constantly true)))
 
-(def ignore-strategy (->set (env :ignore-strategy)))
+(def isolate (when-let [isolate (env :isolate)]
+               #{isolate}))
+(def ignore-strategy (if isolate
+                       (complement isolate)
+                       (->set (env :ignore-strategy))))
 (def honor-strategy (complement ignore-strategy))
 
 (defn dbs []
