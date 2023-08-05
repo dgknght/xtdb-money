@@ -1,0 +1,5 @@
+^{:watch-dirs ["test" "src"]
+  :open-url "http://lvh.me:3000/"
+  :css-dirs ["resources/public/css"]
+  :auto-testing true}
+{:main xtdb-money.core}
