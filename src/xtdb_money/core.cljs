@@ -1,11 +1,14 @@
 (ns xtdb-money.core
   (:require [goog.dom :as gdom]
             [accountant.core :as act]
-            [secretary.core :as sct :refer-macros [defroute]]
+            [secretary.core :as sct]
             [reagent.dom :as rdom]
-            [xtdb-money.state :refer [page]]
-            [xtdb-money.components :refer [title-bar]]
-            [xtdb-money.views.pages]))
+            [xtdb-money.state :as state :refer [page]]
+            [xtdb-money.components :refer [title-bar
+                                           entity-drawer]]
+            [xtdb-money.api.entities :as ents]
+            [xtdb-money.views.pages]
+            [xtdb-money.views.entities]))
 
 (defn get-app-element []
   (gdom/getElement "app"))
@@ -14,7 +17,8 @@
   (fn []
     [:div
      [title-bar]
-     [@page]]))
+     [@page]
+     [entity-drawer]]))
 
 (defn mount [el]
   (rdom/render [full-page] el))
@@ -25,12 +29,20 @@
   (when-let [el (get-app-element)]
     (mount el)))
 
+(defn- load-entities []
+  (ents/select
+    (fn [entities]
+      (swap! state/app-state assoc
+             :entities entities
+             :current-entity (first entities)))))
+
 (defn init! []
   (act/configure-navigation!
     {:nav-handler #(sct/dispatch! %)
      :path-exists? #(sct/locate-route-value %)})
   (act/dispatch-current!)
-  (mount-app-element))
+  (mount-app-element)
+  (load-entities))
 
 (init!)
 

@@ -16,7 +16,6 @@
        {:href "/"}
        (icon :cash-coin :size :medium)]
       [:ul.nav.col-12.col-lg-auto.me-lg-auto.mb-2.mb-lg-0.justify-content-center
-       [:li [:a.nav-link.px-2.link-secondary {:href "/"} "Home"]]
        [:li [:a.nav-link.px-2.link-secondary {:href "/about"} "About The App"]]]
       [:form.col-12.col-lg-auto.mb-2.mb-lg-0.me-lg-3
        [:input.form-control {:type :text
