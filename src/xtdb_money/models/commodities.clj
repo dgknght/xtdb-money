@@ -3,7 +3,7 @@
   (:require [clojure.spec.alpha :as s]
             [xtdb-money.util :refer [->id
                                      non-nil?]]
-            [xtdb-money.core :as mny :refer [dbfn]]))
+            [xtdb-money.core :as mny]))
 
 (s/def ::entity-id non-nil?)
 (s/def ::name string?)
@@ -20,29 +20,26 @@
 
 (defn select
   ([criteria]         (select criteria {}))
-  ([criteria options] (select (mny/storage) criteria options))
-  ([db criteria options]
-   {:pre [(satisfies? mny/Storage db)
-          (s/valid? ::mny/options options)
+  ([criteria options]
+   {:pre [(s/valid? ::mny/options options)
           ((some-fn :id :entity-id) criteria)]}
    (map after-read
-        (mny/select db
+        (mny/select (mny/storage)
                     (mny/model-type criteria :commodity)
                     options))))
 
-(dbfn find
-  [db id]
-  (first (select db
-                 {:id (->id id)}
+(defn find
+  [id]
+  (first (select {:id (->id id)}
                  {:limit 1})))
 
 (defn- before-save
   [commodity]
   (mny/model-type commodity :commodity))
 
-(dbfn put
-  [db commodity]
+(defn put
+  [commodity]
   {:pre [(s/valid? ::commodity commodity)]}
 
-  (let [ids (mny/put db [(before-save commodity)])]
-    (find db (first ids))))
+  (let [ids (mny/put (mny/storage) [(before-save commodity)])]
+    (find (first ids))))

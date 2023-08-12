@@ -71,13 +71,3 @@
   `(let [storage# (reify-storage ~(first bindings))]
      (binding [*storage* storage#]
        ~@body)))
-
-(defmacro dbfn
-  [fn-name bindings & body]
-  (let [fname (symbol (name fn-name))
-        alt-bindings (vec (rest bindings))]
-    `(defn ~fname
-       (~alt-bindings
-         (apply ~fname (storage) ~alt-bindings))
-       (~bindings
-               ~@body))))

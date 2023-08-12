@@ -1,11 +1,10 @@
 (ns xtdb-money.models.accounts
   (:refer-clojure :exclude [find])
   (:require [clojure.spec.alpha :as s]
-            [dgknght.app-lib.core :refer [index-by]]
             [xtdb-money.util :refer [->id
                                      local-date?
                                      non-nil?]]
-            [xtdb-money.core :as mny :refer [dbfn]]))
+            [xtdb-money.core :as mny]))
 
 (s/def ::entity-id non-nil?)
 (s/def ::commodity-id non-nil?)
@@ -38,9 +37,9 @@
                     (mny/model-type criteria :account)
                     options))))
 
-(dbfn find
-  [db id]
-  (first (select db
+(defn find
+  [id]
+  (first (select (mny/storage)
                  {:id (->id id)}
                  {:limit 1})))
 
@@ -50,9 +49,9 @@
       (update-in [:balance] (fnil identity 0M))
       (mny/model-type :account)))
 
-(dbfn put
-  [db account]
+(defn put
+  [account]
   {:pre [(s/valid? ::account account)]}
 
-  (let [ids (mny/put db [(before-save account)])]
-    (find db (first ids))))
+  (let [ids (mny/put (mny/storage) [(before-save account)])]
+    (find (first ids))))
