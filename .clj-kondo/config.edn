@@ -1,5 +1,7 @@
-{:linters {:unresolved-symbol {:exclude [(clojure.test/is [seq-of-maps-like?
-                                                           comparable?])
+{:linters {:unresolved-symbol {:exclude [(clojure.test/is [comparable?
+                                                           html-response-with-content?
+                                                           http-success?
+                                                           seq-of-maps-like?])
                                          (xtdb-money.xtdb/query-map)
                                          (xtdb-money.core/dbfn)
                                          (xtdb-money.helpers/dbtest)]}}}
