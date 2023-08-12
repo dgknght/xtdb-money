@@ -1,6 +1,7 @@
 (ns xtdb-money.handler
   (:require [clojure.tools.logging :as log]
             [clojure.pprint :refer [pprint]]
+            [config.core :refer [env]]
             [hiccup2.core :as h]
             [reitit.core :as r]
             [reitit.ring :as ring]
@@ -9,7 +10,13 @@
             [ring.middleware.resource :refer [wrap-resource]]
             [ring.middleware.json :refer [wrap-json-body
                                           wrap-json-response]]
+            [ring.middleware.content-type :refer [wrap-content-type]]
             [co.deps.ring-etag-middleware :refer [wrap-file-etag]]
+            [xtdb-money.xtdb]
+            [xtdb-money.datomic]
+            [xtdb-money.mongodb]
+            [xtdb-money.sql]
+            [xtdb-money.core :as mny]
             [xtdb-money.api.entities :as ents]
             [xtdb-money.icons :refer [icon]]))
 
@@ -68,7 +75,11 @@
   (fn [req]
     (log/debugf "Request %s %s" (:request-method req) (:uri req))
     (let [res (handler req)]
-      (log/debugf "Response %s" (:status res))
+      (log/debugf "Response %s %s -> %s (%s) "
+                  (:request-method req)
+                  (:uri req)
+                  (:status res)
+                  (get-in res [:headers "Content-Type"]))
       res)))
 
 (defn- wrap-no-cache-header
@@ -82,6 +93,16 @@
   (fn [req]
     (handler (update-in req [:headers] dissoc "Last-Modified"))))
 
+(defn- wrap-storage
+  [handler]
+  (fn [req]
+    (let [storage-key (get-in req
+                              [:headers "storage-strategy"]
+                              (get-in env [:db :active]))
+          storage-config (get-in env [:db :strategies storage-key])]
+      (mny/with-storage [storage-config]
+        (handler req)))))
+
 (def app
   (ring/ring-handler
     (ring/router
@@ -89,11 +110,13 @@
              :middleware [#(wrap-defaults % (dissoc site-defaults :static))]}]
        ["/api" {:middleware [#(wrap-defaults % api-defaults)
                              #(wrap-json-body % {:keywords? true :bigdecimals? true})
-                             wrap-json-response]}
+                             wrap-json-response
+                             wrap-storage]}
         ents/routes]])
     (ring/create-default-handler)
-    {:middleware [#(wrap-resource % "public")
-                  wrap-logging
+    {:middleware [wrap-logging
+                  wrap-content-type
+                  #(wrap-resource % "public")
                   wrap-no-cache-header
                   wrap-file-etag
                   wrap-not-modified
