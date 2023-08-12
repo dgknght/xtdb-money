@@ -13,6 +13,7 @@
                        [ring/ring-core "1.8.2"]
                        [ring/ring-jetty-adapter "1.8.2"]
                        [ring/ring-defaults "0.3.4" :exclusions [ring/ring-core ring/ring-codec crypto-equality commons-io]]
+                       [ring/ring-json "0.5.1" :exclusions [ring/ring-core ring/ring-codec]]
                        [co.deps/ring-etag-middleware "0.2.1"]
                        [metosin/reitit "0.7.0-alpha5" :exclusions [com.bhauman/spell-spec
                                                                    com.cognitect/transit-clj
@@ -98,9 +99,11 @@
                                                          "mongodb"
                                                          {:xtdb-money.core/provider :mongodb
                                                           :database "money_development"}}}}
-                                 :dependencies [[org.eclipse.jetty/jetty-server "9.4.36.v20210114"]
+                                 :dependencies [[org.clojure/data.zip "1.0.0"]
+                                                [org.eclipse.jetty/jetty-server "9.4.36.v20210114"]
                                                 [org.eclipse.jetty.websocket/websocket-servlet "9.4.36.v20210114"]
                                                 [org.eclipse.jetty.websocket/websocket-server "9.4.36.v20210114"]
+                                                [ring/ring-mock "0.4.0"]
                                                 [com.bhauman/figwheel-main "0.2.18" :exclusions [org.clojure/data.json
                                                                                                  org.eclipse.jetty/jetty-http
                                                                                                  org.eclipse.jetty/jetty-io
@@ -118,6 +121,7 @@
         :aliases {"migrate"       ["run" "-m" "xtdb-money.models.sql.migrations/migrate"]
                   "rollback"      ["run" "-m" "xtdb-money.models.sql.migrations/rollback"]
                   "remigrate"     ["run" "-m" "xtdb-money.models.sql.migrations/remigrate"]
+                  "routes"        ["run" "-m" "xtdb-money.handler/print-routes"]
                   "index-mongodb" ["run" "-m" "xtdb-money.models.mongodb.indexes/ensure"]
                   "fig:build"     ["trampoline" "run" "-m" "figwheel.main" "-b" "dev" "-r"]
                   "fig:min"       ["run" "-m" "figwheel.main" "-O" "advanced" "-bo" "dev"]

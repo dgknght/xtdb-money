@@ -10,8 +10,6 @@
   ([on-success]
    (select on-success handle-api-error))
   ([on-success on-error]
-   (on-success [{:name "Personal"}
-                {:name "KSS"}])
-   #_(api/get "/api/entities"
+   (api/get "/api/entities"
             on-success
             on-error)))

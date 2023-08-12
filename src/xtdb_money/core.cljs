@@ -3,12 +3,16 @@
             [accountant.core :as act]
             [secretary.core :as sct]
             [reagent.dom :as rdom]
+            [dgknght.app-lib.forms :as forms]
+            [dgknght.app-lib.bootstrap-5 :as bs]
             [xtdb-money.state :as state :refer [page]]
             [xtdb-money.components :refer [title-bar
                                            entity-drawer]]
             [xtdb-money.api.entities :as ents]
             [xtdb-money.views.pages]
             [xtdb-money.views.entities]))
+
+(swap! forms/defaults assoc-in [::forms/decoration ::forms/framework] ::bs/bootstrap-5)
 
 (defn get-app-element []
   (gdom/getElement "app"))

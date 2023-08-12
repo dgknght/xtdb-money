@@ -1,10 +1,16 @@
 (ns xtdb-money.handler
   (:require [clojure.tools.logging :as log]
+            [clojure.pprint :refer [pprint]]
             [hiccup2.core :as h]
+            [reitit.core :as r]
             [reitit.ring :as ring]
-            [ring.middleware.defaults :refer [wrap-defaults site-defaults]]
+            [ring.middleware.defaults :refer [wrap-defaults site-defaults api-defaults]]
             [ring.middleware.not-modified :refer [wrap-not-modified]]
+            [ring.middleware.resource :refer [wrap-resource]]
+            [ring.middleware.json :refer [wrap-json-body
+                                          wrap-json-response]]
             [co.deps.ring-etag-middleware :refer [wrap-file-etag]]
+            [xtdb-money.api.entities :as ents]
             [xtdb-money.icons :refer [icon]]))
 
 (defn- mount-point []
@@ -79,11 +85,24 @@
 (def app
   (ring/ring-handler
     (ring/router
-      ["/" {:get {:handler index}}])
+      [["/" {:get {:handler index}
+             :middleware [#(wrap-defaults % (dissoc site-defaults :static))]}]
+       ["/api" {:middleware [#(wrap-defaults % api-defaults)
+                             #(wrap-json-body % {:keywords? true :bigdecimals? true})
+                             wrap-json-response]}
+        ents/routes]])
     (ring/create-default-handler)
-    {:middleware [#(wrap-defaults % site-defaults)
+    {:middleware [#(wrap-resource % "public")
                   wrap-logging
                   wrap-no-cache-header
                   wrap-file-etag
                   wrap-not-modified
                   wrap-remove-last-modified-header]}))
+
+(defn print-routes []
+  (pprint
+    (map (comp #(take 2 %)
+               #(update-in % [1] dissoc :middleware))
+         (-> app
+             ring/get-router
+             r/compiled-routes))))
