@@ -1,5 +1,6 @@
 (ns xtdb-money.api.entities
-  (:require [dgknght.app-lib.api-async :as api]))
+  (:refer-clojure :exclude [update])
+  (:require [dgknght.app-lib.api-async :as api :refer [path]]))
 
 (defn- handle-api-error
   [error]
@@ -7,10 +8,29 @@
   (.dir js/console error))
 
 (defn select
-  ([xf]
-   (select xf handle-api-error))
-  ([xf on-error]
-   (api/get "/api/entities"
-            {}
-            {:transform xf
-             :on-error on-error})))
+  [xf]
+  (api/get (path :entities)
+           {}
+           {:transform xf
+            :on-error handle-api-error}))
+
+(defn create
+  [entity xf]
+  (api/post (path :entities)
+            entity
+            {:tranform xf
+             :on-error handle-api-error}))
+
+(defn update
+  [{:keys [id] :as entity} xf]
+  {:pre [(:id entity)]}
+  (api/patch (path :entities id)
+             (dissoc entity :id)
+             {:tranform xf
+              :on-error handle-api-error}))
+
+(defn put
+  ([entity xf]
+   (if (:id entity)
+     (update entity xf)
+     (create entity xf))))
