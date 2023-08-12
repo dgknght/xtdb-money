@@ -3,15 +3,21 @@
             [reagent.core :as r]
             [dgknght.app-lib.html :as html]
             [dgknght.app-lib.forms :as forms]
-            [xtdb-money.state :refer [page
-                                      current-entity
-                                      entities]]))
+            [xtdb-money.state :as state :refer [page
+                                                current-entity
+                                                entities]]
+            [xtdb-money.api.entities :as ents]))
 
 (defn- entity-row
   [entity page-state]
   ^{:key (str "entity-row-" (:id entity))}
   [:tr
-   [:td (:name entity)]])
+   [:td (:name entity)]
+   [:td
+    [:div.btn-group {:role :group
+                     :aria-label "Entity actions"}
+     [:button.btn.btn-sm.btn-secondary {:type :button
+                                        :on-click #(swap! page-state assoc :selected entity)}]]]])
 
 (defn- entities-table
   [page-state]
@@ -20,15 +26,33 @@
      [:thead
       [:tr
        [:td "Name"]
-       [:td (html/special-char :nbsp)]]]
+       [:td (html/space)]]]
      [:tbody
       (->> @entities
            (map #(entity-row % page-state))
            doall)]]))
 
+(defn- unselect-entity
+  [xf page-state]
+  (completing
+    (fn [ch x]
+      (swap! page-state dissoc :selected)
+      (xf ch x))))
+
+(defn- load-entities
+  [xf]
+  (completing
+    (fn [ch x]
+      (ents/select (map #(swap! state/app-state assoc
+                                :entities %
+                                :current-entity (first %))))
+      (xf ch x))))
+
 (defn- save-entity
   [page-state]
-  (cljs.pprint/pprint {::save-entity (get-in @page-state [:selected])}))
+  (ents/put (get-in @page-state [:selected])
+            (comp #(unselect-entity % page-state)
+                  load-entities)))
 
 (defn- entity-form
   [page-state]
