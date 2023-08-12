@@ -5,6 +5,7 @@
             [reagent.dom :as rdom]
             [dgknght.app-lib.forms :as forms]
             [dgknght.app-lib.bootstrap-5 :as bs]
+            [dgknght.app-lib.api :as api]
             [xtdb-money.state :as state :refer [page]]
             [xtdb-money.components :refer [title-bar
                                            entity-drawer]]
@@ -13,6 +14,7 @@
             [xtdb-money.views.entities]))
 
 (swap! forms/defaults assoc-in [::forms/decoration ::forms/framework] ::bs/bootstrap-5)
+(swap! api/defaults assoc :extract-body :before)
 
 (defn get-app-element []
   (gdom/getElement "app"))
@@ -35,10 +37,9 @@
 
 (defn- load-entities []
   (ents/select
-    (fn [entities]
-      (swap! state/app-state assoc
-             :entities entities
-             :current-entity (first entities)))))
+    (map #(swap! state/app-state assoc
+                 :entities %
+                 :current-entity (first %)))))
 
 (defn init! []
   (act/configure-navigation!

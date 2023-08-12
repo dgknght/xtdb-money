@@ -1,5 +1,5 @@
 (ns xtdb-money.api.entities
-  (:require [dgknght.app-lib.api :as api]))
+  (:require [dgknght.app-lib.api-async :as api]))
 
 (defn- handle-api-error
   [error]
@@ -7,9 +7,10 @@
   (.dir js/console error))
 
 (defn select
-  ([on-success]
-   (select on-success handle-api-error))
-  ([on-success on-error]
+  ([xf]
+   (select xf handle-api-error))
+  ([xf on-error]
    (api/get "/api/entities"
-            on-success
-            on-error)))
+            {}
+            {:transform xf
+             :on-error on-error})))
