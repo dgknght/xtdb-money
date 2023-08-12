@@ -119,6 +119,16 @@
   [v]
   (->storable-date v))
 
+(defmulti identifying-where-clause mny/model-type)
+
+(defmethod identifying-where-clause :default [] nil)
+
+(defn- ensure-where
+  [query criteria]
+  (if (:where query)
+    query
+    (assoc query :where [(identifying-where-clause criteria)])))
+
 (defmulti criteria->query
   (fn [criteria _opts] (mny/model-type criteria)))
 
@@ -132,6 +142,7 @@
                           :model-type model-type
                           :args-key [::args]
                           :remap {:id :xt/id})
+      (ensure-where criteria)
       (dtl/apply-options opts :model-type model-type))))
 
 (defmulti ^:private apply-criterion
