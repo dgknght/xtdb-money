@@ -46,6 +46,7 @@
          (when-let [es (seq @entities)]
            (->> es
                 (map (fn [e]
+                       ^{:key (str "entity-selector-" (:id e))}
                        [:a.list-group-item.list-group-item-action
                         {:href "#"
                          :class (when (= @current-entity e) "active")
