@@ -121,7 +121,7 @@
 
 (defmulti identifying-where-clause mny/model-type)
 
-(defmethod identifying-where-clause :default [] nil)
+(defmethod identifying-where-clause :default [_] nil)
 
 (defn- ensure-where
   [query criteria]
@@ -202,6 +202,10 @@
 (defn- select*
   [node criteria options]
   (let [{::keys [args] :as query} (criteria->query criteria options)
+
+        _ (clojure.pprint/pprint {::select* criteria
+                                  ::query query})
+
         raw-result (apply xt/q
                           (xt/db node)
                           (dissoc query ::args)

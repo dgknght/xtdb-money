@@ -9,5 +9,5 @@
 (defn icon
   [icon-id & {:as opts}]
   [:svg.bi (apply-size {:fill "currentColor"} opts)
-   [:use {:href (str "/images/bootstrap-icons.svg#"
+   [:use {:href (str "/assets/images/bootstrap-icons.svg#"
                      (name icon-id))}]])

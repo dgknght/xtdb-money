@@ -12,14 +12,14 @@
   (api/get (path :entities)
            {}
            {:transform xf
-            :on-error handle-api-error}))
+            :handle-ex handle-api-error}))
 
 (defn create
   [entity xf]
   (api/post (path :entities)
             entity
             {:tranform xf
-             :on-error handle-api-error}))
+             :handle-ex handle-api-error}))
 
 (defn update
   [{:keys [id] :as entity} xf]
@@ -27,7 +27,7 @@
   (api/patch (path :entities id)
              (dissoc entity :id)
              {:tranform xf
-              :on-error handle-api-error}))
+              :handle-ex handle-api-error}))
 
 (defn put
   ([entity xf]

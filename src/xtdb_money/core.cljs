@@ -37,9 +37,13 @@
 
 (defn- load-entities []
   (ents/select
-    (map #(swap! state/app-state assoc
-                 :entities %
-                 :current-entity (first %)))))
+    (map (fn [e]
+
+           (cljs.pprint/pprint {::load-entities e})
+
+           (swap! state/app-state assoc
+                 :entities e
+                 :current-entity (first e))))))
 
 (defn init! []
   (act/configure-navigation!
