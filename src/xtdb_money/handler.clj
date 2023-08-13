@@ -11,6 +11,7 @@
             [ring.middleware.json :refer [wrap-json-body
                                           wrap-json-response]]
             [ring.middleware.content-type :refer [wrap-content-type]]
+            [ring.util.response :as res]
             [co.deps.ring-etag-middleware :refer [wrap-file-etag]]
             [xtdb-money.xtdb]
             [xtdb-money.datomic]
@@ -103,6 +104,12 @@
       (mny/with-storage [storage-config]
         (handler req)))))
 
+(defn- not-found
+  [{:keys [uri]}]
+  (if (re-find #"^/api" uri)
+    {:status 404 :body "{\"message\": \"not found\"}"}
+    (res/redirect "/")))
+
 (def app
   (ring/ring-handler
     (ring/router
@@ -113,10 +120,10 @@
                              wrap-json-response
                              wrap-storage]}
         ents/routes]])
-    (ring/create-default-handler)
+    (ring/create-default-handler {:not-found not-found})
     {:middleware [wrap-logging
                   wrap-content-type
-                  #(wrap-resource % "public")
+                  #(wrap-resource % "public") ; TODO: Maybe use ring/create-resource-handler instead?
                   wrap-no-cache-header
                   wrap-file-etag
                   wrap-not-modified

@@ -1,6 +1,7 @@
 {:linters {:unresolved-symbol {:exclude [(clojure.test/is [comparable?
                                                            html-response-with-content?
                                                            http-success?
+                                                           http-not-found?
                                                            seq-of-maps-like?])
                                          (xtdb-money.xtdb/query-map)
                                          (xtdb-money.core/dbfn)
