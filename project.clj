@@ -30,9 +30,10 @@
                        [clj-commons/secretary "1.2.4"]
                        [clj-time "0.15.2"]
                        [ch.qos.logback/logback-classic "1.2.3"]
-                       [com.xtdb/xtdb-core "1.23.1" :exclusions [org.clojure/data.json
+                       [com.xtdb/xtdb-core "1.24.0" :exclusions [org.clojure/data.json
                                                                  org.clojure/tools.reader
                                                                  org.slf4j/slf4j-api]]
+                       [com.xtdb/xtdb-rocksdb "1.24.0" :exclusions [org.clojure/tools.reader org.slf4j/slf4j-api org.clojure/data.json]]
                        [com.datomic/dev-local "1.0.243" :exclusions [com.cognitect/transit-clj
                                                                      com.cognitect/transit-java
                                                                      com.google.guava/guava
@@ -82,10 +83,13 @@
                                                          {:xtdb-money.core/provider :datomic
                                                           :server-type :dev-local
                                                           :system "money-dev"
-                                                          :storage-dir "/Users/dknight/.datomic-storage"}
+                                                          :storage-dir "/home/doug/.datomic-storage"}
 
                                                          "xtdb"
-                                                         {:xtdb-money.core/provider :xtdb}
+                                                         {:xtdb-money.core/provider :xtdb
+                                                          :xtdb/tx-log         [:kv-store "/tmp/xtdb-storage/xtdb-money-dev/tx-log"]
+                                                          :xtdb/document-store [:kv-store "/tmp/xtdb-storage/xtdb-money-dev/doc-store"]
+                                                          :xtdb/index-store    [:kv-store "/tmp/xtdb-storage/xtdb-money-dev/index-store"]}
 
                                                          "sql"
                                                          {:xtdb-money.core/provider :sql

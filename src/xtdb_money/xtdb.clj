@@ -1,5 +1,6 @@
 (ns xtdb-money.xtdb
   (:require [clojure.walk :refer [postwalk]]
+            [clojure.java.io :as io]
             [xtdb.api :as xt]
             [cljs.core :as c]
             [xtdb-money.datalog :as dtl]
@@ -202,10 +203,6 @@
 (defn- select*
   [node criteria options]
   (let [{::keys [args] :as query} (criteria->query criteria options)
-
-        _ (clojure.pprint/pprint {::select* criteria
-                                  ::query query})
-
         raw-result (apply xt/q
                           (xt/db node)
                           (dissoc query ::args)
@@ -222,9 +219,30 @@
        (map #(vector :xt/delete %))
        (submit node)))
 
+(defmulti ^:private resolve-store
+  (fn [[type _]] type))
+
+(defmethod resolve-store :kv-store
+  [[_ path]]
+  {:kv-store {:xtdb/module 'xtdb.rocksdb/->kv-store
+              :db-dir (io/file path)
+              :sync? true}})
+
+(defn- resolve-stores
+  [config]
+  (->> config
+       (map #(update-in % [1] resolve-store))
+       (into {})))
+
+(defn- prepare-config
+  [config]
+  (-> config
+      (dissoc ::mny/provider)
+      resolve-stores))
+
 (defmethod mny/reify-storage :xtdb
   [config]
-  (let [node (xt/start-node (dissoc config ::mny/provider))]
+  (let [node (-> config prepare-config xt/start-node) ]
     (reify mny/Storage
       (put [_ models]              (submit node models))
       (select [_ criteria options] (select* node criteria options))
