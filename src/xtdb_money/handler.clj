@@ -13,7 +13,6 @@
             [ring.middleware.content-type :refer [wrap-content-type]]
             [ring.util.response :as res]
             [co.deps.ring-etag-middleware :refer [wrap-file-etag]]
-            [cheshire.core :as json]
             [xtdb-money.models.mongodb.ref]
             [xtdb-money.models.sql.ref]
             [xtdb-money.models.xtdb.ref]
@@ -110,7 +109,7 @@
 (def error-res
   {:status 500
    :headers {"content-type" "application/json"}
-   :body (json/generate-string {:message "server error"})})
+   :body {:message "server error"}})
 
 (defn- wrap-api-exception
   [handler]
