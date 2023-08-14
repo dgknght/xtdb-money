@@ -1,6 +1,7 @@
 (ns xtdb-money.views.entities
   (:require [secretary.core :refer-macros [defroute]]
             [reagent.core :as r]
+            [dgknght.app-lib.dom :as dom]
             [dgknght.app-lib.html :as html]
             [dgknght.app-lib.forms :as forms]
             [xtdb-money.state :as state :refer [page
@@ -81,7 +82,9 @@
          [entities-table page-state]
          [:div
           [:button.btn.btn-primary {:type :button
-                                    :on-click #(swap! page-state assoc :selected {})}
+                                    :on-click (fn [_]
+                                                (swap! page-state assoc :selected {})
+                                                (dom/set-focus "name"))}
            "Add"]]]
         [:div.col-md-6
          (when @selected
