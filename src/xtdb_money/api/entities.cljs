@@ -18,7 +18,7 @@
   [entity xf]
   (api/post (path :entities)
             entity
-            {:tranform xf
+            {:transform xf
              :handle-ex handle-api-error}))
 
 (defn update
@@ -26,7 +26,7 @@
   {:pre [(:id entity)]}
   (api/patch (path :entities id)
              (dissoc entity :id)
-             {:tranform xf
+             {:transform xf
               :handle-ex handle-api-error}))
 
 (defn put
