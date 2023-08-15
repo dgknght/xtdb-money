@@ -143,7 +143,7 @@
   (ring/ring-handler
     (ring/router
       [["/" {:get {:handler index}
-             :middleware [#(wrap-defaults % (dissoc site-defaults :static))]}]
+             :middleware [#(wrap-defaults % (dissoc site-defaults :static :session))]}]
        ["/api" {:middleware [#(wrap-defaults % api-defaults)
                              #(wrap-json-body % {:keywords? true :bigdecimals? true})
                              wrap-json-response

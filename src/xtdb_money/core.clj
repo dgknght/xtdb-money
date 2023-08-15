@@ -22,15 +22,13 @@
   (put [this models] "Saves the models to the database in an atomic transaction")
   (select [this criteria options] "Retrieves models from the database")
   (delete [this models] "Removes the models from the database in an atomic transaction")
+  (close [this] "Releases resources held by the storage instance")
   (reset [this] "Resets the database")) ; TODO: Is there someplace to put this so it's only available in tests?
 
 (defn storage-dispatch [config & _]
   (::provider config))
 
 (defmulti reify-storage storage-dispatch)
-(defmulti start storage-dispatch)
-(defmulti stop storage-dispatch)
-(defmulti reset-db storage-dispatch)
 
 (def ^:dynamic *storage*)
 
@@ -69,5 +67,8 @@
 (defmacro with-storage
   [bindings & body]
   `(let [storage# (reify-storage ~(first bindings))]
-     (binding [*storage* storage#]
-       ~@body)))
+     (try
+       (binding [*storage* storage#]
+         ~@body)
+       (finally
+         (close storage#)))))

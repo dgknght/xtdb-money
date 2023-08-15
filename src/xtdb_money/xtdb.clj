@@ -244,7 +244,8 @@
   [config]
   (let [node (-> config prepare-config xt/start-node) ]
     (reify mny/Storage
-      (put [_ models]              (submit node models))
+      (put    [_ models]           (submit node models))
       (select [_ criteria options] (select* node criteria options))
       (delete [_ models]           (delete* node models))
-      (reset [_] (comment "This is a no-op with in-memory implementation")))))
+      (close  [_]                  (.close node))
+      (reset  [_]                  (comment "This is a no-op with in-memory implementation")))))
