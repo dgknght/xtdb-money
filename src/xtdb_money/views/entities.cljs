@@ -7,18 +7,39 @@
             [xtdb-money.state :as state :refer [page
                                                 current-entity
                                                 entities]]
+            [xtdb-money.icons :refer [icon]]
             [xtdb-money.api.entities :as ents]))
+
+(defn- delete-entity
+  [entity _page-state]
+  (cljs.pprint/pprint {::delete-entity entity}))
 
 (defn- entity-row
   [entity page-state]
   ^{:key (str "entity-row-" (:id entity))}
-  [:tr
-   [:td (:name entity)]
-   [:td
-    [:div.btn-group {:role :group
-                     :aria-label "Entity actions"}
-     [:button.btn.btn-sm.btn-secondary {:type :button
-                                        :on-click #(swap! page-state assoc :selected entity)}]]]])
+  (let [css-class (when (= @current-entity entity) "bg-primary-subtle")]
+    [:tr
+     [:td {:class css-class}
+      (:name entity)]
+     [:td.text-end {:class css-class}
+      [:div.btn-group {:role :group
+                       :aria-label "Entity actions"}
+       [:button.btn.btn-sm.btn-secondary
+        {:type :button
+         :title "Click here to edit the entity."
+         :on-click #(swap! page-state assoc :selected entity)}
+        (icon :pencil :size :small)]
+       [:button.btn.btn-sm.btn-info
+        {:type :button
+         :disabled (= @current-entity entity)
+         :title "Click here to make this the active entity."
+         :on-click #(reset! current-entity entity)}
+        (icon :box-arrow-in-right :size :small)]
+       [:button.btn.btn-sm.btn-danger
+        {:type :button
+         :title "Click here to remove this entity."
+         :on-click #(delete-entity entity page-state)}
+        (icon :trash :size :small)]]]]))
 
 (defn- entities-table
   [page-state]

@@ -55,4 +55,8 @@
                         (:name e)]))
                 doall))]]
        [:div.col-md-6
-        "Link to entity management"]]]]))
+        [:ul.nav.flex-column
+         [:li.nav-link [:a.nav-link
+                        {:href "/entities"
+                         :data-bs-dismiss "offcanvas"}
+                        "Manage Entities"]]]]]]]))
