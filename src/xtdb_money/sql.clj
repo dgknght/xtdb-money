@@ -189,4 +189,5 @@
       (put [_ models]       (put* db models))
       (select [_ crit opts] (select* db crit opts))
       (delete [_ models]    (delete* db models))
+      (close [_])
       (reset [_]            (reset* db)))))

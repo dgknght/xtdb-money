@@ -287,4 +287,5 @@
     (reify mny/Storage
       (put [_ models]       (put* models {:conn conn}))
       (select [_ crit opts] (select* crit opts {:conn conn}))
+      (close [_])
       (reset [_]            (d/delete-database client {:db-name db-name})))))

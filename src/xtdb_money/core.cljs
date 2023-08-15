@@ -6,7 +6,8 @@
             [dgknght.app-lib.forms :as forms]
             [dgknght.app-lib.bootstrap-5 :as bs]
             [dgknght.app-lib.api :as api]
-            [xtdb-money.state :as state :refer [page]]
+            [xtdb-money.state :as state :refer [page
+                                                storage-strategy]]
             [xtdb-money.components :refer [title-bar
                                            entity-drawer]]
             [xtdb-money.notifications :refer [alerts]]
@@ -43,6 +44,8 @@
            (swap! state/app-state assoc
                   :entities entities
                   :current-entity (first entities))
+           (when (empty? entities)
+             (sct/dispatch! "/entities"))
            entities))))
 
 (defn init! []
@@ -51,10 +54,14 @@
      :path-exists? #(sct/locate-route-value %)})
   (act/dispatch-current!)
   (mount-app-element)
-  (load-entities))
+  (reset! storage-strategy :xtdb)
+  (add-watch storage-strategy
+             ::init
+             (fn [_ _ _before after]
+               (swap! api/defaults assoc-in [:headers "Storage-Strategy"] after)
+               (load-entities))))
 
 (init!)
-
 
 ;; specify reload hook with ^:after-load metadata
 (defn ^:after-load on-reload []

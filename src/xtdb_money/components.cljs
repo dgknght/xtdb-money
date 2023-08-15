@@ -1,7 +1,50 @@
 (ns xtdb-money.components
-  (:require [xtdb-money.icons :refer [icon]]
+  (:require [clojure.string :as string]
+            [camel-snake-kebab.core :refer [->kebab-case-keyword]]
+            [xtdb-money.icons :refer [icon]]
             [xtdb-money.state :refer [current-entity
-                                      entities]]))
+                                      entities
+                                      storage-strategy]]))
+
+(defmulti ^:private expand-dropdown-item
+  (fn [i]
+    (cond
+      (string? i) :caption
+      (keyword? i) :id)))
+
+(defmethod expand-dropdown-item :caption
+  [caption]
+  (expand-dropdown-item {:id (->kebab-case-keyword caption)
+                          :caption caption}))
+
+(defn- id->caption
+  [id]
+  (-> id name string/capitalize))
+
+(defmethod expand-dropdown-item :id
+  [id]
+  (expand-dropdown-item {:id id
+                         :caption (id->caption id)}))
+
+(defmethod expand-dropdown-item :default
+  [item]
+  (update-in item [:href] (fnil identity "#")))
+
+(defn- dropdown-item
+  [{:keys [id path on-click caption]}]
+  ^{:key (str "dropdown-item-" id)}
+  [:li
+   [:a.dropdown-item {:href path
+                      :on-click on-click}
+    caption]])
+
+(defn- dropdown-ul
+  [items]
+  [:ul.dropdown-menu.text-small
+   (->> items
+        (map (comp dropdown-item
+                   expand-dropdown-item))
+        doall)])
 
 (defn title-bar []
   [:header.p-3.mb-3.border-bottom
@@ -19,6 +62,17 @@
         (:name e)])
      [:ul.nav.col-12.col-lg-auto.me-lg-auto.mb-2.mb-lg-0.justify-content-center
       [:li [:a.nav-link.px-2.link-secondary {:href "/about"} "About The App"]]]
+     [:div.dropdown.text-end.me-lg-3
+      [:a.d-block.link-body-emphasis.text-decoration-none.dropdown-toggle
+       {:data-bs-toggle :dropdown
+        :aria-expanded false}
+       [:span.me-2 (name @storage-strategy)]
+       (icon :database :size :medium)]
+      (dropdown-ul (->> [:xtdb :datomic :sql :mongodb]
+                        (map (fn [id]
+                               {:id id
+                                :caption (id->caption id)
+                                :on-click #(reset! storage-strategy id)}))))]
      [:form.col-12.col-lg-auto.mb-2.mb-lg-0.me-lg-3
       [:input.form-control {:type :text
                             :placeholder "Search..."
@@ -28,8 +82,7 @@
        {:data-bs-toggle :dropdown
         :aria-expanded false}
        (icon :person-circle :size :medium)]
-      [:ul.dropdown-menu.text-small
-       [:li [:a.dropdown-item {:href "#"} "Sign In"]]]]]]])
+      (dropdown-ul ["Sign In"])]]]])
 
 (defn entity-drawer []
   (fn []
