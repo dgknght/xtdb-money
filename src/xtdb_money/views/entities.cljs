@@ -8,16 +8,18 @@
                                                 current-entity
                                                 entities]]
             [xtdb-money.icons :refer [icon]]
+            [xtdb-money.notifications :refer [alert]]
             [xtdb-money.api.entities :as ents]))
 
 (defn- delete-entity
   [entity _page-state]
+  (alert "The delete function has not been implemented yet.")
   (cljs.pprint/pprint {::delete-entity entity}))
 
 (defn- entity-row
   [entity page-state]
-  ^{:key (str "entity-row-" (:id entity))}
   (let [css-class (when (= @current-entity entity) "bg-primary-subtle")]
+    ^{:key (str "entity-row-" (:id entity))}
     [:tr
      [:td {:class css-class}
       (:name entity)]

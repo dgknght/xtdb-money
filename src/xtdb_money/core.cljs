@@ -9,6 +9,7 @@
             [xtdb-money.state :as state :refer [page]]
             [xtdb-money.components :refer [title-bar
                                            entity-drawer]]
+            [xtdb-money.notifications :refer [alerts]]
             [xtdb-money.api.entities :as ents]
             [xtdb-money.views.pages]
             [xtdb-money.views.entities]))
@@ -23,6 +24,7 @@
   (fn []
     [:div
      [title-bar]
+     [alerts]
      [@page]
      [entity-drawer]]))
 
