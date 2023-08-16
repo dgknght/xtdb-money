@@ -24,5 +24,5 @@
         "The HTML body has the correct page header (during JavaScript startup)")))
 
 (deftest fetch-the-stylesheet
-  (let [res (app (req/request :get "/css/site.css"))]
+  (let [res (app (req/request :get "/assets/css/site.css"))]
     (is (http-success? res))))
