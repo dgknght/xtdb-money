@@ -42,6 +42,21 @@ Transaction {
 }
 ```
 
+# Local Development
+
+## Stylesheet
+Build the stylesheets with [Dart Sass](https://sass-lang.com/dart-sass/)
+
+### Installation
+```bash
+npm install -g sass
+```
+
+### Build
+```bash
+sass src/scss/site.scss resources/public/css/site.css
+```
+
 Copyright © 2023
 
 This program and the accompanying materials are made available under the
