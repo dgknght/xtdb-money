@@ -72,6 +72,9 @@
                                              :strategies {"datomic"
                                                           {:system "money-test"}
 
+                                                          "xtdb"
+                                                          ^:replace {:xtdb-money.core/provider :xtdb}
+
                                                           "sql"
                                                           {:dbname "xtdb_money_test"}
 

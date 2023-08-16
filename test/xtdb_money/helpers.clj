@@ -53,5 +53,5 @@
                                        (dbs))]
          (binding [*strategy* (keyword name#)]
            (testing (format "database strategy %s" name#)
-             (mny/with-storage [config#]
+             (mny/with-db [config#]
                ~@bod)))))))

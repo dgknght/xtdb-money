@@ -7,7 +7,7 @@
             [dgknght.app-lib.bootstrap-5 :as bs]
             [dgknght.app-lib.api :as api]
             [xtdb-money.state :as state :refer [page
-                                                storage-strategy]]
+                                                db-strategy]]
             [xtdb-money.components :refer [title-bar
                                            entity-drawer]]
             [xtdb-money.notifications :refer [alerts]]
@@ -54,12 +54,12 @@
      :path-exists? #(sct/locate-route-value %)})
   (act/dispatch-current!)
   (mount-app-element)
-  (reset! storage-strategy :xtdb)
-  (add-watch storage-strategy
+  (add-watch db-strategy
              ::init
              (fn [_ _ _before after]
-               (swap! api/defaults assoc-in [:headers "Storage-Strategy"] after)
-               (load-entities))))
+               (swap! api/defaults assoc-in [:headers "DB-Strategy"] after)
+               (load-entities)))
+  (reset! db-strategy :xtdb)) ; TODO: get this from config
 
 (init!)
 

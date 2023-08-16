@@ -64,7 +64,7 @@
   [m]
   (not= m (-> m meta :original)))
 
-(defmacro with-storage
+(defmacro with-db
   [bindings & body]
   `(let [storage# (reify-storage ~(first bindings))]
      (try

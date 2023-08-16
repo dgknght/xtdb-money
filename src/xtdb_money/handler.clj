@@ -96,14 +96,14 @@
   (fn [req]
     (handler (update-in req [:headers] dissoc "Last-Modified"))))
 
-(defn- wrap-storage
+(defn- wrap-db
   [handler]
   (fn [req]
     (let [storage-key (get-in req
-                              [:headers "storage-strategy"]
+                              [:headers "db-strategy"]
                               (get-in env [:db :active]))
           storage-config (get-in env [:db :strategies storage-key])]
-      (mny/with-storage [storage-config]
+      (mny/with-db [storage-config]
         (handler req)))))
 
 (def error-res
@@ -147,7 +147,7 @@
        ["/api" {:middleware [#(wrap-defaults % api-defaults)
                              #(wrap-json-body % {:keywords? true :bigdecimals? true})
                              wrap-json-response
-                             wrap-storage
+                             wrap-db
                              wrap-api-exception]}
         ents/routes]
        ["/assets/*" (ring/create-resource-handler)]])

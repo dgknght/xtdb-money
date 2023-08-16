@@ -6,4 +6,4 @@
 (def page (r/cursor app-state [:page]))
 (def entities (r/cursor app-state [:entities]))
 (def current-entity (r/cursor app-state [:current-entity]))
-(def storage-strategy (r/cursor app-state [:storage-strategy]))
+(def db-strategy (r/cursor app-state [:db-strategy]))

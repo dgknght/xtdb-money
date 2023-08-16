@@ -40,3 +40,8 @@
             (is (= (:id commodity)
                    (:default-commodity-id (ents/find entity)))
                 "A retrieved model has the updated attributes"))))
+
+(dbtest fetch-all-entities
+  (with-context update-context
+    (is (seq-of-maps-like? [{:name "Personal"}]
+                           (ents/select {})))))

@@ -4,7 +4,7 @@
             [xtdb-money.icons :refer [icon]]
             [xtdb-money.state :refer [current-entity
                                       entities
-                                      storage-strategy]]))
+                                      db-strategy]]))
 
 (defmulti ^:private expand-dropdown-item
   (fn [i]
@@ -66,13 +66,14 @@
       [:a.d-block.link-body-emphasis.text-decoration-none.dropdown-toggle
        {:data-bs-toggle :dropdown
         :aria-expanded false}
-       [:span.me-2 (name @storage-strategy)]
+       [:span.me-2 (when-let [s @db-strategy]
+                     (name s))]
        (icon :database :size :medium)]
       (dropdown-ul (->> [:xtdb :datomic :sql :mongodb]
                         (map (fn [id]
                                {:id id
                                 :caption (id->caption id)
-                                :on-click #(reset! storage-strategy id)}))))]
+                                :on-click #(reset! db-strategy id)}))))]
      [:form.col-12.col-lg-auto.mb-2.mb-lg-0.me-lg-3
       [:input.form-control {:type :text
                             :placeholder "Search..."
