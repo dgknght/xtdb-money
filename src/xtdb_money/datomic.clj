@@ -171,16 +171,21 @@
         (update-in [:query :in] (fnil conj []) '?x))
     query))
 
-(defmulti identifying-where-clause
+(defmulti bounding-where-clause
   (fn [crit-or-model-type]
     (if (keyword? crit-or-model-type)
       crit-or-model-type
       (mny/model-type crit-or-model-type))))
 
-(defn- ensure-where-clause
+(defn- unbounded-query?
+  [{{:keys [in where]} :query}]
+  (and (empty? where)
+       (not-any? #(= '?x %) in)))
+
+(defn- ensure-bounded-query
   [query criteria]
-  (if (empty? (get-in query [:query :where]))
-    (assoc-in query [:query :where] [(identifying-where-clause criteria)])
+  (if (unbounded-query? query)
+    (assoc-in query [:query :where] [(bounding-where-clause criteria)])
     query))
 
 (defmethod criteria->query :default
@@ -195,7 +200,7 @@
                             :model-type m-type
                             :query-prefix [:query]
                             :coerce ->storable)
-        (ensure-where-clause criteria)
+        (ensure-bounded-query criteria)
         (dtl/apply-options opts :model-type m-type))))
 
 (defmulti before-save mny/model-type)
