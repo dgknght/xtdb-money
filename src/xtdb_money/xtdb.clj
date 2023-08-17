@@ -93,7 +93,7 @@
     (update-in tuple [1] :id)
     tuple))
 
-(defn submit
+(defn- submit
   "Give a list of model maps, or vector tuples with an action in the
   1st position and a model in the second, execute the actions and
   return the id values of the models"
