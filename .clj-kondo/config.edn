@@ -3,6 +3,7 @@
                                                            http-success?
                                                            http-not-found?
                                                            seq-of-maps-like?])
+                                         (secretary.core/defroute weclome-path)
                                          (xtdb-money.xtdb/query-map)
                                          (xtdb-money.core/dbfn)
                                          (xtdb-money.helpers/dbtest)]}}}
