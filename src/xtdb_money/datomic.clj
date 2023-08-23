@@ -298,6 +298,9 @@
                     extract-ref-ids))
          (apply-sort options))))
 
+(defn- delete*
+  [_models _opts])
+
 (defmethod mny/reify-storage :datomic
   [config]
   (let [client (d/client config)
@@ -305,5 +308,6 @@
     (reify mny/Storage
       (put [_ models]       (put* models {:conn conn}))
       (select [_ crit opts] (select* crit opts {:conn conn}))
+      (delete [_ models]     (delete* models {:conn conn}))
       (close [_])
       (reset [_]            (d/delete-database client {:db-name db-name})))))

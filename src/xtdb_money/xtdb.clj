@@ -216,8 +216,10 @@
 (defn- delete*
   [node models]
   (->> models
-       (map #(vector :xt/delete %))
-       (submit node)))
+       (mapv (comp #(vector ::xt/delete %)
+                  :id))
+       (xt/submit-tx node)
+       (xt/sync node)))
 
 (defmulti ^:private resolve-store
   (fn [[type _]] type))

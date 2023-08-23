@@ -34,3 +34,8 @@
    (if (:id entity)
      (update entity xf)
      (create entity xf))))
+
+(defn delete
+  [entity callback]
+  {:pre [(:id entity)]}
+  (api/delete {:id (:id entity)}))

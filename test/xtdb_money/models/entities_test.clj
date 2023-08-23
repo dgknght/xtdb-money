@@ -45,3 +45,10 @@
   (with-context update-context
     (is (seq-of-maps-like? [{:name "Personal"}]
                            (ents/select {})))))
+
+(dbtest delete-an-entity
+  (with-context update-context
+    (let [entity (find-entity "Personal")]
+      (ents/delete entity)
+      (is (nil? (ents/find (:id entity)))
+          "The entity cannot be retrieved after delete"))))

@@ -1,16 +1,12 @@
 (ns xtdb-money.views.pages
   (:require [secretary.core :refer-macros [defroute]]
-            [xtdb-money.state :refer [page
-                                      entities]]))
+            [xtdb-money.state :refer [page]]))
 
 (defn- welcome []
   (fn []
     [:div.container
      [:h1 "Welcome!"]
-     (when (empty? @entities)
-       [:p "It looks like this is your first time here. "
-        [:a {:href "/entities"} "Click here "]
-        "to create your first entity and get started recording your finances."])]))
+     [:p "There's lots of cool stuff coming soon."]]))
 
 (defn- about []
   (fn []

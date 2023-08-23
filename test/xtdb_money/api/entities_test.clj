@@ -47,3 +47,17 @@
             "The ents/select fn is called once")
         (is (= [{}] c)
             "The ents/select fn is called with the correct arguments")))))
+
+(deftest delete-an-entity
+  (let [calls (atom [])]
+    (with-redefs [ents/delete (fn [& args]
+                                (swap! args conj args)
+                                nil)]
+      (let [res (-> (req/request :delete (path :api :entities 101))
+                    app)
+            [c :as cs] @calls]
+        (is (http-no-content? res))
+        (is (= 1 (count cs))
+            "The delete function is called once")
+        (is (= [101] c)
+            "The delete funtion is called with the correct arguments")))))

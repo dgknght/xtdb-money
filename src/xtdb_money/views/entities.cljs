@@ -11,10 +11,19 @@
             [xtdb-money.notifications :refer [alert]]
             [xtdb-money.api.entities :as ents]))
 
+(defn- load-entities
+  [xf]
+  (completing
+    (fn [ch x]
+      (ents/select (map #(swap! state/app-state assoc
+                                :entities %
+                                :current-entity (first %))))
+      (xf ch x))))
+
 (defn- delete-entity
   [entity _page-state]
-  (alert "The delete function has not been implemented yet.")
-  (cljs.pprint/pprint {::delete-entity entity}))
+  (ents/delete entity
+               load-entities))
 
 (defn- entity-row
   [entity page-state]
@@ -61,15 +70,6 @@
   (completing
     (fn [ch x]
       (swap! page-state dissoc :selected)
-      (xf ch x))))
-
-(defn- load-entities
-  [xf]
-  (completing
-    (fn [ch x]
-      (ents/select (map #(swap! state/app-state assoc
-                                :entities %
-                                :current-entity (first %))))
       (xf ch x))))
 
 (defn- save-entity

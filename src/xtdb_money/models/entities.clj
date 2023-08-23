@@ -33,3 +33,7 @@
   (let [records-or-ids (mny/put (mny/storage)
                                 [(mny/model-type entity :entity)])]
     (resolve-put-result (first records-or-ids)))) ; TODO: return all of the saved models instead of the first?
+
+(defn delete
+  [entity]
+  (mny/delete (mny/storage) [entity]))
