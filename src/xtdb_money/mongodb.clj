@@ -3,6 +3,7 @@
             [clojure.set :refer [rename-keys]]
             [clj-time.coerce :refer [to-local-date
                                      to-date]]
+            [cheshire.generate :refer [add-encoder]]
             [somnium.congomongo :as m]
             [somnium.congomongo.coerce :refer [ConvertibleFromMongo
                                                ConvertibleToMongo
@@ -11,7 +12,13 @@
             [dgknght.app-lib.inflection :refer [plural]])
   (:import org.joda.time.LocalDate
            java.util.Date
-           org.bson.types.Decimal128))
+           org.bson.types.Decimal128
+           org.bson.types.ObjectId
+           com.fasterxml.jackson.core.JsonGenerator))
+
+(add-encoder ObjectId
+             (fn [^ObjectId id ^JsonGenerator g]
+               (.writeString g (str id))))
 
 (extend-protocol ConvertibleToMongo
   LocalDate

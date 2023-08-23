@@ -108,7 +108,6 @@
 
 (def error-res
   {:status 500
-   :headers {"content-type" "application/json"}
    :body {:message "server error"}})
 
 (defn- wrap-api-exception
@@ -144,11 +143,11 @@
     (ring/router
       [["/" {:get {:handler index}
              :middleware [#(wrap-defaults % (dissoc site-defaults :static :session))]}]
-       ["/api" {:middleware [#(wrap-defaults % api-defaults)
+       ["/api" {:middleware [wrap-json-response
+                             wrap-api-exception
+                             #(wrap-defaults % api-defaults)
                              #(wrap-json-body % {:keywords? true :bigdecimals? true})
-                             wrap-json-response
-                             wrap-db
-                             wrap-api-exception]}
+                             wrap-db]}
         ents/routes]
        ["/assets/*" (ring/create-resource-handler)]])
     (ring/create-default-handler {:not-found not-found})
