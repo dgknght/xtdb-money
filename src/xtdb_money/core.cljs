@@ -8,6 +8,7 @@
             [dgknght.app-lib.api :as api]
             [xtdb-money.state :as state :refer [page
                                                 db-strategy]]
+            [xtdb-money.api :refer [handle-error]]
             [xtdb-money.components :refer [title-bar
                                            entity-drawer]]
             [xtdb-money.notifications :refer [alerts]]
@@ -16,7 +17,10 @@
             [xtdb-money.views.entities]))
 
 (swap! forms/defaults assoc-in [::forms/decoration ::forms/framework] ::bs/bootstrap-5)
-(swap! api/defaults assoc :extract-body :before)
+(swap! api/defaults assoc
+       :accept :json
+       :extract-body :before
+       :handle-ex handle-error)
 
 (defn get-app-element []
   (gdom/getElement "app"))
@@ -40,13 +44,20 @@
 
 (defn- load-entities []
   (ents/select
-    (map (fn [entities]
-           (swap! state/app-state assoc
-                  :entities entities
-                  :current-entity (first entities))
-           (when (empty? entities)
-             (sct/dispatch! "/entities"))
-           entities))))
+    :transform (fn [xf]
+                 (completing
+                   (fn [ch entities]
+                     (cljs.pprint/pprint {::transform entities})
+                     (xf ch entities))))
+    :callback (fn [entities]
+                (if (coll? entities)
+                  (do
+                    (swap! state/app-state assoc
+                           :entities entities
+                           :current-entity (first entities))
+                    (when (empty? entities)
+                      (sct/dispatch! "/entities")))
+                  (cljs.pprint/pprint {::invalid-entities entities})))))
 
 (defn init! []
   (act/configure-navigation!

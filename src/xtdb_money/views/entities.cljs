@@ -15,15 +15,17 @@
   [xf]
   (completing
     (fn [ch x]
-      (ents/select (map #(swap! state/app-state assoc
-                                :entities %
-                                :current-entity (first %))))
+      (ents/select :callback
+                   #(swap! state/app-state assoc
+                           :entities %
+                           :current-entity (first %)))
       (xf ch x))))
 
 (defn- delete-entity
   [entity _page-state]
   (ents/delete entity
-               load-entities))
+               :transform load-entities
+               :callback #(cljs.pprint/pprint {::deleted entity})))
 
 (defn- entity-row
   [entity page-state]
@@ -75,8 +77,9 @@
 (defn- save-entity
   [page-state]
   (ents/put (get-in @page-state [:selected])
-            (comp #(unselect-entity % page-state)
-                  load-entities)))
+            :transform (comp #(unselect-entity % page-state)
+                             load-entities)
+            :callback #(cljs.pprint/pprint {::save-entity %})))
 
 (defn- entity-form
   [page-state]

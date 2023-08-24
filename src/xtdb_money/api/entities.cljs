@@ -2,40 +2,31 @@
   (:refer-clojure :exclude [update])
   (:require [dgknght.app-lib.api-async :as api :refer [path]]))
 
-(defn- handle-api-error
-  [error]
-  (.error js/console "Unable to get a list of entities from the server.")
-  (.dir js/console error))
-
 (defn select
-  [xf]
-  (api/get (path :entities)
-           {}
-           {:transform xf
-            :handle-ex handle-api-error}))
+  [& {:as opts}]
+  (api/get (path :entities) {} opts))
 
 (defn create
-  [entity xf]
+  [entity & {:as opts}]
   (api/post (path :entities)
             entity
-            {:transform xf
-             :handle-ex handle-api-error}))
+            opts))
 
 (defn update
-  [{:keys [id] :as entity} xf]
+  [{:keys [id] :as entity} & {:as opts}]
   {:pre [(:id entity)]}
   (api/patch (path :entities id)
              (dissoc entity :id)
-             {:transform xf
-              :handle-ex handle-api-error}))
+             opts))
 
 (defn put
-  ([entity xf]
+  ([entity & {:as opts}]
    (if (:id entity)
-     (update entity xf)
-     (create entity xf))))
+     (update entity opts)
+     (create entity opts))))
 
 (defn delete
-  [entity callback]
+  [entity & {:as opts}]
   {:pre [(:id entity)]}
-  (api/delete {:id (:id entity)}))
+  (api/delete {:id (:id entity)}
+              opts))
