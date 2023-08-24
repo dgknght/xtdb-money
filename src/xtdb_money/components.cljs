@@ -67,9 +67,9 @@
         [:a.d-block.link-body-emphasis.text-decoration-none.dropdown-toggle
          {:data-bs-toggle :dropdown
           :aria-expanded false}
+         (icon :database :size :medium)
          [:span.me-2 (when-let [s @db-strategy]
-                         (name s))]
-         (icon :database :size :medium)]
+                         (name s))]]
         (dropdown-ul (->> [:xtdb :datomic :sql :mongodb]
                           (map (fn [id]
                                  {:id id
