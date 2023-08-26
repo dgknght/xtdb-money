@@ -44,15 +44,11 @@
 
 (defn- load-entities []
   (ents/select
-    :transform (fn [xf]
-                 (completing
-                   (fn [ch entities]
-                     (cljs.pprint/pprint {::transform entities})
-                     (xf ch entities))))
     :callback (fn [entities]
                 (if (coll? entities)
                   (do
-                    (swap! state/app-state assoc
+                    (swap! state/app-state
+                           assoc
                            :entities entities
                            :current-entity (first entities))
                     (when (empty? entities)
