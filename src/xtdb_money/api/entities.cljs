@@ -1,10 +1,10 @@
 (ns xtdb-money.api.entities
   (:refer-clojure :exclude [update])
-  (:require [dgknght.app-lib.api-async :as api :refer [path]]))
+  (:require [dgknght.app-lib.api-3 :as api :refer [path]]))
 
 (defn select
   [& {:as opts}]
-  (api/get (path :entities) {} opts))
+  (api/get (path :entities) opts))
 
 (defn create
   [entity & {:as opts}]
