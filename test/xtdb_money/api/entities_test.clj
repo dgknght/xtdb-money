@@ -1,6 +1,7 @@
 (ns xtdb-money.api.entities-test
   (:require [clojure.test :refer [deftest is]]
             [dgknght.app-lib.test-assertions]
+            [dgknght.app-lib.web :refer [path]]
             [ring.mock.request :as req]
             [dgknght.app-lib.test :refer [parse-json-body]]
             [xtdb-money.models.entities :as ents]
@@ -39,6 +40,9 @@
                     parse-json-body)
             [c :as cs] @calls]
         (is (http-success? res))
+        (is (comparable? {"Content-Type" "application/json; charset=utf-8"}
+                         (:headers res))
+            "The response has the correct content type")
         (is (= [{:id 101 :name "Personal"}
                 {:id 102 :name "Business"}]
                (:json-body res))
@@ -48,10 +52,35 @@
         (is (= [{}] c)
             "The ents/select fn is called with the correct arguments")))))
 
+(deftest update-an-entity
+  (let [calls (atom [])]
+    (with-redefs [ents/put (fn [& args]
+                             (swap! calls conj args)
+                             (first args))
+                  ents/find (fn [id]
+                              {:id "101"
+                               :name "Old Name"})]
+      (let [res (-> (req/request :patch (path :api :entities 101))
+                    (req/json-body {:name "The new name"})
+                    app
+                    parse-json-body)
+            [c :as cs] @calls]
+        (is (http-success? res))
+        (is (= 1 (count cs))
+            "The entities update fn is called once")
+        (is (= [{:id "101"
+                 :name "The new name"}]
+               c)
+            "The entities update fn is called with the updated entity map")
+        (is (= {:id "101"
+                :name "The new name"}
+               (:json-body res))
+            "The result of the update fn is returned")))))
+
 (deftest delete-an-entity
   (let [calls (atom [])]
     (with-redefs [ents/delete (fn [& args]
-                                (swap! args conj args)
+                                (swap! calls conj args)
                                 nil)]
       (let [res (-> (req/request :delete (path :api :entities 101))
                     app)

@@ -143,10 +143,10 @@
     (ring/router
       [["/" {:get {:handler index}
              :middleware [#(wrap-defaults % (dissoc site-defaults :static :session))]}]
-       ["/api" {:middleware [wrap-json-response
-                             wrap-api-exception
-                             #(wrap-defaults % api-defaults)
+       ["/api" {:middleware [#(wrap-defaults % api-defaults)
                              #(wrap-json-body % {:keywords? true :bigdecimals? true})
+                             wrap-json-response
+                             wrap-api-exception
                              wrap-db]}
         ents/routes]
        ["/assets/*" (ring/create-resource-handler)]])
