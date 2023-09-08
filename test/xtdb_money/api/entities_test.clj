@@ -57,9 +57,8 @@
     (with-redefs [ents/put (fn [& args]
                              (swap! calls conj args)
                              (first args))
-                  ents/find (fn [id]
-                              {:id "101"
-                               :name "Old Name"})]
+                  ents/select (constantly [{:id 101
+                                            :name "The old name"}])]
       (let [res (-> (req/request :patch (path :api :entities 101))
                     (req/json-body {:name "The new name"})
                     app
@@ -68,11 +67,11 @@
         (is (http-success? res))
         (is (= 1 (count cs))
             "The entities update fn is called once")
-        (is (= [{:id "101"
+        (is (= [{:id 101
                  :name "The new name"}]
                c)
             "The entities update fn is called with the updated entity map")
-        (is (= {:id "101"
+        (is (= {:id 101
                 :name "The new name"}
                (:json-body res))
             "The result of the update fn is returned")))))
@@ -81,12 +80,15 @@
   (let [calls (atom [])]
     (with-redefs [ents/delete (fn [& args]
                                 (swap! calls conj args)
-                                nil)]
+                                nil)
+                  ents/select (constantly [{:name "My Entity"
+                                            :id 101}])]
       (let [res (-> (req/request :delete (path :api :entities 101))
                     app)
             [c :as cs] @calls]
         (is (http-no-content? res))
         (is (= 1 (count cs))
             "The delete function is called once")
-        (is (= [101] c)
+        (is (= [{:id 101
+                 :name "My Entity"}] c)
             "The delete funtion is called with the correct arguments")))))

@@ -1,4 +1,5 @@
 (ns xtdb-money.api.entities
+  (:refer-clojure :exclude [update])
   (:require [xtdb-money.models.entities :as ents]
             [dgknght.app-lib.api :as api]))
 
@@ -29,10 +30,6 @@
   [{:keys [path-params]}]
   ; TODO: Add authorization
   (ents/find (:id path-params)))
-
-(defn- extract-entity
-  [{:keys [body]}]
-  (select-keys body [:name]))
 
 (defn- update
   [req]
