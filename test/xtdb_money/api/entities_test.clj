@@ -81,8 +81,8 @@
     (with-redefs [ents/delete (fn [& args]
                                 (swap! calls conj args)
                                 nil)
-                  ents/select (constantly [{:name "My Entity"
-                                            :id 101}])]
+                  ents/select (constantly [{:id 101
+                                            :name "My Money"}])]
       (let [res (-> (req/request :delete (path :api :entities 101))
                     app)
             [c :as cs] @calls]
@@ -90,5 +90,6 @@
         (is (= 1 (count cs))
             "The delete function is called once")
         (is (= [{:id 101
-                 :name "My Entity"}] c)
+                 :name "My Money"}]
+               c)
             "The delete funtion is called with the correct arguments")))))
