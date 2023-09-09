@@ -2,7 +2,6 @@
   (:require [clojure.walk :refer [postwalk]]
             [clojure.java.io :as io]
             [xtdb.api :as xt]
-            [cljs.core :as c]
             [xtdb-money.datalog :as dtl]
             [xtdb-money.core :as mny]
             [xtdb-money.util :refer [local-date?
@@ -26,7 +25,7 @@
 
 (defmulti ^:private ->xt*
   (fn [x _]
-    (c/cond
+    (cond
       (map-tuple? x) :tuple
       (local-date? x) :date)))
 
@@ -217,9 +216,9 @@
   [node models]
   (->> models
        (mapv (comp #(vector ::xt/delete %)
-                  :id))
-       (xt/submit-tx node)
-       (xt/sync node)))
+                   :id))
+       (xt/submit-tx node))
+  (xt/sync node))
 
 (defmulti ^:private resolve-store
   (fn [[type _]] type))
