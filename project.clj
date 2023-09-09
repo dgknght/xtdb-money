@@ -129,6 +129,7 @@
                   "rollback"      ["run" "-m" "xtdb-money.models.sql.migrations/rollback"]
                   "remigrate"     ["run" "-m" "xtdb-money.models.sql.migrations/remigrate"]
                   "routes"        ["run" "-m" "xtdb-money.handler/print-routes"]
+                  "datomic-schema" ["run" "-m" "xtdb-money.datomic/apply-schema"]
                   "index-mongodb" ["run" "-m" "xtdb-money.models.mongodb.indexes/ensure"]
                   "fig:build"     ["trampoline" "run" "-m" "figwheel.main" "-b" "dev" "-r"]
                   "fig:min"       ["run" "-m" "figwheel.main" "-O" "advanced" "-bo" "dev"]
