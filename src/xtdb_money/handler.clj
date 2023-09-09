@@ -133,9 +133,9 @@
         error-res))))
 
 (defn- not-found
-  [{:keys [uri]}]
+  [{:keys [uri] :as req}]
   (if (re-find #"^/api" uri)
-    {:status 404 :body "{\"message\": \"not found\"}"}
+    {:status 404 :body {:message "not found"}}
     (res/redirect "/#not-found")))
 
 (def app
@@ -150,7 +150,7 @@
                              wrap-db]}
         ents/routes]
        ["/assets/*" (ring/create-resource-handler)]])
-    (ring/create-default-handler {:not-found not-found})
+    (ring/create-default-handler {:not-found (wrap-json-response not-found)})
     {:middleware [wrap-logging
                   wrap-content-type
                   wrap-no-cache-header

@@ -10,7 +10,7 @@
                 app
                 parse-json-body)]
     (is (http-not-found? res))
-    (is (= "application/json"
+    (is (= "application/json; charset=utf-8"
            (get-in res [:headers "Content-Type"]))
         "The response has JSON content type")
     (is (= {:message "not found"}
