@@ -178,7 +178,11 @@
                     query)))))
 
 (defn- delete*
-  [_conn _models])
+  [conn models]
+  (m/with-mongo conn
+    (doseq [m models]
+      (m/destroy! (infer-collection-name m)
+                  {:_id (:id m)}))))
 
 (defn- reset*
   [conn]
