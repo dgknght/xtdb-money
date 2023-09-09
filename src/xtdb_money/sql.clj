@@ -176,7 +176,10 @@
   (select db criteria options))
 
 (defn- delete*
-  [_db _models])
+  [db models]
+  (jdbc/with-transaction [tx db]
+    (doseq [m models]
+      (put-one tx [::mny/delete m]))))
 
 (defn- reset*
   [db]
