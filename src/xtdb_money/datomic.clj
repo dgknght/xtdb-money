@@ -16,6 +16,9 @@
             [xtdb-money.core :as mny])
   (:import org.joda.time.LocalDate))
 
+(defn- conj* [& args]
+  (apply (fnil conj []) args))
+
 (defn- schema []
   (mapcat (comp edn/read-string
                 slurp
@@ -24,6 +27,7 @@
           ["account"
            "commodity"
            "entity"
+           "model"
            "price"
            "transaction"]))
 
@@ -32,9 +36,9 @@
 (defn- apply-schema*
   [client]
   (d/create-database client {:db-name db-name})
-  (let [conn (d/connect client {:db-name db-name})]
-    (d/transact conn {:tx-data (schema)
-                      :db-name db-name})))
+  (d/transact (d/connect client {:db-name db-name})
+              {:tx-data (schema)
+               :db-name db-name}))
 
 (defn apply-schema
   [& [config-key]]
@@ -56,8 +60,8 @@
   [query {:keys [id]}]
   (if id
     (-> query
-        (update-in [:args] (fnil conj []) id)
-        (update-in [:query :in] (fnil conj []) '?x))
+        (update-in [:args] conj* id)
+        (update-in [:query :in] conj* '?x))
     query))
 
 (defmulti bounding-where-clause
@@ -77,6 +81,10 @@
     (assoc-in query [:query :where] [(bounding-where-clause criteria)])
     query))
 
+(defn- exclude-deleted
+  [query _opts]
+  (update-in query [:query :where] conj* '(not [?x :model/deleted? true])))
+
 (defmethod criteria->query :default
   [criteria opts]
   (let [m-type (or (mny/model-type criteria)
@@ -90,6 +98,7 @@
                             :query-prefix [:query]
                             :coerce ->storable)
         (ensure-bounded-query criteria)
+        (exclude-deleted opts)
         (dtl/apply-options opts :model-type m-type))))
 
 (defmulti before-save mny/model-type)
@@ -188,8 +197,9 @@
          (apply-sort options))))
 
 (defn- delete*
-  [models opts]
-  ; TODO: add an deleted? attribute, set it to true, and change queries it ignore deleted entities )
+  [models {:keys [conn]}]
+  (d/transact conn {:tx-data (mapv #(vector :db/add (:id %) :model/deleted? true)
+                                   models)}))
 
 (defn- reset*
   [client]
