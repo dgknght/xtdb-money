@@ -77,8 +77,8 @@
 (defn- save-entity
   [page-state]
   (ents/put (get-in @page-state [:selected])
-            :transform (comp #(unselect-entity % page-state)
-                             load-entities)
+            :post-xf (comp #(unselect-entity % page-state)
+                           load-entities)
             :callback #(cljs.pprint/pprint {::save-entity %})))
 
 (defn- entity-form

@@ -3,6 +3,7 @@
   (:require
     ;; require all the namespaces that you want to test
     [xtdb-money.core-test]
+    [xtdb-money.api.entities-test]
     [figwheel.main.testing :refer [run-tests-async]]))
 
 (defn -main [& _args]

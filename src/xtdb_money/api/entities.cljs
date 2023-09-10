@@ -20,10 +20,10 @@
              opts))
 
 (defn put
-  ([entity & {:as opts}]
-   (if (:id entity)
-     (update entity opts)
-     (create entity opts))))
+  [entity & {:as opts}]
+  (if (:id entity)
+    (apply update entity opts)
+    (apply create entity opts)))
 
 (defn delete
   [entity & {:as opts}]
