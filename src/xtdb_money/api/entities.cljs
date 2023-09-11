@@ -1,6 +1,7 @@
 (ns xtdb-money.api.entities
   (:refer-clojure :exclude [update])
-  (:require [dgknght.app-lib.api-3 :as api :refer [path]]))
+  (:require [dgknght.app-lib.api :refer [path]]
+            [xtdb-money.api :as api]))
 
 (defn select
   [& {:as opts}]
