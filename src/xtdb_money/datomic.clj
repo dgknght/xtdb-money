@@ -42,11 +42,14 @@
 
 (defn apply-schema
   [& [config-key]]
-  (apply-schema
-    (d/client
-      (get-in env [:db
-                   :strategies
-                   (or config-key "datomic")]))))
+  (let [cfg (dissoc (get-in env [:db
+                                 :strategies
+                                 (or config-key "datomic")])
+                    ::mny/provider)]
+    (assert cfg (str "No datomic configuration found for " (or config-key "datomic")))
+    (apply-schema*
+      (d/client
+        cfg))))
 
 (defmulti ->storable type)
 (defmethod ->storable :default [x] x)
