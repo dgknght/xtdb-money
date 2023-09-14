@@ -99,12 +99,14 @@
 (defn- wrap-db
   [handler]
   (fn [req]
-    (let [storage-key (get-in req
-                              [:headers "db-strategy"]
-                              (get-in env [:db :active]))
-          storage-config (get-in env [:db :strategies storage-key])]
-      (mny/with-db [storage-config]
-        (handler req)))))
+    (if-let [storage-key (get-in req
+                                 [:headers "db-strategy"]
+                                 (get-in env [:db :active]))]
+      (let [storage-config (get-in env [:db :strategies storage-key])]
+        (mny/with-db [storage-config]
+          (handler req)))
+      (-> (res/response {:message "bad request: must specify a db-strategy header"})
+          (res/status 400)))))
 
 (def error-res
   {:status 500
