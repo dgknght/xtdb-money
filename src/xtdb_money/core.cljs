@@ -43,17 +43,19 @@
     (mount el)))
 
 (defn- load-entities []
-  (ents/select
-    :callback (fn [entities]
-                (if (coll? entities)
-                  (do
-                    (swap! state/app-state
-                           assoc
-                           :entities entities
-                           :current-entity (first entities))
-                    (when (empty? entities)
-                      (sct/dispatch! "/entities")))
-                  (cljs.pprint/pprint {::invalid-entities entities})))))
+  (if @db-strategy
+    (ents/select
+      :callback (fn [entities]
+                  (if (coll? entities)
+                    (do
+                      (swap! state/app-state
+                             assoc
+                             :entities entities
+                             :current-entity (first entities))
+                      (when (empty? entities)
+                        (sct/dispatch! "/entities")))
+                    (cljs.pprint/pprint {::invalid-entities entities}))))
+    (.warn js/console "Tried to load entities with no db-strategy")))
 
 (defn init! []
   (act/configure-navigation!
@@ -63,9 +65,9 @@
   (mount-app-element)
   (add-watch db-strategy
              ::init
-             (fn [_ _ _before after]
-               (swap! api/defaults assoc-in [:headers "DB-Strategy"] after)
-               (load-entities)))
+             (fn [& args]
+               (when (last args)
+                 (load-entities))))
   (reset! db-strategy :xtdb)) ; TODO: get this from config
 
 (init!)
