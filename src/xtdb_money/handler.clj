@@ -29,7 +29,7 @@
      [:div.d-flex.flex-wrap.align-items-center.justify-content-center.justify-content-lg-start
       [:a.d-flex.align-items-center.mb-2.mb-lg-0.link-body-emphasis.text-decoration-none.me-2
        {:href "/"}
-       (icon :cash-coin :size :medium)]
+       (icon :cash-coin :size :large)]
       [:ul.nav.col-12.col-lg-auto.me-lg-auto.mb-2.mb-lg-0.justify-content-center
        [:li [:a.nav-link.px-2.link-secondary {:href "/about"} "About The App"]]]
       [:form.col-12.col-lg-auto.mb-2.mb-lg-0.me-lg-3

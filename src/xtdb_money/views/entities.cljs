@@ -6,8 +6,13 @@
             [dgknght.app-lib.forms :as forms]
             [xtdb-money.state :as state :refer [page
                                                 current-entity
-                                                entities]]
-            [xtdb-money.icons :refer [icon]]
+                                                entities
+                                                +busy
+                                                -busy-xf
+                                                busy?]]
+            [xtdb-money.components :refer [icon-button]]
+            [xtdb-money.icons :refer [icon
+                                      icon-with-text]]
             [xtdb-money.notifications :refer [alert]]
             [xtdb-money.api.entities :as ents]))
 
@@ -15,16 +20,19 @@
   [xf]
   (completing
     (fn [ch x]
-      (ents/select :callback
-                   #(swap! state/app-state assoc
-                           :entities %
-                           :current-entity (first %)))
+      (+busy)
+      (ents/select :post-xf -busy-xf
+                   :callback #(swap! state/app-state assoc
+                                     :entities %
+                                     :current-entity (first %)))
       (xf ch x))))
 
 (defn- delete-entity
   [entity _page-state]
+  (+busy)
   (ents/delete entity
-               :transform load-entities
+               :post-xf (comp load-entities
+                              -busy-xf)
                :callback #(cljs.pprint/pprint {::deleted entity})))
 
 (defn- entity-row
@@ -76,8 +84,10 @@
 
 (defn- save-entity
   [page-state]
+  (+busy)
   (ents/put (get-in @page-state [:selected])
             :post-xf (comp #(unselect-entity % page-state)
+                           -busy-xf
                            load-entities)
             :callback #(cljs.pprint/pprint {::save-entity %})))
 
@@ -107,11 +117,12 @@
         [:div.col-md-6
          [entities-table page-state]
          [:div
-          [:button.btn.btn-primary {:type :button
-                                    :on-click (fn [_]
-                                                (swap! page-state assoc :selected {})
-                                                (dom/set-focus "name"))}
-           "Add"]]]
+          [icon-button :plus
+           {:caption "Add"
+            :html {:class "btn-primary"
+                   :on-click (fn [_]
+                               (swap! page-state assoc :selected {})
+                               (dom/set-focus "name"))}}]]]
         [:div.col-md-6
          (when @selected
            [entity-form page-state])]]])))
