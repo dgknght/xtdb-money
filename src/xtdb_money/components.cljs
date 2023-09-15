@@ -4,7 +4,8 @@
             [xtdb-money.icons :refer [icon]]
             [xtdb-money.state :refer [current-entity
                                       entities
-                                      db-strategy]]))
+                                      db-strategy
+                                      busy?]]))
 
 (defmulti ^:private expand-dropdown-item
   (fn [i]
@@ -53,7 +54,7 @@
       [:div.d-flex.flex-wrap.align-items-center.justify-content-center.justify-content-lg-start
        [:a.d-flex.align-items-center.mb-2.mb-lg-0.link-body-emphasis.text-decoration-none.me-2
         {:href "/"}
-        (icon :cash-coin :size :medium)]
+        (icon :cash-coin :size :large)]
        (when-let [e @current-entity]
          [:a.text-decoration-none.link-body-emphasis.fs-3.mx-3
           {:data-bs-toggle "offcanvas"
@@ -68,7 +69,7 @@
          {:data-bs-toggle :dropdown
           :aria-expanded false}
          (icon :database :size :medium)
-         [:span.me-2 (when-let [s @db-strategy]
+         [:span.ms-2 (when-let [s @db-strategy]
                          (name s))]]
         (dropdown-ul (->> [:xtdb :datomic :sql :mongodb]
                           (map (fn [id]
@@ -115,3 +116,25 @@
                         {:href "/entities"
                          :data-bs-dismiss "offcanvas"}
                         "Manage Entities"]]]]]]]))
+
+(def ^:private spinner-size-css
+  {:small "border-spinner-sm"})
+
+(defn spinner
+  [& {:keys [size]
+      :or {size :medium}}]
+  [:span.spinner-border
+   (cond-> {:role :status}
+     size (assoc :class (spinner-size-css size)))
+   [:span.visually-hidden "Please wait"]])
+
+(defn icon-button
+  [icon-id {:as opts :keys [html caption]}]
+  (fn []
+    [:button.btn (merge {:type :button}
+                        html)
+     (if @busy?
+       (spinner :size :small)
+       (apply icon icon-id opts))
+     (when caption
+       [:span.ms-2 caption])]))
