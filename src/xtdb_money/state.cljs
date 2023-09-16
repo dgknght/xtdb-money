@@ -17,9 +17,6 @@
 (defn -busy []
   (swap! process-count (fnil dec 1)))
 
-(defn -busy-xf
-  [xf]
-  (completing
-    (fn [ch v]
-      (-busy)
-      (xf ch v))))
+(def -busy-xf
+  (map (fn [x] (println "unbusy") (-busy) x)))
+
