@@ -1,10 +1,12 @@
 (ns xtdb-money.views.entities
   (:require [secretary.core :refer-macros [defroute]]
             [reagent.core :as r]
+            [goog.string :refer [format]]
             [dgknght.app-lib.dom :as dom]
             [dgknght.app-lib.html :as html]
             [dgknght.app-lib.forms :as forms]
             [xtdb-money.state :as state :refer [page
+                                                app-state
                                                 current-entity
                                                 entities
                                                 +busy
@@ -16,24 +18,37 @@
             [xtdb-money.notifications :refer [alert]]
             [xtdb-money.api.entities :as ents]))
 
-(defn- load-entities
-  [xf]
-  (completing
-    (fn [ch x]
-      (+busy)
-      (ents/select :post-xf -busy-xf
-                   :callback #(swap! state/app-state assoc
-                                     :entities %
-                                     :current-entity (first %)))
-      (xf ch x))))
+(defn- receive-entities
+  [entities]
+  (let [current-id (:id @current-entity)
+        new-current (->> entities
+                         (filter #(= (:id %)
+                                    current-id))
+                         first)]
+    (swap! app-state assoc
+           :entities entities
+           :current-entity new-current)))
+
+(def load-entities
+  (map (fn [x]
+         (+busy)
+         (ents/select :post-xf -busy-xf
+                      :callback receive-entities)
+         x)))
+
+(defn- confirm?
+  [msg-fmt & args]
+  (js/confirm (apply format msg-fmt args)))
 
 (defn- delete-entity
   [entity _page-state]
-  (+busy)
-  (ents/delete entity
-               :post-xf (comp load-entities
-                              -busy-xf)
-               :callback #(cljs.pprint/pprint {::deleted entity})))
+  (when (confirm? "Are you sure you want to delete the entity \"%s\"?"
+                  (:name entity))
+    (+busy)
+    (ents/delete entity
+                 :post-xf (comp load-entities
+                                -busy-xf)
+                 :callback #(cljs.pprint/pprint {::deleted entity}))))
 
 (defn- entity-row
   [entity page-state]
@@ -76,20 +91,19 @@
            doall)]]))
 
 (defn- unselect-entity
-  [xf page-state]
-  (completing
-    (fn [ch x]
-      (swap! page-state dissoc :selected)
-      (xf ch x))))
+  [page-state]
+  (map (fn [x]
+         (swap! page-state dissoc :selected)
+         x)))
 
 (defn- save-entity
   [page-state]
   (+busy)
   (ents/put (get-in @page-state [:selected])
-            :post-xf (comp #(unselect-entity % page-state)
-                           -busy-xf
-                           load-entities)
-            :callback #(cljs.pprint/pprint {::save-entity %})))
+            :post-xf [(unselect-entity page-state)
+                      -busy-xf
+                      load-entities]
+            :callback #(cljs.pprint/pprint {::save-entity %}))) ; TODO: Change this to a toast
 
 (defn- entity-form
   [page-state]
