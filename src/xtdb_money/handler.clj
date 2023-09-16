@@ -96,6 +96,15 @@
   (fn [req]
     (handler (update-in req [:headers] dissoc "Last-Modified"))))
 
+(defn- mask-values
+  [m ks]
+  (reduce (fn [res k]
+            (if (contains? res k)
+              (assoc res k "****************")
+              res))
+          m
+          ks))
+
 (defn- wrap-db
   [handler]
   (fn [req]
@@ -103,6 +112,9 @@
                                  [:headers "db-strategy"]
                                  (get-in env [:db :active]))]
       (let [storage-config (get-in env [:db :strategies storage-key])]
+        (log/debugf "Handling request with db strategy %s: %s"
+                    storage-key
+                    (mask-values storage-config [:username :user :password]))
         (mny/with-db [storage-config]
           (handler req)))
       (-> (res/response {:message "bad request: must specify a db-strategy header"})
