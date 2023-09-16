@@ -14,7 +14,7 @@
    (map #(mny/set-meta % :entity)
         (mny/select (mny/storage)
                     (mny/model-type criteria :entity)
-                    options))))
+                    (update-in options [:order-by] (fnil identity [:name]))))))
 
 (defn find
   [id]
@@ -36,4 +36,5 @@
 
 (defn delete
   [entity]
+  {:pre [(map? entity)]}
   (mny/delete (mny/storage) [entity]))
