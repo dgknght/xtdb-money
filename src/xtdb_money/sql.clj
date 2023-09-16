@@ -147,7 +147,7 @@
                   query
                   jdbc/snake-kebab-opts))))
 
-(defn delete
+(defn delete-one
   [db m]
   (let [s (for-delete (infer-table-name m)
                       (select-keys m [:id])
@@ -172,7 +172,7 @@
   (case oper
     ::mny/insert (insert db model)
     ::mny/update (update db model)
-    ::mny/delete (delete db model)))
+    ::mny/delete (delete-one db model)))
 
 (defn- put*
   [db models]
@@ -188,10 +188,9 @@
 (defn- delete*
   [db models]
   (jdbc/with-transaction [tx db]
-    (doseq [id (map (comp coerce-id
-                          :id)
+    (doseq [m (map #(update-in % [:id] coerce-id)
                     models)]
-      (put-one tx [::mny/delete id]))))
+      (put-one tx [::mny/delete m]))))
 
 (defn- reset*
   [db]
