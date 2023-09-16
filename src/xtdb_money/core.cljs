@@ -68,7 +68,8 @@
              (fn [& args]
                (when (last args)
                  (load-entities))))
-  (reset! db-strategy :xtdb)) ; TODO: get this from config
+  (when-not @db-strategy
+    (reset! db-strategy :xtdb))) ; TODO: get this from config
 
 (init!)
 
