@@ -8,13 +8,13 @@
   (api/get (path :entities) opts))
 
 (defn create
-  [entity & {:as opts}]
+  [entity opts]
   (api/post (path :entities)
             entity
             opts))
 
 (defn update
-  [{:keys [id] :as entity} & {:as opts}]
+  [{:keys [id] :as entity} opts]
   {:pre [(:id entity)]}
   (api/patch (path :entities id)
              (dissoc entity :id)
@@ -23,8 +23,8 @@
 (defn put
   [entity & {:as opts}]
   (if (:id entity)
-    (apply update entity opts)
-    (apply create entity opts)))
+    (update entity opts)
+    (create entity opts)))
 
 (defn delete
   [entity & {:as opts}]
