@@ -3,7 +3,6 @@
   (:require [clojure.tools.logging :as log]
             [clj-time.coerce :refer [to-sql-date
                                      to-local-date]]
-            [xtdb-money.core :as mny]
             [next.jdbc :as jdbc]
             [next.jdbc.plan :refer [select!]]
             [next.jdbc.sql.builder :refer [for-insert
@@ -11,9 +10,20 @@
                                            for-delete]]
             [honey.sql.helpers :as h]
             [honey.sql :as hsql]
-            [dgknght.app-lib.inflection :refer [plural]])
+            [dgknght.app-lib.inflection :refer [plural]]
+            [dgknght.app-lib.core :refer [update-in-if]]
+            [xtdb-money.core :as mny])
   (:import org.joda.time.LocalDate
-           java.sql.Date))
+           java.sql.Date
+           java.lang.String))
+
+(defmulti coerce-id type)
+
+(defmethod coerce-id :default [id] id)
+
+(defmethod coerce-id String
+  [id]
+  (Long/parseLong id))
 
 (defmulti ->storable type)
 (defmethod ->storable :default [x] x)
@@ -123,7 +133,7 @@
   [db criteria options]
   (let [query (-> (h/select :*)
                   (h/from (infer-table-name criteria))
-                  (apply-criteria criteria)
+                  (apply-criteria (update-in-if criteria [:id] coerce-id))
                   (apply-options options)
                   hsql/format)]
 
@@ -178,8 +188,10 @@
 (defn- delete*
   [db models]
   (jdbc/with-transaction [tx db]
-    (doseq [m models]
-      (put-one tx [::mny/delete m]))))
+    (doseq [id (map (comp coerce-id
+                          :id)
+                    models)]
+      (put-one tx [::mny/delete id]))))
 
 (defn- reset*
   [db]
