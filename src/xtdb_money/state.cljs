@@ -18,5 +18,5 @@
   (swap! process-count (fnil dec 1)))
 
 (def -busy-xf
-  (map (fn [x] (println "unbusy") (-busy) x)))
+  (map (fn [x] (-busy) x)))
 
