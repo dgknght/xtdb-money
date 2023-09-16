@@ -66,9 +66,12 @@
   (add-watch db-strategy
              ::init
              (fn [& args]
-               (when (last args)
-                 (load-entities))))
+               (when-let [s (last args)]
+                 (when-not (= s @db-strategy)
+                   (.log js/console (str "db strategy changed to " (last args)))
+                   (load-entities)))))
   (when-not @db-strategy
+    (.log js/console (str "set initial db strategy to xtdb"))
     (reset! db-strategy :xtdb))) ; TODO: get this from config
 
 (init!)
