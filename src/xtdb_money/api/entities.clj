@@ -40,8 +40,10 @@
 
 (defn- delete
   [req]
-  (ents/delete (find-and-authorize req))
-  (api/response))
+  (if-let [entity (find-and-authorize req)]
+    (do (ents/delete entity)
+        api/no-content)
+    api/not-found))
 
 
 (def routes
