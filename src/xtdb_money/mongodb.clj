@@ -8,8 +8,9 @@
             [somnium.congomongo.coerce :refer [ConvertibleFromMongo
                                                ConvertibleToMongo
                                                coerce-ordered-fields]]
-            [xtdb-money.core :as mny]
-            [dgknght.app-lib.inflection :refer [plural]])
+            [dgknght.app-lib.inflection :refer [plural]]
+            [dgknght.app-lib.core :refer [update-in-if]]
+            [xtdb-money.core :as mny])
   (:import org.joda.time.LocalDate
            java.util.Date
            org.bson.types.Decimal128
@@ -30,6 +31,16 @@
 
   Decimal128
   (mongo->clojure [^Decimal128 d _kwd] (.bigDecimalValue d)))
+
+(defmulti coerce-id type)
+(defmethod coerce-id :default [id] id)
+(defmethod coerce-id String
+  [id]
+  (ObjectId. id))
+
+(defn- safe-coerce-id
+  [id]
+  (when id (coerce-id)))
 
 (defmulti after-read mny/model-type)
 (defmethod after-read :default [m] m)
@@ -129,16 +140,17 @@
   [query criteria]
   (if (seq criteria)
     (assoc query :where (-> criteria
+                            (update-in-if [:id] coerce-id)
                             (rename-keys {:id :_id})
                             adjust-complex-criteria))
     query))
 
 (defn apply-account-id
   [{:keys [where] :as query} {:keys [account-id]}]
-  (if account-id
+  (if-let [id (safe-coerce-id account-id)]
     (let [c {:$or
-             [{:debit-account-id account-id}
-              {:credit-account-id account-id}]}]
+             [{:debit-account-id id}
+              {:credit-account-id id}]}]
       (assoc query :where (if where
                             {:$and [where c]}
                             c)))
@@ -180,9 +192,12 @@
 (defn- delete*
   [conn models]
   (m/with-mongo conn
-    (doseq [m models]
-      (m/destroy! (infer-collection-name m)
-                  {:_id (:id m)}))))
+    (let [coll-name (infer-collection-name (first models))]
+      (doseq [query (map (comp #(hash-map :_id %)
+                               :id)
+                         models)]
+        (log/debugf "delete %s" query)
+        (m/destroy! coll-name query)))))
 
 (defn- reset*
   [conn]
