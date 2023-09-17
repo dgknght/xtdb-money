@@ -33,10 +33,12 @@
 
 (defn- update
   [req]
-  (-> (find-and-authorize req)
-      (merge (extract-entity req))
-      ents/put
-      api/response))
+  (if-let [entity (find-and-authorize req)]
+    (-> entity
+        (merge (extract-entity req))
+        ents/put
+        api/response)
+    api/not-found))
 
 (defn- delete
   [req]

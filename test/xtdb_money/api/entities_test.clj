@@ -1,8 +1,8 @@
 (ns xtdb-money.api.entities-test
-  (:require [clojure.test :refer [deftest is]]
+  (:require [clojure.test :refer [deftest is testing]]
+            [ring.mock.request :as req]
             [dgknght.app-lib.test-assertions]
             [dgknght.app-lib.web :refer [path]]
-            [ring.mock.request :as req]
             [dgknght.app-lib.test :refer [parse-json-body]]
             [xtdb-money.models.entities :as ents]
             [xtdb-money.handler :refer [app]]))
@@ -53,43 +53,67 @@
             "The ents/select fn is called with the correct arguments")))))
 
 (deftest update-an-entity
-  (let [calls (atom [])]
-    (with-redefs [ents/put (fn [& args]
-                             (swap! calls conj args)
-                             (first args))
-                  ents/select (constantly [{:id 101
-                                            :name "The old name"}])]
-      (let [res (-> (req/request :patch (path :api :entities 101))
-                    (req/json-body {:name "The new name"})
-                    app
-                    parse-json-body)
-            [c :as cs] @calls]
-        (is (http-success? res))
-        (is (= 1 (count cs))
-            "The entities update fn is called once")
-        (is (= [{:id 101
-                 :name "The new name"}]
-               c)
-            "The entities update fn is called with the updated entity map")
-        (is (= {:id 101
-                :name "The new name"}
-               (:json-body res))
-            "The result of the update fn is returned")))))
+  (testing "update an existing entity"
+    (let [calls (atom [])]
+      (with-redefs [ents/put (fn [& args]
+                               (swap! calls conj args)
+                               (first args))
+                    ents/select (constantly [{:id 101
+                                              :name "The old name"}])]
+        (let [res (-> (req/request :patch (path :api :entities 101))
+                      (req/json-body {:name "The new name"})
+                      app
+                      parse-json-body)
+              [c :as cs] @calls]
+          (is (http-success? res))
+          (is (= 1 (count cs))
+              "The entities update fn is called once")
+          (is (= [{:id 101
+                   :name "The new name"}]
+                 c)
+              "The entities update fn is called with the updated entity map")
+          (is (= {:id 101
+                  :name "The new name"}
+                 (:json-body res))
+              "The result of the update fn is returned")))))
+  (testing "attempt to update an non-existing entity"
+    (let [calls (atom [])]
+      (with-redefs [ents/put (fn [& args]
+                               (swap! calls conj args)
+                               (first args))
+                    ents/select (constantly [])]
+        (is (http-not-found? (-> (req/request :patch (path :api :entities 101))
+                                 (req/json-body {:name "The new name"})
+                                 app
+                                 parse-json-body)))
+        (is (zero? (count @calls))
+            "The entities update fn is not called")))))
 
 (deftest delete-an-entity
-  (let [calls (atom [])]
-    (with-redefs [ents/delete (fn [& args]
-                                (swap! calls conj args)
-                                nil)
-                  ents/select (constantly [{:id 101
-                                            :name "My Money"}])]
-      (let [res (-> (req/request :delete (path :api :entities 101))
-                    app)
-            [c :as cs] @calls]
-        (is (http-no-content? res))
-        (is (= 1 (count cs))
-            "The delete function is called once")
-        (is (= [{:id 101
-                 :name "My Money"}]
-               c)
-            "The delete funtion is called with the correct arguments")))))
+  (testing "delete an existing entity"
+    (let [calls (atom [])]
+      (with-redefs [ents/delete (fn [& args]
+                                  (swap! calls conj args)
+                                  nil)
+                    ents/select (constantly [{:id 101
+                                              :name "My Money"}])]
+        (let [res (-> (req/request :delete (path :api :entities 101))
+                      app)
+              [c :as cs] @calls]
+          (is (http-no-content? res))
+          (is (= 1 (count cs))
+              "The delete function is called once")
+          (is (= [{:id 101
+                   :name "My Money"}]
+                 c)
+              "The delete funtion is called with the correct arguments")))))
+  (testing "attempt to delete a non-existing entity"
+    (let [calls (atom [])]
+      (with-redefs [ents/delete (fn [& args]
+                                  (swap! calls conj args)
+                                  nil)
+                    ents/select (constantly [])]
+        (is (http-not-found? (-> (req/request :delete (path :api :entities 101))
+                                 app)))
+        (is (zero? (count @calls))
+            "The delete fn is not called")))))
