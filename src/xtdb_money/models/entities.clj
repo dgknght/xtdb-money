@@ -28,7 +28,7 @@
 
 (defn put
   [entity]
-  {:pre [(s/valid? ::entity entity)]}
+  {:pre [entity (s/valid? ::entity entity)]}
 
   (let [records-or-ids (mny/put (mny/storage)
                                 [(mny/model-type entity :entity)])]
@@ -36,5 +36,5 @@
 
 (defn delete
   [entity]
-  {:pre [(map? entity)]}
+  {:pre [entity (map? entity)]}
   (mny/delete (mny/storage) [entity]))
