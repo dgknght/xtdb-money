@@ -116,7 +116,7 @@
                     storage-key
                     (mask-values storage-config [:username :user :password]))
         (mny/with-db [storage-config]
-          (handler req)))
+          (handler (assoc req :db-strategy storage-key))))
       (-> (res/response {:message "bad request: must specify a db-strategy header"})
           (res/status 400)))))
 
