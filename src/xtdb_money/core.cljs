@@ -6,6 +6,7 @@
             [dgknght.app-lib.forms :as forms]
             [dgknght.app-lib.bootstrap-5 :as bs]
             [dgknght.app-lib.api :as api]
+            [dgknght.app-lib.dom :refer [debounce]]
             [xtdb-money.state :as state :refer [page
                                                 db-strategy]]
             [xtdb-money.api :refer [handle-error]]
@@ -57,6 +58,9 @@
                     (cljs.pprint/pprint {::invalid-entities entities}))))
     (.warn js/console "Tried to load entities with no db-strategy")))
 
+(def ^:private debounced-load-entities
+  (debounce load-entities))
+
 (defn init! []
   (act/configure-navigation!
     {:nav-handler #(sct/dispatch! %)
@@ -69,7 +73,7 @@
                (when-let [s (last args)]
                  (when-not (= s @db-strategy)
                    (.log js/console (str "db strategy changed to " (last args)))
-                   (load-entities)))))
+                   (debounced-load-entities)))))
   (when-not @db-strategy
     (.log js/console (str "set initial db strategy to xtdb"))
     (reset! db-strategy :xtdb))) ; TODO: get this from config
