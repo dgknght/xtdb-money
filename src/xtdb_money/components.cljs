@@ -118,7 +118,7 @@
                         "Manage Entities"]]]]]]]))
 
 (def ^:private spinner-size-css
-  {:small "border-spinner-sm"})
+  {:small "spinner-border-sm"})
 
 (defn spinner
   [& {:keys [size]
