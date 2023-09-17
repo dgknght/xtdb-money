@@ -2,13 +2,22 @@
   (:require [clojure.walk :refer [postwalk]]
             [clojure.java.io :as io]
             [xtdb.api :as xt]
+            [dgknght.app-lib.core :refer [update-in-if]]
             [xtdb-money.datalog :as dtl]
             [xtdb-money.core :as mny]
             [xtdb-money.util :refer [local-date?
                                      make-id
                                      unqualify-keys
                                      ->storable-date]])
-  (:import org.joda.time.LocalDate))
+  (:import org.joda.time.LocalDate
+           java.util.UUID
+           java.lang.String))
+
+(defmulti coerce-id type)
+(defmethod coerce-id :default [id] id)
+(defmethod coerce-id String
+  [id]
+  (UUID/fromString id))
 
 (defn- two-count?
   [coll]
@@ -137,7 +146,7 @@
   (let [model-type (mny/model-type criteria)]
     (-> '{:find [(pull ?x [*])]
         :in [$]}
-      (dtl/apply-criteria criteria
+      (dtl/apply-criteria (update-in-if criteria [:id] coerce-id)
                           :coerce ->storable
                           :model-type model-type
                           :args-key [::args]
