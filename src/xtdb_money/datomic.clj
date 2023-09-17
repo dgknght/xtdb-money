@@ -14,7 +14,8 @@
                                      apply-sort
                                      split-nils]]
             [xtdb-money.core :as mny])
-  (:import org.joda.time.LocalDate))
+  (:import org.joda.time.LocalDate
+           java.lang.String))
 
 (defn- conj* [& args]
   (apply (fnil conj []) args))
@@ -51,6 +52,12 @@
       (d/client
         cfg))))
 
+(defmulti coerce-id type)
+(defmethod coerce-id :default [id] id)
+(defmethod coerce-id String
+  [id]
+  (Long/parseLong id))
+
 (defmulti ->storable type)
 (defmethod ->storable :default [x] x)
 (defmethod ->storable LocalDate [d] (tc/to-long d))
@@ -63,7 +70,7 @@
   [query {:keys [id]}]
   (if id
     (-> query
-        (update-in [:args] conj* id)
+        (update-in [:args] conj* (coerce-id id))
         (update-in [:query :in] conj* '?x))
     query))
 
