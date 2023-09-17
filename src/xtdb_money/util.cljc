@@ -94,31 +94,17 @@
       x)
     [x :asc]))
 
-(defmulti ^:private compare-fns
-  (fn [v _dir]
-    (cond
-      (local-date? v) :local-date)))
-
-(defmethod compare-fns :default
-  [_ dir]
-  [= (if (= :asc dir) < >)])
-
-(defmethod compare-fns :local-date
-  [_ dir]
-  [t/equal? (if (= :asc dir)
-              t/before?
-              t/after?)])
-
 (defn- compare-fn
   [& ms]
   (fn [_ [k dir]]
     (let [[v1 v2] (map k ms)
-          [eq cmp] (compare-fns (or v1 v2) dir)]
-      (if (eq v1 v2)
+          f (if (= :desc dir)
+              #(compare %2 %1)
+              compare)
+          res (f v1 v2)]
+      (if (= 0 res)
         0
-        (reduced (if (cmp v1 v2)
-                   -1
-                   1))))))
+        (reduced res)))))
 
 (defn- sort-fn
   [order-by]

@@ -34,9 +34,15 @@
   (let [d1 (t/local-date 2001 1 1)
         d2 (t/local-date 2002 1 1)
         d3 (t/local-date 2004 1 1)
-        items [{:v 2 :d d1}
-               {:v 1 :d d3}
-               {:v 3 :d d2}]]
+        items [{:v 2 :d d1 :s "carrot"}
+               {:v 1 :d d3 :s "banana"}
+               {:v 3 :d d2 :s "apple"}]]
+    (testing "Ascending sort on one string field, implicit direction"
+      (is (seq-of-maps-like? [{:s "apple"}
+                              {:s "banana"}
+                              {:s "carrot"}]
+                             (utl/apply-sort {:order-by [:s]}
+                                             items))))
     (testing "Ascending sort on one integer field, implicit direction"
       (is (= items
              (utl/apply-sort {} items))))
@@ -65,12 +71,12 @@
                              (utl/apply-sort {:order-by [[:v :desc]]}
                                              items))))
     (testing "Multi-field sort"
-      (is (= [{:v 1 :d d3}
-              {:v 2 :d d1}
-              {:v 2 :d d2}
-              {:v 3 :d d2}]
-             (utl/apply-sort {:order-by [:v :d]}
-                             (conj items {:v 2 :d d2})))))))
+      (is (seq-of-maps-like? [{:v 1 :d d3}
+                              {:v 2 :d d1}
+                              {:v 2 :d d2}
+                              {:v 3 :d d2}]
+                             (utl/apply-sort {:order-by [:v :d]}
+                                             (conj items {:v 2 :d d2})))))))
 
 (deftest separate-nils-from-a-model
   (is (= [{:present :here}
