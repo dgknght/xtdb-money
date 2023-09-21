@@ -7,27 +7,27 @@
                                       db-strategy
                                       busy?]]))
 
-(defmulti ^:private expand-dropdown-item
+(defmulti ^:private expand-menu-item
   (fn [i]
     (cond
       (string? i) :caption
       (keyword? i) :id)))
 
-(defmethod expand-dropdown-item :caption
+(defmethod expand-menu-item :caption
   [caption]
-  (expand-dropdown-item {:id (->kebab-case-keyword caption)
-                          :caption caption}))
+  (expand-menu-item {:id (->kebab-case-keyword caption)
+                     :caption caption}))
 
 (defn- id->caption
   [id]
   (-> id name string/capitalize))
 
-(defmethod expand-dropdown-item :id
+(defmethod expand-menu-item :id
   [id]
-  (expand-dropdown-item {:id id
+  (expand-menu-item {:id id
                          :caption (id->caption id)}))
 
-(defmethod expand-dropdown-item :default
+(defmethod expand-menu-item :default
   [item]
   (update-in item [:href] (fnil identity "#")))
 
@@ -39,53 +39,94 @@
                       :on-click on-click}
     caption]])
 
-(defn- dropdown-ul
+(defn- dropdown-menu
   [items]
   [:ul.dropdown-menu.text-small
    (->> items
         (map (comp dropdown-item
-                   expand-dropdown-item))
+                   expand-menu-item))
         doall)])
+
+(defn- navbar-item
+  [{:keys [caption id href on-click children active?]}]
+  ^{:key (str "navbar-item-" id)}
+  [:li.nav-item {:class (when (seq children) "dropdown")}
+   [:a.nav-link
+    {:class [(when active? "active")
+             (when (seq children) "dropdown")]
+     :href href
+     :on-click on-click}
+    caption]
+   (when (seq children)
+     (dropdown-menu children))])
+
+(defn- navbar
+  [items]
+  [:ul.navbar-nav.me-auto.mb-2.mb-lg-0
+   (->> items
+        expand-menu-item
+        navbar-item
+        doall)])
+
+(defn- db-strategy-items
+  [current]
+  (map (fn [id]
+         {:id id
+          :caption (id->caption id)
+          :active? (= current id)
+          :on-click (reset! db-strategy id)})
+       [:xtdb :datomic :mongodb :sql]))
 
 (defn title-bar []
   (fn []
-    [:header.p-3.mb-3.border-bottom
+    [:header.p-1.mb-3.border-bottom
      [:div.container
-      [:div.d-flex.flex-wrap.align-items-center.justify-content-center.justify-content-lg-start
-       [:a.d-flex.align-items-center.mb-2.mb-lg-0.link-body-emphasis.text-decoration-none.me-2
-        {:href "/"}
-        (icon :cash-coin :size :large)]
-       (when-let [e @current-entity]
-         [:a.text-decoration-none.link-body-emphasis.fs-3.mx-3
-          {:data-bs-toggle "offcanvas"
-           :href "#entity-drawer"
-           :role :button
-           :aria-controls "entity-drawer"}
-          (:name e)])
-       [:ul.nav.col-12.col-lg-auto.me-lg-auto.mb-2.mb-lg-0.justify-content-center
-        [:li [:a.nav-link.px-2.link-secondary {:href "/about"} "About The App"]]]
-       [:div.dropdown.text-end.me-lg-3
-        [:a.d-block.link-body-emphasis.text-decoration-none.dropdown-toggle
-         {:data-bs-toggle :dropdown
-          :aria-expanded false}
-         (icon :database :size :medium)
-         [:span.ms-2 (when-let [s @db-strategy]
-                         (name s))]]
-        (dropdown-ul (->> [:xtdb :datomic :sql :mongodb]
-                          (map (fn [id]
-                                 {:id id
-                                  :caption (id->caption id)
-                                  :on-click #(reset! db-strategy id)}))))]
-       [:form.col-12.col-lg-auto.mb-2.mb-lg-0.me-lg-3
-        [:input.form-control {:type :text
-                              :placeholder "Search..."
-                              :aria-label "Search"}]]
-       [:div.dropdown.text-end
-        [:a.d-block.link-body-emphasis.text-decoration-none.dropdown-toggle
-         {:data-bs-toggle :dropdown
-          :aria-expanded false}
-         (icon :person-circle :size :medium)]
-        (dropdown-ul ["Sign In"])]]]]))
+      [:nav.navbar.navbar-expand-lg
+       [:div.container-fluid
+        [:a.d-flex.align-items-center.mb-2.mb-lg-0.link-body-emphasis.text-decoration-none.me-2
+         {:href "/"}
+         (icon :cash-coin :size :large)]
+        [:button.navbar-toggler.collapsed {:type :button
+                                           :data-bs-toggle :collapse
+                                           :data-bs-target "#nav-list"
+                                           :aria-controls "nav-list"
+                                           :aria-expanded false
+                                           :aria-label "Toggle Navigation"}
+         [:span.navbar-toggler-icon]]
+        
+        [:div#nav-list.navbar-collapse.collapse
+         (navbar [#_{:href "/about"
+                   :caption "About the App"}
+                  #_{:caption [:<>
+                               (icon :database :size :small)
+                               [:span.ms-1 "DB Strategy"]]
+                     :children (db-strategy-items @db-strategy)}
+                  #_{:caption (icon :person-circle)
+                     :children ["/sign-out"]}])
+         #_[:ul.navbar-nav.me-auto.mb-2.mb-lg-0
+            [:li.nav-item [:a.nav-link {:href "/about"} "About The App"]]
+            [:li.nav-item.dropdown
+             [:a.nav-link.dropdown-toggle
+              {:href "#"
+               :data-bs-toggle :dropdown
+               :aria-expanded false}
+              (icon :database :size :small)
+              [:span.ms-1 "DB Strategy"]]
+             (dropdown-menu [:xtdb :datomic :sql :monbodb])]
+            [:li.nav-item.dropdown
+             [:a.nav-link.dropdown-toggle
+              {:href "#"
+               :data-bs-toggle :dropdown
+               :aira-expanded false}
+              (icon :person-circle :size :medium)]
+             [dropdown-menu ["Sign In"]]]]
+         [:form.col-12.col-lg-auto.mb-2.mb-lg-0.me-lg-3
+          [:div.input-group
+           [:input.form-control {:type :text
+                                 :placeholder "Search..."
+                                 :aria-label "Search"}]
+           [:button.btn.btn-outline-secondary {:type :submit}
+            (icon :search :size :small)]]]]]]]]))
 
 (defn entity-drawer []
   (fn []
