@@ -1,5 +1,6 @@
 (ns xtdb-money.core
-  (:require [goog.dom :as gdom]
+  (:require [cljs.pprint :refer [pprint]]
+            [goog.dom :as gdom]
             [accountant.core :as act]
             [secretary.core :as sct]
             [reagent.dom :as rdom]
@@ -55,7 +56,7 @@
                              :current-entity (first entities))
                       (when (empty? entities)
                         (sct/dispatch! "/entities")))
-                    (cljs.pprint/pprint {::invalid-entities entities}))))
+                    (pprint {::invalid-entities entities}))))
     (.warn js/console "Tried to load entities with no db-strategy")))
 
 (def ^:private debounced-load-entities

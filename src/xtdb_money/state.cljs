@@ -2,7 +2,7 @@
   (:require [reagent.core :as r]
             [reagent.ratom :refer [make-reaction]]))
 
-(defonce app-state (r/atom {}))
+(defonce app-state (r/atom {:process-count 0}))
 
 (def page (r/cursor app-state [:page]))
 (def entities (r/cursor app-state [:entities]))
@@ -20,3 +20,7 @@
 (def -busy-xf
   (map (fn [x] (-busy) x)))
 
+(add-watch process-count
+           ::state
+           (fn [& args]
+             (.info js/console (str "process count changed: " (last args)))))

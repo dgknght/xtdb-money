@@ -1,40 +1,49 @@
 (ns xtdb-money.components
   (:require [clojure.string :as string]
-            [camel-snake-kebab.core :refer [->kebab-case-keyword]]
             [xtdb-money.icons :refer [icon]]
             [xtdb-money.state :refer [current-entity
                                       entities
                                       db-strategy
+                                      process-count
                                       busy?]]))
 
 (defmulti ^:private expand-menu-item
   (fn [x]
-    (cljs.pprint/pprint {::expand-menu-item x})
-    (type x)))
+    (cond
+      (string? x)  :path
+      (keyword? x) :id
+      (map? x)     :map)))
 
-(defmethod expand-menu-item :caption
-  [caption]
-  (expand-menu-item {:id (->kebab-case-keyword caption)
-                     :caption caption}))
+(defmethod expand-menu-item :path
+  [path]
+  (expand-menu-item {:id (keyword path)
+                     :href path
+                     :caption (->> (string/split path #"[/-]+")
+                                   (remove empty)
+                                   (map string/capitalize)
+                                   (string/join " "))}))
 
 (defn- id->caption
   [id]
-  (-> id name string/capitalize))
+  (when id
+    (-> id name string/capitalize)))
 
 (defmethod expand-menu-item :id
   [id]
   (expand-menu-item {:id id
-                         :caption (id->caption id)}))
+                     :caption (id->caption id)}))
 
-(defmethod expand-menu-item PersistentHashMap
+(defmethod expand-menu-item :map
   [item]
-  (update-in item [:href] (fnil identity "#")))
+  (-> item
+      (update-in [:id] (fnil identity (random-uuid)))
+      (update-in [:href] (fnil identity "#"))))
 
 (defn- dropdown-item
-  [{:keys [id path on-click caption]}]
-  ^{:key (str "dropdown-item-" id)}
+  [{:keys [id caption href on-click]}]
+  ^{:key (str "drop-down-item-" id)}
   [:li
-   [:a.dropdown-item {:href path
+   [:a.dropdown-item {:href href
                       :on-click on-click}
     caption]])
 
@@ -46,18 +55,33 @@
                    expand-menu-item))
         doall)])
 
-(defn- navbar-item
-  [{:keys [caption id href on-click children active?]}]
+(defmulti navbar-item
+  (fn [{:keys [children]}]
+    (when (seq children)
+      :dropdown)))
+
+(defmethod navbar-item :default
+  [{:keys [caption id href on-click active?]}]
   ^{:key (str "navbar-item-" id)}
-  [:li.nav-item {:class (when (seq children) "dropdown")}
+  [:li.nav-item
    [:a.nav-link
-    {:class [(when active? "active")
-             (when (seq children) "dropdown")]
+    {:class (when active? "active")
      :href href
      :on-click on-click}
+    caption]])
+
+(defmethod navbar-item :dropdown
+  [{:keys [caption id children active?]}]
+  ^{:key (str "navbar-item-" id)}
+  [:li.nav-item {:class "dropdown"}
+   [:a.nav-link.dropdown-toggle
+    {:class (when active? "active")
+     :href "#"
+     :role :button
+     :data-bs-toggle :dropdown
+     :aria-expanded false}
     caption]
-   (when (seq children)
-     (dropdown-menu children))])
+   (dropdown-menu children)])
 
 (defn- navbar
   [items]
@@ -73,7 +97,7 @@
          {:id id
           :caption (id->caption id)
           :active? (= current id)
-          :on-click (reset! db-strategy id)})
+          :on-click #(reset! db-strategy id)})
        [:xtdb :datomic :mongodb :sql]))
 
 (defn title-bar []
@@ -92,33 +116,19 @@
                                            :aria-expanded false
                                            :aria-label "Toggle Navigation"}
          [:span.navbar-toggler-icon]]
-        
         [:div#nav-list.navbar-collapse.collapse
-         #_(navbar [{:href "/about"
+         (navbar [{:href "/about"
+                   :id :about
                    :caption "About the App"}
                   {:caption [:<>
-                               (icon :database :size :small)
-                               [:span.ms-1 "DB Strategy"]]
-                     :children (db-strategy-items @db-strategy)}
+                             (icon :database :size :small)
+                             [:span.ms-1 (or (id->caption @db-strategy) "unknown db strategy")]]
+                   :id :db-strategy
+                   :children (db-strategy-items @db-strategy)}
                   {:caption (icon :person-circle)
-                     :children ["/sign-out"]}])
-         #_[:ul.navbar-nav.me-auto.mb-2.mb-lg-0
-            [:li.nav-item [:a.nav-link {:href "/about"} "About The App"]]
-            [:li.nav-item.dropdown
-             [:a.nav-link.dropdown-toggle
-              {:href "#"
-               :data-bs-toggle :dropdown
-               :aria-expanded false}
-              (icon :database :size :small)
-              [:span.ms-1 "DB Strategy"]]
-             (dropdown-menu [:xtdb :datomic :sql :monbodb])]
-            [:li.nav-item.dropdown
-             [:a.nav-link.dropdown-toggle
-              {:href "#"
-               :data-bs-toggle :dropdown
-               :aira-expanded false}
-              (icon :person-circle :size :medium)]
-             [dropdown-menu ["Sign In"]]]]
+                   :id :sign-out
+                   :children ["/sign-out"]}])
+         [:a.text-body {:href "#"} (:name @current-entity)]
          [:form.col-12.col-lg-auto.mb-2.mb-lg-0.me-lg-3
           [:div.input-group
            [:input.form-control {:type :text

@@ -1,5 +1,6 @@
 (ns xtdb-money.views.entities
-  (:require [secretary.core :refer-macros [defroute]]
+  (:require [cljs.pprint :refer [pprint]]
+            [secretary.core :refer-macros [defroute]]
             [reagent.core :as r]
             [goog.string :refer [format]]
             [dgknght.app-lib.dom :as dom]
@@ -48,7 +49,7 @@
     (ents/delete entity
                  :post-xf (comp load-entities
                                 -busy-xf)
-                 :callback #(cljs.pprint/pprint {::deleted entity}))))
+                 :callback #(pprint {::deleted entity}))))
 
 (defn- entity-row
   [entity page-state]
@@ -103,7 +104,7 @@
             :post-xf [(unselect-entity page-state)
                       -busy-xf
                       load-entities]
-            :callback #(cljs.pprint/pprint {::save-entity %}))) ; TODO: Change this to a toast
+            :callback #(pprint {::save-entity %}))) ; TODO: Change this to a toast
 
 (defn- entity-form
   [page-state]
