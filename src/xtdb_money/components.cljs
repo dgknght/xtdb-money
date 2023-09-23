@@ -8,10 +8,9 @@
                                       busy?]]))
 
 (defmulti ^:private expand-menu-item
-  (fn [i]
-    (cond
-      (string? i) :caption
-      (keyword? i) :id)))
+  (fn [x]
+    (cljs.pprint/pprint {::expand-menu-item x})
+    (type x)))
 
 (defmethod expand-menu-item :caption
   [caption]
@@ -27,7 +26,7 @@
   (expand-menu-item {:id id
                          :caption (id->caption id)}))
 
-(defmethod expand-menu-item :default
+(defmethod expand-menu-item PersistentHashMap
   [item]
   (update-in item [:href] (fnil identity "#")))
 
@@ -64,8 +63,8 @@
   [items]
   [:ul.navbar-nav.me-auto.mb-2.mb-lg-0
    (->> items
-        expand-menu-item
-        navbar-item
+        (map (comp navbar-item
+                   expand-menu-item))
         doall)])
 
 (defn- db-strategy-items
@@ -95,13 +94,13 @@
          [:span.navbar-toggler-icon]]
         
         [:div#nav-list.navbar-collapse.collapse
-         (navbar [#_{:href "/about"
+         #_(navbar [{:href "/about"
                    :caption "About the App"}
-                  #_{:caption [:<>
+                  {:caption [:<>
                                (icon :database :size :small)
                                [:span.ms-1 "DB Strategy"]]
                      :children (db-strategy-items @db-strategy)}
-                  #_{:caption (icon :person-circle)
+                  {:caption (icon :person-circle)
                      :children ["/sign-out"]}])
          #_[:ul.navbar-nav.me-auto.mb-2.mb-lg-0
             [:li.nav-item [:a.nav-link {:href "/about"} "About The App"]]
