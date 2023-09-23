@@ -109,6 +109,12 @@
         [:a.d-flex.align-items-center.mb-2.mb-lg-0.link-body-emphasis.text-decoration-none.me-2
          {:href "/"}
          (icon :cash-coin :size :large)]
+        [:div.mx-3.fs-3.d-flex.align-items-center
+         [:a.text-body.text-decoration-none.me-2
+          {:href "#entity-drawer"
+           :data-bs-toggle :offcanvas}
+          (:name @current-entity)]
+         (icon :caret-down-fill :size :small)]
         [:button.navbar-toggler.collapsed {:type :button
                                            :data-bs-toggle :collapse
                                            :data-bs-target "#nav-list"
@@ -128,7 +134,6 @@
                   {:caption (icon :person-circle)
                    :id :sign-out
                    :children ["/sign-out"]}])
-         [:a.text-body {:href "#"} (:name @current-entity)]
          [:form.col-12.col-lg-auto.mb-2.mb-lg-0.me-lg-3
           [:div.input-group
            [:input.form-control {:type :text
