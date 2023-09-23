@@ -121,7 +121,6 @@
                                                                                                  ring/ring-codec
                                                                                                  ring/ring-core
                                                                                                  ring/ring-devel]]
-                                                [org.slf4j/slf4j-nop "1.7.30" :exclusions [org.slf4j/slf4j-api]]
                                                 [com.bhauman/rebel-readline-cljs "0.1.4"]]}}
         :repl-options {:init-ns xtdb-money.repl
                        :welcome (println "Welcome to money management with persistent data!")}
