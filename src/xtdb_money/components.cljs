@@ -1,11 +1,23 @@
 (ns xtdb-money.components
   (:require [clojure.string :as string]
+            [reagent.ratom :refer [make-reaction]]
             [xtdb-money.icons :refer [icon]]
             [xtdb-money.state :refer [current-entity
                                       entities
+                                      alerts
                                       db-strategy
-                                      process-count
                                       busy?]]))
+
+(def ^:private spinner-size-css
+  {:small "spinner-border-sm"})
+
+(defn spinner
+  [& {:keys [size]
+      :or {size :medium}}]
+  [:span.spinner-border
+   (cond-> {:role :status}
+     size (assoc :class (spinner-size-css size)))
+   [:span.visually-hidden "Please wait"]])
 
 (defmulti ^:private expand-menu-item
   (fn [x]
@@ -100,6 +112,22 @@
           :on-click #(reset! db-strategy id)})
        [:xtdb :datomic :mongodb :sql]))
 
+(defn cloud-status []
+  (fn []
+    (let [error? (make-reaction (fn []
+                                  (->> @alerts
+                                       (filter #(= :danger (:severity %)))
+                                       seq)))
+          [css icn] (if @error?
+                      ["text-danger" :exclamation-triangle]
+                      ["text-success" :cloud-check])]
+      (if @busy?
+        [:span.text-secondary
+         {:style {:width "24px"}}
+         (spinner :size :small)]
+        [:div {:class css}
+         (icon icn)]))))
+
 (defn title-bar []
   (fn []
     [:header.p-1.mb-3.border-bottom
@@ -115,6 +143,7 @@
            :data-bs-toggle :offcanvas}
           (:name @current-entity)]
          (icon :caret-down-fill :size :small)]
+        [cloud-status]
         [:button.navbar-toggler.collapsed {:type :button
                                            :data-bs-toggle :collapse
                                            :data-bs-target "#nav-list"
@@ -171,17 +200,6 @@
                         {:href "/entities"
                          :data-bs-dismiss "offcanvas"}
                         "Manage Entities"]]]]]]]))
-
-(def ^:private spinner-size-css
-  {:small "spinner-border-sm"})
-
-(defn spinner
-  [& {:keys [size]
-      :or {size :medium}}]
-  [:span.spinner-border
-   (cond-> {:role :status}
-     size (assoc :class (spinner-size-css size)))
-   [:span.visually-hidden "Please wait"]])
 
 (defn icon-button
   [icon-id {:as opts :keys [html caption]}]

@@ -10,6 +10,7 @@
 (def db-strategy (r/cursor app-state [:db-strategy]))
 (def process-count (r/cursor app-state [:process-count]))
 (def busy? (make-reaction #(not (zero? @process-count))))
+(def alerts (r/cursor app-state [:alerts]))
 
 (defn +busy []
   (swap! process-count (fnil inc 0)))
