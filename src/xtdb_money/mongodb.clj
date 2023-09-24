@@ -40,7 +40,7 @@
 
 (defn- safe-coerce-id
   [id]
-  (when id (coerce-id)))
+  (when id (coerce-id id)))
 
 (defmulti after-read mny/model-type)
 (defmethod after-read :default [m] m)
