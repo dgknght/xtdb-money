@@ -129,7 +129,7 @@
       [:div.container
        [:h1 "Entities"]
        [:div.row
-        [:div.col-md-6
+        [:div.col-md-6 {:class (when @selected "d-none d-md-block")}
          [entities-table page-state]
          [:div
           [icon-button :plus
