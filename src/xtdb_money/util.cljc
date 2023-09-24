@@ -143,16 +143,19 @@
               scalar?))
 
 (defn truncate
-  [s {:keys [length]}]
-  (if (> length (count s))
-    s
-    (reduce (fn [result s]
-              (if (< length (+ (count result) (count s) 1))
-                (reduced (str result " " (first s)))
-                (str result " " s)))
-            (string/split s #"\s+"))))
+  ([s] (truncate s {}))
+  ([s {:keys [length]
+       :or {length 10}}]
+   (if (> length (count s))
+     s
+     (reduce (fn [result s]
+               (if (< length (+ (count result) (count s) 1))
+                 (reduced (str result " " (first s)))
+                 (str result " " s)))
+             (string/split s #"\s+")))))
 
 (defn truncate-html
-  [s opts]
-  [:span {:title s}
-   (truncate s opts)])
+  ([s] (truncate-html s {}))
+  ([s opts]
+   [:span {:title s}
+    (truncate s opts)]))
