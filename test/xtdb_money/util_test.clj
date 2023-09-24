@@ -103,3 +103,10 @@
        {:id 1}       false
        [1]           false
        #{1}          false))
+
+(deftest truncate-a-string
+  (are [input length expected] (= expected
+                                  (utl/truncate input {:length length}))
+       "Business Datomic" 12 "Business D"
+       "Business Datomic" 16 "Business Datomic"
+       nil                12 nil))

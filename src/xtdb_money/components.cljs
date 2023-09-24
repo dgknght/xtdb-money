@@ -1,6 +1,7 @@
 (ns xtdb-money.components
   (:require [clojure.string :as string]
             [reagent.ratom :refer [make-reaction]]
+            [xtdb-money.util :as utl]
             [xtdb-money.icons :refer [icon]]
             [xtdb-money.state :refer [current-entity
                                       entities
@@ -128,48 +129,66 @@
         [:div {:class css}
          (icon icn)]))))
 
-(defn title-bar []
-  (fn []
-    [:header.p-1.mb-3.border-bottom
-     [:div.container
-      [:nav.navbar.navbar-expand-lg
-       [:div.container-fluid
-        [:a.d-flex.align-items-center.mb-2.mb-lg-0.link-body-emphasis.text-decoration-none.me-2
-         {:href "/"}
-         (icon :cash-coin :size :large)]
-        [:div.mx-3.fs-3.d-flex.align-items-center
+(defn- build-nav-items
+  [current-db]
+  [{:href "/about"
+    :id :about
+    :caption "About the App"}
+   {:caption [:<>
+              (icon :database :size :small)
+              [:span.ms-1 (or (id->caption current-db) "unknown db strategy")]]
+    :id :db-strategy
+    :children (db-strategy-items current-db)}
+   {:caption (icon :person-circle)
+    :id :sign-out
+    :children ["/sign-out"]}])
+
+(defn- entity-selector []
+  (let [caption (make-reaction #(utl/truncate-html (:name @current-entity)))]
+    (fn []
+      (when @current-entity
+        [:div.me-3.fs-3.d-flex.align-items-center
          [:a.text-body.text-decoration-none.me-2
           {:href "#entity-drawer"
            :data-bs-toggle :offcanvas}
-          (:name @current-entity)]
-         (icon :caret-down-fill :size :small)]
-        [cloud-status]
-        [:button.navbar-toggler.collapsed {:type :button
-                                           :data-bs-toggle :collapse
-                                           :data-bs-target "#nav-list"
-                                           :aria-controls "nav-list"
-                                           :aria-expanded false
-                                           :aria-label "Toggle Navigation"}
-         [:span.navbar-toggler-icon]]
-        [:div#nav-list.navbar-collapse.collapse
-         (navbar [{:href "/about"
-                   :id :about
-                   :caption "About the App"}
-                  {:caption [:<>
-                             (icon :database :size :small)
-                             [:span.ms-1 (or (id->caption @db-strategy) "unknown db strategy")]]
-                   :id :db-strategy
-                   :children (db-strategy-items @db-strategy)}
-                  {:caption (icon :person-circle)
-                   :id :sign-out
-                   :children ["/sign-out"]}])
-         [:form.col-12.col-lg-auto.mb-2.mb-lg-0.me-lg-3
-          [:div.input-group
-           [:input.form-control {:type :text
-                                 :placeholder "Search..."
-                                 :aria-label "Search"}]
-           [:button.btn.btn-outline-secondary {:type :submit}
-            (icon :search :size :small)]]]]]]]]))
+          @caption]
+         (icon :caret-down-fill :size :small)]))))
+
+(defn title-bar []
+  (let [nav-items (make-reaction #(build-nav-items @db-strategy))]
+    (fn []
+      [:header.p-1.mb-3.border-bottom
+       [:div.container
+        [:nav.navbar.navbar-expand-lg
+         [:div.container-fluid
+          [:a
+           {:href "/"
+            :class ["d-flex"
+                    "align-items-center"
+                    "me-3"
+                    "mb-2"
+                    "mb-lg-0"
+                    "link-body-emphasis"
+                    "text-decoration-none"]}
+           (icon :cash-coin :size :large)]
+          [entity-selector]
+          [cloud-status]
+          [:button.navbar-toggler.collapsed {:type :button
+                                             :data-bs-toggle :collapse
+                                             :data-bs-target "#nav-list"
+                                             :aria-controls "nav-list"
+                                             :aria-expanded false
+                                             :aria-label "Toggle Navigation"}
+           [:span.navbar-toggler-icon]]
+          [:div#nav-list.navbar-collapse.collapse
+           (navbar @nav-items)
+           [:form.col-12.col-lg-auto.mb-2.mb-lg-0.me-lg-3
+            [:div.input-group
+             [:input.form-control {:type :text
+                                   :placeholder "Search..."
+                                   :aria-label "Search"}]
+             [:button.btn.btn-outline-secondary {:type :submit}
+              (icon :search :size :small)]]]]]]]])))
 
 (defn entity-drawer []
   (fn []

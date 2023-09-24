@@ -1,5 +1,6 @@
 (ns xtdb-money.util
   (:require [clojure.walk :refer [prewalk]]
+            [clojure.string :as string]
             #?(:clj [clj-time.core :as t]
                :cljs [cljs-time.core :as t])
             #?(:clj [clj-time.coerce :as tc]
@@ -16,7 +17,7 @@
 
 (def local-date?
   #?(:clj (partial instance? LocalDate)
-     :cljs (throw (js/Error "Not implemented"))))
+     :cljs #(throw (js/Error "Not implemented"))))
 
 (defn make-id
   [id]
@@ -140,3 +141,18 @@
 (def valid-id?
   (every-pred non-nil?
               scalar?))
+
+(defn truncate
+  [s {:keys [length]}]
+  (if (> length (count s))
+    s
+    (reduce (fn [result s]
+              (if (< length (+ (count result) (count s) 1))
+                (reduced (str result " " (first s)))
+                (str result " " s)))
+            (string/split s #"\s+"))))
+
+(defn truncate-html
+  [s opts]
+  [:span {:title s}
+   (truncate s opts)])
