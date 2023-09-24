@@ -24,4 +24,4 @@
 (add-watch process-count
            ::state
            (fn [& args]
-             (.info js/console (str "process count changed: " (last args)))))
+             (.debug js/console (str "process count changed: " (last args)))))

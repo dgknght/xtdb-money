@@ -13,7 +13,8 @@
             [xtdb-money.api :refer [handle-error]]
             [xtdb-money.components :refer [title-bar
                                            entity-drawer]]
-            [xtdb-money.notifications :refer [alerts]]
+            [xtdb-money.notifications :refer [alerts
+                                              toasts]]
             [xtdb-money.api.entities :as ents]
             [xtdb-money.views.pages]
             [xtdb-money.views.entities]))
@@ -32,6 +33,7 @@
     [:div
      [title-bar]
      [alerts]
+     [toasts]
      [@page]
      [entity-drawer]]))
 

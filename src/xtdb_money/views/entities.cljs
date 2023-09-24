@@ -1,6 +1,5 @@
 (ns xtdb-money.views.entities
-  (:require [cljs.pprint :refer [pprint]]
-            [secretary.core :refer-macros [defroute]]
+  (:require [secretary.core :refer-macros [defroute]]
             [reagent.core :as r]
             [goog.string :refer [format]]
             [dgknght.app-lib.dom :as dom]
@@ -16,7 +15,8 @@
             [xtdb-money.components :refer [icon-button]]
             [xtdb-money.icons :refer [icon
                                       icon-with-text]]
-            [xtdb-money.notifications :refer [alert]]
+            [xtdb-money.notifications :refer [alert
+                                              toast]]
             [xtdb-money.api.entities :as ents]))
 
 (defn- receive-entities
@@ -49,7 +49,7 @@
     (ents/delete entity
                  :post-xf (comp load-entities
                                 -busy-xf)
-                 :callback #(pprint {::deleted entity}))))
+                 :callback #(toast "The entity was deleted successfully."))))
 
 (defn- entity-row
   [entity page-state]
@@ -104,7 +104,10 @@
             :post-xf [(unselect-entity page-state)
                       -busy-xf
                       load-entities]
-            :callback #(pprint {::save-entity %}))) ; TODO: Change this to a toast
+            :callback (fn [e]
+                        (.info js/console (str "saved entity: " (pr-str e)))
+                        (toast "The entity was saved successfully"
+                                      :header "Save Completed"))))
 
 (defn- entity-form
   [page-state]
