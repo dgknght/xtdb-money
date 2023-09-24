@@ -64,7 +64,9 @@
        [:button.btn.btn-sm.btn-secondary
         {:type :button
          :title "Click here to edit the entity."
-         :on-click #(swap! page-state assoc :selected entity)}
+         :on-click (fn []
+                     (swap! page-state assoc :selected entity)
+                     (dom/set-focus "name"))}
         (icon :pencil :size :small)]
        [:button.btn.btn-sm.btn-info
         {:type :button

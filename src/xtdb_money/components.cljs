@@ -126,7 +126,7 @@
         [:span.text-secondary
          {:style {:width "24px"}}
          (spinner :size :small)]
-        [:div {:class css}
+        [:div.mx-auto {:class css}
          (icon icn)]))))
 
 (defn- build-nav-items
