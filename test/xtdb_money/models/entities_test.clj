@@ -15,7 +15,6 @@
 (use-fixtures :each reset-db)
 
 (dbtest create-an-entity
-  (clojure.pprint/pprint {::env (:db config.core/env)})
   (let [result (ents/put {:name "Personal"})]
     (is (comparable? {:name "Personal"}
                      result)
