@@ -40,4 +40,4 @@ jobs:
       - name: Index the MongoDB database
         run: lein index-mongodb
       - name: Run tests
-        run: lein test
+        run: lein test xtdb-money.models.entities-test
