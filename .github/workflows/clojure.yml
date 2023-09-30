@@ -16,7 +16,7 @@ jobs:
         env:
           POSTGRES_PASSWORD: please01
           POSTGRES_USER: app_user
-          POSTGRES_DB: xtdb_money_test
+          POSTGRES_DB: money_test
         options: >-
           --health-cmd pg_isready
           --health-interval 10s
