@@ -81,7 +81,10 @@
                                                           "mongodb"
                                                           {:database "money_test"}}}}}
                    :ci {:env {:db {:strategies {"sql" {:host "postgres"
-                                                       :dbname "money_test"}
+                                                       :dbname "money_test"
+                                                       :dbtype "postgresql"
+                                                       :user "app_user"
+                                                       :password "please01"}
                                                 "mongodb" {:instance {:host "mongo"}
                                                            :database "money_test"}}}}}
                    :dev [:project/dev :profiles/dev]
