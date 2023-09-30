@@ -53,11 +53,11 @@
                        [com.github.seancorfield/honeysql "2.4.1033"]
                        [congomongo "2.6.0" :exclusions [org.clojure/data.json]]
                        [com.github.dgknght/app-lib "0.3.6" :exclusions [args4j
-                                                                                 commons-logging
-                                                                                 commons-io
-                                                                                 ring/ring-core
-                                                                                 ring/ring-jetty-adapter
-                                                                                 ring/ring-servlet]]
+                                                                        commons-logging
+                                                                        commons-io
+                                                                        ring/ring-core
+                                                                        ring/ring-jetty-adapter
+                                                                        ring/ring-servlet]]
                        [yogthos/config "1.2.0"]]
         :main ^:skip-aot xtdb-money.core
         :target-path "target/%s"
@@ -80,12 +80,14 @@
 
                                                           "mongodb"
                                                           {:database "money_test"}}}}}
-                   :ci {:env {:db {:strategies {"sql" {:host "postgres"
+                   :ci {:env {:db {:strategies {"sql" {:xtdb-money.core/provider :sql
+                                                       :host "postgres"
                                                        :dbname "money_test"
                                                        :dbtype "postgresql"
                                                        :user "app_user"
                                                        :password "please01"}
-                                                "mongodb" {:instance {:host "mongo"}
+                                                "mongodb" {:xtdb-money.core/provider :mongodb
+                                                           :instance {:host "mongo"}
                                                            :database "money_test"}}}}}
                    :dev [:project/dev :profiles/dev]
                    :project/dev {:env {:db {:active "xtdb"
