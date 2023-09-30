@@ -1,5 +1,6 @@
 ^{:watch-dirs ["test" "src"]
-  :open-url "http://lvh.me:3000/"
+  :open-url false
   :css-dirs ["resources/public/css"]
   :auto-testing true}
-{:main xtdb-money.core}
+{:main xtdb-money.core
+ :asset-path "/assets/cljs-out/dev"}

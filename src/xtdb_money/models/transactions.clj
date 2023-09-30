@@ -8,7 +8,7 @@
             [xtdb-money.util :refer [<-storable-date
                                      local-date?
                                      non-nil?]]
-            [xtdb-money.core :as mny :refer [dbfn]]
+            [xtdb-money.core :as mny]
             [xtdb-money.accounts :as a]
             [xtdb-money.models :as mdls]
             [xtdb-money.models.accounts :as acts]))
@@ -90,12 +90,10 @@
 
 (defn select
   ([criteria]         (select criteria {}))
-  ([criteria options] (select (mny/storage) criteria options))
-  ([db criteria options]
-   {:pre [(satisfies? mny/Storage db)
-          (s/valid? ::criteria criteria)
+  ([criteria options]
+   {:pre [(s/valid? ::criteria criteria)
           (s/valid? ::mny/options options)]}
-   (map after-read (mny/select db
+   (map after-read (mny/select (mny/storage)
                                (mny/model-type criteria :transaction)
                                (merge default-opts options)))))
 
@@ -290,9 +288,9 @@
         (remove #(= id (:id %)))
         (split-and-filter account))))
 
-(dbfn find
-  [db id]
-  (first (select db {:id id} {:limit 1})))
+(defn find
+  [id]
+  (first (select {:id id} {:limit 1})))
 
 (defn- ensure-model-type
   [m]
@@ -407,23 +405,24 @@
       (assoc :debit-account (get-in *accounts* [debit-account-id]))
       (assoc :credit-account (get-in *accounts* [credit-account-id]))))
 
-(dbfn put
-  [db trx]
+(defn put
+  [trx]
   {:pre [(s/valid? ::transaction trx)]}
   (with-accounts trx
-    (let [result (first (mny/put db (-> trx
-                                        (mny/model-type :transaction)
-                                        resolve-accounts
-                                        propagate)))]
+    (let [result (first (mny/put (mny/storage)
+                                 (-> trx
+                                     (mny/model-type :transaction)
+                                     resolve-accounts
+                                     propagate)))]
       (if (map? result)
         (mny/model-type result :transaction)
-        (find db result)))))
+        (find result)))))
 
-(dbfn delete
-  [db trx]
+(defn delete
+  [trx]
   {:pre [trx (s/valid? ::transaction trx)]}
 
   (with-accounts trx
-    (mny/put db
+    (mny/put (mny/storage)
              (cons [::mny/delete trx]
                    (propagate (mark-deleted (resolve-accounts trx)))))))

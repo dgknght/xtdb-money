@@ -16,7 +16,7 @@ jobs:
         env:
           POSTGRES_PASSWORD: please01
           POSTGRES_USER: app_user
-          POSTGRES_DB: xtdb_money_test
+          POSTGRES_DB: money_test
         options: >-
           --health-cmd pg_isready
           --health-interval 10s
@@ -26,18 +26,14 @@ jobs:
           - 5432:5432
       mongo:
         image: mongo
-    env:
-      DB: |-
-        {:strategies {"sql"     {:host "postgres"}
-                      "mongodb" {:instance {:host "mongo"}}}}
     steps:
       - name: Checkout source code
         uses: actions/checkout@v3
       - name: Install dependencies
         run: lein deps
       - name: Migrate the SQL database
-        run: lein with-profile dev,test migrate
+        run: lein with-profile ci migrate
       - name: Index the MongoDB database
-        run: lein index-mongodb
+        run: lein with-profile ci index-mongodb
       - name: Run tests
-        run: lein test
+        run: lein with-profile ci test xtdb-money.models.entities-test

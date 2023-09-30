@@ -5,7 +5,7 @@
                                      local-date?
                                      valid-id?
                                      <-storable-date]]
-            [xtdb-money.core :as mny :refer [dbfn]]))
+            [xtdb-money.core :as mny]))
 
 (s/def ::commodity-id valid-id?)
 (s/def ::trade-date local-date?)
@@ -24,34 +24,31 @@
 
 (defn select
   ([criteria]         (select criteria {}))
-  ([criteria options] (select (mny/storage) criteria options))
-  ([db criteria options]
-   {:pre [(satisfies? mny/Storage db)
-          (s/valid? ::criteria criteria)
+  ([criteria options]
+   {:pre [(s/valid? ::criteria criteria)
           (s/valid? ::mny/options options)
           (or (:id criteria)
               (and (:commodity-id criteria)
                    (:trade-date criteria)))]}
    (map after-read
-        (mny/select db
+        (mny/select (mny/storage)
                     (mny/model-type criteria :price)
                     (merge {:order-by [[:trade-date :desc]]} options)))))
 
-(dbfn find
-  [db id]
+(defn find
+  [id]
   {:pre [(or (valid-id? id)
              (valid-id? (:id id)))]}
-  (first (select db
-                 {:id (->id id)}
+  (first (select {:id (->id id)}
                  {:limit 1})))
 
 (defn- before-save
   [price]
   (mny/model-type price :price))
 
-(dbfn put
-  [db price]
+(defn put
+  [price]
   {:pre [(s/valid? ::price price)]}
 
-  (let [ids (mny/put db [(before-save price)])]
-    (find db (first ids))))
+  (let [ids (mny/put (mny/storage) [(before-save price)])]
+    (find (first ids))))

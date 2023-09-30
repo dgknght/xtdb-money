@@ -6,8 +6,8 @@ tmux new-session -d -s $session
 tmux rename-window -t 0 'repl'
 tmux send-keys 'clear' C-m 'lein repl' C-m
 
-# tmux split-window -v
-# tmux send-keys 'lein figwheel' C-m
+tmux split-window -v
+tmux send-keys 'lein fig:build' C-m
 
 # Code window
 tmux new-window -t $session:1 -n $session

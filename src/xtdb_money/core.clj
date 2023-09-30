@@ -22,15 +22,16 @@
   (put [this models] "Saves the models to the database in an atomic transaction")
   (select [this criteria options] "Retrieves models from the database")
   (delete [this models] "Removes the models from the database in an atomic transaction")
+  (close [this] "Releases resources held by the storage instance")
   (reset [this] "Resets the database")) ; TODO: Is there someplace to put this so it's only available in tests?
 
 (defn storage-dispatch [config & _]
+
+  (clojure.pprint/pprint {::storage-dispatch config})
+
   (::provider config))
 
 (defmulti reify-storage storage-dispatch)
-(defmulti start storage-dispatch)
-(defmulti stop storage-dispatch)
-(defmulti reset-db storage-dispatch)
 
 (def ^:dynamic *storage*)
 
@@ -66,18 +67,11 @@
   [m]
   (not= m (-> m meta :original)))
 
-(defmacro with-storage
+(defmacro with-db
   [bindings & body]
   `(let [storage# (reify-storage ~(first bindings))]
-     (binding [*storage* storage#]
-       ~@body)))
-
-(defmacro dbfn
-  [fn-name bindings & body]
-  (let [fname (symbol (name fn-name))
-        alt-bindings (vec (rest bindings))]
-    `(defn ~fname
-       (~alt-bindings
-         (apply ~fname (storage) ~alt-bindings))
-       (~bindings
-               ~@body))))
+     (try
+       (binding [*storage* storage#]
+         ~@body)
+       (finally
+         (close storage#)))))

@@ -1,5 +1,6 @@
 (ns xtdb-money.util
   (:require [clojure.walk :refer [prewalk]]
+            [clojure.string :as string]
             #?(:clj [clj-time.core :as t]
                :cljs [cljs-time.core :as t])
             #?(:clj [clj-time.coerce :as tc]
@@ -16,7 +17,7 @@
 
 (def local-date?
   #?(:clj (partial instance? LocalDate)
-     :cljs (throw (js/Error "Not implemented"))))
+     :cljs #(throw (js/Error "Not implemented"))))
 
 (defn make-id
   [id]
@@ -94,31 +95,17 @@
       x)
     [x :asc]))
 
-(defmulti ^:private compare-fns
-  (fn [v _dir]
-    (cond
-      (local-date? v) :local-date)))
-
-(defmethod compare-fns :default
-  [_ dir]
-  [= (if (= :asc dir) < >)])
-
-(defmethod compare-fns :local-date
-  [_ dir]
-  [t/equal? (if (= :asc dir)
-              t/before?
-              t/after?)])
-
 (defn- compare-fn
   [& ms]
   (fn [_ [k dir]]
     (let [[v1 v2] (map k ms)
-          [eq cmp] (compare-fns (or v1 v2) dir)]
-      (if (eq v1 v2)
+          f (if (= :desc dir)
+              #(compare %2 %1)
+              compare)
+          res (f v1 v2)]
+      (if (= 0 res)
         0
-        (reduced (if (cmp v1 v2)
-                   -1
-                   1))))))
+        (reduced res)))))
 
 (defn- sort-fn
   [order-by]
@@ -154,3 +141,21 @@
 (def valid-id?
   (every-pred non-nil?
               scalar?))
+
+(defn truncate
+  ([s] (truncate s {}))
+  ([s {:keys [length]
+       :or {length 10}}]
+   (if (> length (count s))
+     s
+     (reduce (fn [result s]
+               (if (< length (+ (count result) (count s) 1))
+                 (reduced (str result " " (first s)))
+                 (str result " " s)))
+             (string/split s #"\s+")))))
+
+(defn truncate-html
+  ([s] (truncate-html s {}))
+  ([s opts]
+   [:span {:title s}
+    (truncate s opts)]))

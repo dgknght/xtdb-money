@@ -7,6 +7,7 @@
 (defn start-server
   [& {:as opts}]
   (let [options (merge {:port 3000
+                        :open-browser? false
                         :join? false}
                        opts)]
     (if @server

@@ -1,14 +1,23 @@
 (ns xtdb-money.xtdb
   (:require [clojure.walk :refer [postwalk]]
+            [clojure.java.io :as io]
             [xtdb.api :as xt]
-            [cljs.core :as c]
+            [dgknght.app-lib.core :refer [update-in-if]]
             [xtdb-money.datalog :as dtl]
             [xtdb-money.core :as mny]
             [xtdb-money.util :refer [local-date?
                                      make-id
                                      unqualify-keys
                                      ->storable-date]])
-  (:import org.joda.time.LocalDate))
+  (:import org.joda.time.LocalDate
+           java.util.UUID
+           java.lang.String))
+
+(defmulti coerce-id type)
+(defmethod coerce-id :default [id] id)
+(defmethod coerce-id String
+  [id]
+  (UUID/fromString id))
 
 (defn- two-count?
   [coll]
@@ -25,7 +34,7 @@
 
 (defmulti ^:private ->xt*
   (fn [x _]
-    (c/cond
+    (cond
       (map-tuple? x) :tuple
       (local-date? x) :date)))
 
@@ -92,7 +101,7 @@
     (update-in tuple [1] :id)
     tuple))
 
-(defn submit
+(defn- submit
   "Give a list of model maps, or vector tuples with an action in the
   1st position and a model in the second, execute the actions and
   return the id values of the models"
@@ -119,6 +128,16 @@
   [v]
   (->storable-date v))
 
+(defmulti identifying-where-clause mny/model-type)
+
+(defmethod identifying-where-clause :default [_] nil)
+
+(defn- ensure-where
+  [query criteria]
+  (if (:where query)
+    query
+    (assoc query :where [(identifying-where-clause criteria)])))
+
 (defmulti criteria->query
   (fn [criteria _opts] (mny/model-type criteria)))
 
@@ -127,11 +146,12 @@
   (let [model-type (mny/model-type criteria)]
     (-> '{:find [(pull ?x [*])]
         :in [$]}
-      (dtl/apply-criteria criteria
+      (dtl/apply-criteria (update-in-if criteria [:id] coerce-id)
                           :coerce ->storable
                           :model-type model-type
                           :args-key [::args]
                           :remap {:id :xt/id})
+      (ensure-where criteria)
       (dtl/apply-options opts :model-type model-type))))
 
 (defmulti ^:private apply-criterion
@@ -204,14 +224,38 @@
 (defn- delete*
   [node models]
   (->> models
-       (map #(vector :xt/delete %))
-       (submit node)))
+       (mapv (comp #(vector ::xt/delete %)
+                   :id))
+       (xt/submit-tx node))
+  (xt/sync node))
+
+(defmulti ^:private resolve-store
+  (fn [[type _]] type))
+
+(defmethod resolve-store :kv-store
+  [[_ path]]
+  {:kv-store {:xtdb/module 'xtdb.rocksdb/->kv-store
+              :db-dir (io/file path)
+              :sync? true}})
+
+(defn- resolve-stores
+  [config]
+  (->> config
+       (map #(update-in % [1] resolve-store))
+       (into {})))
+
+(defn- prepare-config
+  [config]
+  (-> config
+      (dissoc ::mny/provider)
+      resolve-stores))
 
 (defmethod mny/reify-storage :xtdb
   [config]
-  (let [node (xt/start-node (dissoc config ::mny/provider))]
+  (let [node (-> config prepare-config xt/start-node) ]
     (reify mny/Storage
-      (put [_ models]              (submit node models))
+      (put    [_ models]           (submit node models))
       (select [_ criteria options] (select* node criteria options))
       (delete [_ models]           (delete* node models))
-      (reset [_] (comment "This is a no-op with in-memory implementation")))))
+      (close  [_]                  (.close node))
+      (reset  [_]                  (comment "This is a no-op with in-memory implementation")))))

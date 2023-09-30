@@ -13,6 +13,7 @@
                        [ring/ring-core "1.8.2"]
                        [ring/ring-jetty-adapter "1.8.2"]
                        [ring/ring-defaults "0.3.4" :exclusions [ring/ring-core ring/ring-codec crypto-equality commons-io]]
+                       [ring/ring-json "0.5.1" :exclusions [ring/ring-core ring/ring-codec]]
                        [co.deps/ring-etag-middleware "0.2.1"]
                        [metosin/reitit "0.7.0-alpha5" :exclusions [com.bhauman/spell-spec
                                                                    com.cognitect/transit-clj
@@ -29,9 +30,10 @@
                        [clj-commons/secretary "1.2.4"]
                        [clj-time "0.15.2"]
                        [ch.qos.logback/logback-classic "1.2.3"]
-                       [com.xtdb/xtdb-core "1.23.1" :exclusions [org.clojure/data.json
+                       [com.xtdb/xtdb-core "1.24.0" :exclusions [org.clojure/data.json
                                                                  org.clojure/tools.reader
                                                                  org.slf4j/slf4j-api]]
+                       [com.xtdb/xtdb-rocksdb "1.24.0" :exclusions [org.clojure/tools.reader org.slf4j/slf4j-api org.clojure/data.json]]
                        [com.datomic/dev-local "1.0.243" :exclusions [com.cognitect/transit-clj
                                                                      com.cognitect/transit-java
                                                                      com.google.guava/guava
@@ -50,7 +52,7 @@
                        [dev.weavejester/ragtime "0.9.3"]
                        [com.github.seancorfield/honeysql "2.4.1033"]
                        [congomongo "2.6.0" :exclusions [org.clojure/data.json]]
-                       [com.github.dgknght/app-lib "0.3.2" :exclusions [args4j
+                       [com.github.dgknght/app-lib "0.3.6" :exclusions [args4j
                                                                         commons-logging
                                                                         commons-io
                                                                         ring/ring-core
@@ -70,21 +72,36 @@
                                              :strategies {"datomic"
                                                           {:system "money-test"}
 
+                                                          "xtdb"
+                                                          ^:replace {:xtdb-money.core/provider :xtdb}
+
                                                           "sql"
                                                           {:dbname "xtdb_money_test"}
 
                                                           "mongodb"
                                                           {:database "money_test"}}}}}
+                   :ci {:env ^:replace {:db {:strategies {"sql" {:xtdb-money.core/provider :sql
+                                                                 :host "postgres"
+                                                                 :dbname "money_test"
+                                                                 :dbtype "postgresql"
+                                                                 :user "app_user"
+                                                                 :password "please01"}
+                                                          "mongodb" {:xtdb-money.core/provider :mongodb
+                                                                     :instance {:host "mongo"}
+                                                                     :database "money_test"}}}}}
                    :dev [:project/dev :profiles/dev]
                    :project/dev {:env {:db {:active "xtdb"
                                             :strategies {"datomic"
                                                          {:xtdb-money.core/provider :datomic
                                                           :server-type :dev-local
                                                           :system "money-dev"
-                                                          :storage-dir "/Users/dknight/.datomic-storage"}
+                                                          :storage-dir "/home/doug/.datomic-storage"}
 
                                                          "xtdb"
-                                                         {:xtdb-money.core/provider :xtdb}
+                                                         {:xtdb-money.core/provider :xtdb
+                                                          :xtdb/tx-log         [:kv-store "/tmp/xtdb-storage/xtdb-money-dev/tx-log"]
+                                                          :xtdb/document-store [:kv-store "/tmp/xtdb-storage/xtdb-money-dev/doc-store"]
+                                                          :xtdb/index-store    [:kv-store "/tmp/xtdb-storage/xtdb-money-dev/index-store"]}
 
                                                          "sql"
                                                          {:xtdb-money.core/provider :sql
@@ -98,9 +115,11 @@
                                                          "mongodb"
                                                          {:xtdb-money.core/provider :mongodb
                                                           :database "money_development"}}}}
-                                 :dependencies [[org.eclipse.jetty/jetty-server "9.4.36.v20210114"]
+                                 :dependencies [[org.clojure/data.zip "1.0.0"]
+                                                [org.eclipse.jetty/jetty-server "9.4.36.v20210114"]
                                                 [org.eclipse.jetty.websocket/websocket-servlet "9.4.36.v20210114"]
                                                 [org.eclipse.jetty.websocket/websocket-server "9.4.36.v20210114"]
+                                                [ring/ring-mock "0.4.0"]
                                                 [com.bhauman/figwheel-main "0.2.18" :exclusions [org.clojure/data.json
                                                                                                  org.eclipse.jetty/jetty-http
                                                                                                  org.eclipse.jetty/jetty-io
@@ -111,13 +130,14 @@
                                                                                                  ring/ring-codec
                                                                                                  ring/ring-core
                                                                                                  ring/ring-devel]]
-                                                [org.slf4j/slf4j-nop "1.7.30" :exclusions [org.slf4j/slf4j-api]]
                                                 [com.bhauman/rebel-readline-cljs "0.1.4"]]}}
         :repl-options {:init-ns xtdb-money.repl
                        :welcome (println "Welcome to money management with persistent data!")}
         :aliases {"migrate"       ["run" "-m" "xtdb-money.models.sql.migrations/migrate"]
                   "rollback"      ["run" "-m" "xtdb-money.models.sql.migrations/rollback"]
                   "remigrate"     ["run" "-m" "xtdb-money.models.sql.migrations/remigrate"]
+                  "routes"        ["run" "-m" "xtdb-money.handler/print-routes"]
+                  "datomic-schema" ["run" "-m" "xtdb-money.datomic/apply-schema"]
                   "index-mongodb" ["run" "-m" "xtdb-money.models.mongodb.indexes/ensure"]
                   "fig:build"     ["trampoline" "run" "-m" "figwheel.main" "-b" "dev" "-r"]
                   "fig:min"       ["run" "-m" "figwheel.main" "-O" "advanced" "-bo" "dev"]

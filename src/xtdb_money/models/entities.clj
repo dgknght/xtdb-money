@@ -2,34 +2,39 @@
   (:refer-clojure :exclude [find])
   (:require [clojure.spec.alpha :as s]
             [xtdb-money.util :refer [->id]]
-            [xtdb-money.core :as mny :refer [dbfn]]))
+            [xtdb-money.core :as mny]))
 
 (s/def ::name string?)
 (s/def ::entity (s/keys :req-un [::name]))
 
-(dbfn select
-  [db criteria options]
-  {:pre [(satisfies? mny/Storage db)
-         (s/valid? ::mny/options options)
-         (:id criteria)]}
-  (map #(mny/set-meta % :entity)
-       (mny/select db
-                   (mny/model-type criteria :entity)
-                   options)))
+(defn select
+  ([criteria] (select criteria {}))
+  ([criteria options]
+   {:pre [(s/valid? ::mny/options options)]}
+   (map #(mny/set-meta % :entity)
+        (mny/select (mny/storage)
+                    (mny/model-type criteria :entity)
+                    (update-in options [:order-by] (fnil identity [:name]))))))
 
-(dbfn find
-  [db id]
-  (first (select db {:id (->id id)} {:limit 1})))
+(defn find
+  [id]
+  (first (select {:id (->id id)} {:limit 1})))
 
 (defn- resolve-put-result
-  [db x]
+  [x]
   (if (map? x)
     (mny/model-type x :entity)
-    (find db x)))
+    (find x)))
 
-(dbfn put
-  [db entity]
-  {:pre [(s/valid? ::entity entity)]}
+(defn put
+  [entity]
+  {:pre [entity (s/valid? ::entity entity)]}
 
-  (let [records-or-ids (mny/put db [(mny/model-type entity :entity)])]
-    (resolve-put-result db (first records-or-ids)))) ; TODO: return all of the saved models instead of the first?
+  (let [records-or-ids (mny/put (mny/storage)
+                                [(mny/model-type entity :entity)])]
+    (resolve-put-result (first records-or-ids)))) ; TODO: return all of the saved models instead of the first?
+
+(defn delete
+  [entity]
+  {:pre [entity (map? entity)]}
+  (mny/delete (mny/storage) [entity]))

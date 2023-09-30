@@ -3,7 +3,6 @@
   (:require [clojure.tools.logging :as log]
             [clj-time.coerce :refer [to-sql-date
                                      to-local-date]]
-            [xtdb-money.core :as mny]
             [next.jdbc :as jdbc]
             [next.jdbc.plan :refer [select!]]
             [next.jdbc.sql.builder :refer [for-insert
@@ -11,9 +10,20 @@
                                            for-delete]]
             [honey.sql.helpers :as h]
             [honey.sql :as hsql]
-            [dgknght.app-lib.inflection :refer [plural]])
+            [dgknght.app-lib.inflection :refer [plural]]
+            [dgknght.app-lib.core :refer [update-in-if]]
+            [xtdb-money.core :as mny])
   (:import org.joda.time.LocalDate
-           java.sql.Date))
+           java.sql.Date
+           java.lang.String))
+
+(defmulti coerce-id type)
+
+(defmethod coerce-id :default [id] id)
+
+(defmethod coerce-id String
+  [id]
+  (Long/parseLong id))
 
 (defmulti ->storable type)
 (defmethod ->storable :default [x] x)
@@ -123,7 +133,7 @@
   [db criteria options]
   (let [query (-> (h/select :*)
                   (h/from (infer-table-name criteria))
-                  (apply-criteria criteria)
+                  (apply-criteria (update-in-if criteria [:id] coerce-id))
                   (apply-options options)
                   hsql/format)]
 
@@ -137,7 +147,7 @@
                   query
                   jdbc/snake-kebab-opts))))
 
-(defn delete
+(defn delete-one
   [db m]
   (let [s (for-delete (infer-table-name m)
                       (select-keys m [:id])
@@ -162,7 +172,7 @@
   (case oper
     ::mny/insert (insert db model)
     ::mny/update (update db model)
-    ::mny/delete (delete db model)))
+    ::mny/delete (delete-one db model)))
 
 (defn- put*
   [db models]
@@ -176,7 +186,11 @@
   (select db criteria options))
 
 (defn- delete*
-  [_db _models])
+  [db models]
+  (jdbc/with-transaction [tx db]
+    (doseq [m (map #(update-in % [:id] coerce-id)
+                    models)]
+      (put-one tx [::mny/delete m]))))
 
 (defn- reset*
   [db]
@@ -189,4 +203,5 @@
       (put [_ models]       (put* db models))
       (select [_ crit opts] (select* db crit opts))
       (delete [_ models]    (delete* db models))
+      (close [_])
       (reset [_]            (reset* db)))))

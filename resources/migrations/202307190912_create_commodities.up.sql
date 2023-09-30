@@ -1,6 +1,6 @@
 create table commodities (
     id serial,
-    entity_id int not null references entities (id),
+    entity_id int not null references entities (id) on delete cascade,
     name varchar(100),
     symbol varchar(10),
     type varchar(20),
