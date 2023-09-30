@@ -15,6 +15,10 @@
                        [ring/ring-defaults "0.3.4" :exclusions [ring/ring-core ring/ring-codec crypto-equality commons-io]]
                        [ring/ring-json "0.5.1" :exclusions [ring/ring-core ring/ring-codec]]
                        [co.deps/ring-etag-middleware "0.2.1"]
+                       [ring-oauth2 "0.2.2" :exclusions [com.fasterxml.jackson.dataformat/jackson-dataformat-smile
+                                                         com.fasterxml.jackson.dataformat/jackson-dataformat-cbor
+                                                         crypto-equality
+                                                         cheshire]]
                        [metosin/reitit "0.7.0-alpha5" :exclusions [com.bhauman/spell-spec
                                                                    com.cognitect/transit-clj
                                                                    com.cognitect/transit-java
