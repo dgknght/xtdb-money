@@ -80,15 +80,15 @@
 
                                                           "mongodb"
                                                           {:database "money_test"}}}}}
-                   :ci {:env {:db {:strategies {"sql" {:xtdb-money.core/provider :sql
-                                                       :host "postgres"
-                                                       :dbname "money_test"
-                                                       :dbtype "postgresql"
-                                                       :user "app_user"
-                                                       :password "please01"}
-                                                "mongodb" {:xtdb-money.core/provider :mongodb
-                                                           :instance {:host "mongo"}
-                                                           :database "money_test"}}}}}
+                   :ci {:env ^:replace {:db {:strategies {"sql" {:xtdb-money.core/provider :sql
+                                                                 :host "postgres"
+                                                                 :dbname "money_test"
+                                                                 :dbtype "postgresql"
+                                                                 :user "app_user"
+                                                                 :password "please01"}
+                                                          "mongodb" {:xtdb-money.core/provider :mongodb
+                                                                     :instance {:host "mongo"}
+                                                                     :database "money_test"}}}}}
                    :dev [:project/dev :profiles/dev]
                    :project/dev {:env {:db {:active "xtdb"
                                             :strategies {"datomic"
