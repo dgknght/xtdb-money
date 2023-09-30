@@ -34,7 +34,8 @@
            "entity"
            "model"
            "price"
-           "transaction"]))
+           "transaction"
+           "user"]))
 
 (def ^:private db-name "money")
 

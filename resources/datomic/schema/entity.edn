@@ -2,6 +2,10 @@
   :db/valueType :db.type/string
   :db/cardinality :db.cardinality/one
   :db/doc "The name of the entity"}
+ {:db/ident :entity/user-id
+  :db/valueType :db.type/ref
+  :db/cardinality :db.cardinality/one
+  :db/doc "Identifies the user that owns the entity"}
  {:db/ident :entity/default-commodity-id
   :db/valueType :db.type/ref
   :db/cardinality :db.cardinality/one
