@@ -218,9 +218,6 @@
 
 (defmethod mny/reify-storage :datomic
   [config]
-
-  (clojure.pprint/pprint {::reify (:db env)})
-
   (let [client (d/client config)
         conn (d/connect client {:db-name db-name})]
     (reify mny/Storage

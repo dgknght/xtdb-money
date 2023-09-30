@@ -80,6 +80,8 @@
 
                                                           "mongodb"
                                                           {:database "money_test"}}}}}
+                   :ci {:env {:db {:strategies {"sql" {:host "postgres"}
+                                                "mongodb" {:instance {:host "mongo"}}}}}}
                    :dev [:project/dev :profiles/dev]
                    :project/dev {:env {:db {:active "xtdb"
                                             :strategies {"datomic"
