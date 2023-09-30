@@ -1,6 +1,6 @@
 create table prices (
     id serial,
-    commodity_id int not null references commodities (id),
+    commodity_id int not null references commodities (id) on delete cascade,
     trade_date date not null,
     value  numeric(12, 4) not null,
     created_at timestamp with time zone DEFAULT now() NOT NULL,

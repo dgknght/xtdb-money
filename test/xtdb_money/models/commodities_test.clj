@@ -14,8 +14,13 @@
 (use-fixtures :each reset-db)
 
 (def ^:private create-ctx
-  {:entities [{:name "Personal"}
-              {:name "Business"}]})
+  {:users [{:email "john@doe.com"
+            :given-name "John"
+            :surname "Doe"}]
+   :entities [{:user-id "john@doe.com"
+               :name "Personal"}
+              {:user-id "john@doe.com"
+               :name "Business"}]})
 
 (dbtest create-a-commodity
         (with-context create-ctx

@@ -1,6 +1,6 @@
 CREATE TABLE transactions (
     id serial,
-    entity_id int NOT NULL references entities (id),
+    entity_id int NOT NULL references entities (id) on delete cascade,
     correlation_id varchar(40),
     transaction_date date,
     description varchar(100),

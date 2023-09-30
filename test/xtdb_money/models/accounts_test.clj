@@ -17,7 +17,11 @@
 (use-fixtures :each reset-db)
 
 (def ^:private create-ctx
-  {:entities [{:name "Personal"}]
+  {:users [{:email "john@doe.com"
+            :given-name "John"
+            :surname "Doe"}]
+   :entities [{:user-id "john@doe.com"
+               :name "Personal"}]
    :commodities [{:entity-id "Personal"
                   :type :currency
                   :name "United States Dollar"
