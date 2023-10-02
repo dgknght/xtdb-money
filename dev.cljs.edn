@@ -1,4 +1,5 @@
 ^{:watch-dirs ["test" "src"]
+  :reload-clj-files false
   :open-url false
   :css-dirs ["resources/public/css"]
   :auto-testing true}
