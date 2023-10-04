@@ -1,7 +1,5 @@
 (ns xtdb-money.handler
-  (:require [clojure.tools.logging :as log]
-            [clojure.pprint :refer [pprint]]
-            [clojure.string :as string]
+  (:require [clojure.pprint :refer [pprint]]
             [hiccup.page :as page]
             [reitit.core :as r]
             [reitit.ring :as ring]
@@ -10,9 +8,11 @@
             [ring.middleware.json :refer [wrap-json-body
                                           wrap-json-response]]
             [ring.middleware.content-type :refer [wrap-content-type]]
+            [ring.middleware.session.cookie :refer [cookie-store]]
             [ring.util.response :as res]
             [co.deps.ring-etag-middleware :refer [wrap-file-etag]]
             [xtdb-money.middleware :refer [wrap-no-cache-header
+                                           wrap-api-exception
                                            wrap-remove-last-modified-header
                                            wrap-db
                                            wrap-logging
@@ -22,8 +22,7 @@
             [xtdb-money.models.xtdb.ref]
             [xtdb-money.models.datomic.ref]
             [xtdb-money.api.entities :as ents]
-            [xtdb-money.icons :refer [icon]])
-  (:import clojure.lang.ExceptionInfo))
+            [xtdb-money.icons :refer [icon]]))
 
 (defn- mount-point []
   [:div#app
@@ -76,32 +75,6 @@
               [:script {:type "text/javascript"
                         :src "/assets/cljs-out/dev-main.js"}]]))})
 
-(def error-res
-  {:status 500
-   :body {:message "server error"}})
-
-(defn- wrap-api-exception
-  [handler]
-  (fn [req]
-    (try
-      (handler req)
-      (catch ExceptionInfo e
-        (log/errorf "Unexpected error while handling API request: %s - %s"
-                    (.getMessage e)
-                    (pr-str (ex-data e)))
-        error-res)
-      (catch Exception e
-        (log/errorf "Unexpected error while handling API request: %s - %s"
-                    (.getMessage e)
-                    (->> (.getStackTrace e)
-                         (map #(format "%s.%s at %s:%s"
-                                       (.getClassName %)
-                                       (.getMethodName %)
-                                       (.getFileName %)
-                                       (.getLineNumber %)))
-                         (string/join "\n  ")))
-        error-res))))
-
 (defn- not-found
   [{:keys [uri]}]
   (if (re-find #"^/api" uri)
@@ -111,7 +84,9 @@
 (def app
   (ring/ring-handler
     (ring/router
-      [["/" {:middleware [#(wrap-defaults % site-defaults)
+      [["/" {:middleware [#(wrap-defaults % (assoc-in site-defaults
+                                                      [:session :store]
+                                                      cookie-store))
                           wrap-logging
                           wrap-content-type
                           wrap-no-cache-header

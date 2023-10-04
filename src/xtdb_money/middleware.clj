@@ -1,9 +1,37 @@
 (ns xtdb-money.middleware
   (:require [clojure.tools.logging :as log]
+            [clojure.string :as string]
             [config.core :refer [env]]
             [ring.middleware.oauth2 :refer [wrap-oauth2]]
             [ring.util.response :as res]
-            [xtdb-money.core :as mny]))
+            [xtdb-money.core :as mny])
+  (:import clojure.lang.ExceptionInfo))
+
+(def error-res
+  {:status 500
+   :body {:message "server error"}})
+
+(defn wrap-api-exception
+  [handler]
+  (fn [req]
+    (try
+      (handler req)
+      (catch ExceptionInfo e
+        (log/errorf "Unexpected error while handling API request: %s - %s"
+                    (.getMessage e)
+                    (pr-str (ex-data e)))
+        error-res)
+      (catch Exception e
+        (log/errorf "Unexpected error while handling API request: %s - %s"
+                    (.getMessage e)
+                    (->> (.getStackTrace e)
+                         (map #(format "%s.%s at %s:%s"
+                                       (.getClassName %)
+                                       (.getMethodName %)
+                                       (.getFileName %)
+                                       (.getLineNumber %)))
+                         (string/join "\n  ")))
+        error-res))))
 
 (defn wrap-logging
   [handler]
