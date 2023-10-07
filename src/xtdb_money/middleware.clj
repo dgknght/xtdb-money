@@ -1,10 +1,12 @@
 (ns xtdb-money.middleware
   (:require [clojure.tools.logging :as log]
+            [clojure.pprint :refer [pprint]]
             [clojure.string :as string]
             [config.core :refer [env]]
             [ring.middleware.oauth2 :refer [wrap-oauth2]]
             [ring.util.response :as res]
-            [xtdb-money.core :as mny])
+            [xtdb-money.core :as mny]
+            [xtdb-money.oauth :refer [fetch-profile]])
   (:import clojure.lang.ExceptionInfo))
 
 (def error-res
@@ -37,23 +39,20 @@
   [handler]
   (fn [req]
     (log/infof "Request %s %s" (:request-method req) (:uri req))
-    (log/tracef "Request query-params %s" (pr-str (:query-params req)))
-    (log/tracef "Request cookies %s" (pr-str (:cookies req)))
-    (log/tracef "Request session %s" (pr-str (:session req)))
+    (log/tracef "Request details\n  query-params %s\n  cookies %s\n  session %s"
+                (pr-str (:query-params req))
+                (pr-str (:cookies req))
+                (pr-str (:session req)))
     (let [res (handler req)]
       (log/infof "Response %s %s -> %s"
                  (:request-method req)
                  (:uri req)
                  (:status res))
-      (log/tracef "Response cookies %s"
-                  (:cookies res))
-      (log/tracef "Response session %s"
-                  (:session res))
-      (log/tracef "Response headers %s"
-                  (pr-str (:headers res)))
-      (log/tracef "Response body %s"
-                   (:body res))
-
+      (log/tracef "Response details\n  cookies %s\n  session %s\n  headers %s\n  body %s"
+                  (:cookies res)
+                  (:session res)
+                  (pr-str (:headers res))
+                  (:body res))
       res)))
 
 (defn wrap-no-cache-header
@@ -90,6 +89,13 @@
           (handler (assoc req :db-strategy storage-key))))
       (-> (res/response {:message "bad request: must specify a db-strategy header"})
           (res/status 400)))))
+
+(defn wrap-auth-resolution
+  [handler]
+  (fn [{:oauth2/keys [access-tokens] :as req}]
+    ; TODO: Why is the session being cleared on the redirect from /oauth/google/callback to /?
+    (clojure.pprint/pprint {::wrap-auth-resolution access-tokens})
+    (handler req)))
 
 (def wrap-oauth
   #(wrap-oauth2

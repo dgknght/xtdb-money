@@ -16,7 +16,8 @@
                                            wrap-remove-last-modified-header
                                            wrap-db
                                            wrap-logging
-                                           wrap-oauth]]
+                                           wrap-oauth
+                                           wrap-auth-resolution]]
             [xtdb-money.models.mongodb.ref]
             [xtdb-money.models.sql.ref]
             [xtdb-money.models.xtdb.ref]
@@ -84,16 +85,20 @@
 (def app
   (ring/ring-handler
     (ring/router
-      [["/" {:middleware [#(wrap-defaults % (assoc-in site-defaults
-                                                      [:session :store]
-                                                      cookie-store))
+      [["/" {:middleware [#(wrap-defaults % (update-in site-defaults
+                                                       [:session]
+                                                       merge
+                                                       {:store (cookie-store)
+                                                        :cookie-attrs {:same-site :lax
+                                                                       :http-only true}}))
                           wrap-logging
                           wrap-content-type
                           wrap-no-cache-header
                           wrap-file-etag
                           wrap-not-modified
                           wrap-remove-last-modified-header
-                          wrap-oauth]}
+                          wrap-oauth
+                          wrap-auth-resolution]}
         ["" {:get {:handler index}}]
         ["oauth/*" {:get (wrap-json-response not-found)}]]
        ["/api" {:middleware [#(wrap-defaults % api-defaults)
