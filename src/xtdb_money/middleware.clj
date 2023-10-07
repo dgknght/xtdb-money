@@ -37,18 +37,22 @@
   [handler]
   (fn [req]
     (log/infof "Request %s %s" (:request-method req) (:uri req))
-    (log/tracef "State %s" (pr-str (:state req)))
+    (log/tracef "Request query-params %s" (pr-str (:query-params req)))
+    (log/tracef "Request cookies %s" (pr-str (:cookies req)))
+    (log/tracef "Request session %s" (pr-str (:session req)))
     (let [res (handler req)]
       (log/infof "Response %s %s -> %s"
                  (:request-method req)
                  (:uri req)
                  (:status res))
-      (log/tracef "Response %s %s -> %s %s %s"
-                  (:request-method req)
-                  (:uri req)
-                  (:status res)
-                  (pr-str (:headers res))
-                  (:body res))
+      (log/tracef "Response cookies %s"
+                  (:cookies res))
+      (log/tracef "Response session %s"
+                  (:session res))
+      (log/tracef "Response headers %s"
+                  (pr-str (:headers res)))
+      (log/tracef "Response body %s"
+                   (:body res))
 
       res)))
 
