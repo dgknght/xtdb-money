@@ -1,8 +1,9 @@
 (ns xtdb-money.middleware
   (:require [clojure.tools.logging :as log]
-            [clojure.pprint :refer [pprint]]
             [clojure.string :as string]
             [config.core :refer [env]]
+            [ring.middleware.defaults :refer [wrap-defaults site-defaults ]]
+            [ring.middleware.session.cookie :refer [cookie-store]]
             [ring.middleware.oauth2 :refer [wrap-oauth2]]
             [ring.util.response :as res]
             [xtdb-money.core :as mny]
@@ -93,9 +94,17 @@
 (defn wrap-auth-resolution
   [handler]
   (fn [{:oauth2/keys [access-tokens] :as req}]
-    ; TODO: Why is the session being cleared on the redirect from /oauth/google/callback to /?
-    (clojure.pprint/pprint {::wrap-auth-resolution access-tokens})
+    (log/debugf "wrap-auth-resolution %s" (pr-str access-tokens))
     (handler req)))
+
+(defn wrap-site []
+  (let [c-store (cookie-store)]
+    #(wrap-defaults % (update-in site-defaults
+                                 [:session]
+                                 merge
+                                 {:store c-store
+                                  :cookie-attrs {:same-site :lax
+                                                 :http-only true}}))))
 
 (def wrap-oauth
   #(wrap-oauth2

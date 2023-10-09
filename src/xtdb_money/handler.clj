@@ -3,12 +3,11 @@
             [hiccup.page :as page]
             [reitit.core :as r]
             [reitit.ring :as ring]
-            [ring.middleware.defaults :refer [wrap-defaults site-defaults api-defaults]]
+            [ring.middleware.defaults :refer [wrap-defaults api-defaults]]
             [ring.middleware.not-modified :refer [wrap-not-modified]]
             [ring.middleware.json :refer [wrap-json-body
                                           wrap-json-response]]
             [ring.middleware.content-type :refer [wrap-content-type]]
-            [ring.middleware.session.cookie :refer [cookie-store]]
             [ring.util.response :as res]
             [co.deps.ring-etag-middleware :refer [wrap-file-etag]]
             [xtdb-money.middleware :refer [wrap-no-cache-header
@@ -17,7 +16,8 @@
                                            wrap-db
                                            wrap-logging
                                            wrap-oauth
-                                           wrap-auth-resolution]]
+                                           wrap-auth-resolution
+                                           wrap-site]]
             [xtdb-money.models.mongodb.ref]
             [xtdb-money.models.sql.ref]
             [xtdb-money.models.xtdb.ref]
@@ -85,18 +85,13 @@
 (def app
   (ring/ring-handler
     (ring/router
-      [["/" {:middleware [#(wrap-defaults % (update-in site-defaults
-                                                       [:session]
-                                                       merge
-                                                       {:store (cookie-store)
-                                                        :cookie-attrs {:same-site :lax
-                                                                       :http-only true}}))
-                          wrap-logging
+      [["/" {:middleware [(wrap-site)
                           wrap-content-type
                           wrap-no-cache-header
                           wrap-file-etag
                           wrap-not-modified
                           wrap-remove-last-modified-header
+                          wrap-logging
                           wrap-oauth
                           wrap-auth-resolution]}
         ["" {:get {:handler index}}]
