@@ -26,9 +26,6 @@
   (reset [this] "Resets the database")) ; TODO: Is there someplace to put this so it's only available in tests?
 
 (defn storage-dispatch [config & _]
-
-  (clojure.pprint/pprint {::storage-dispatch config})
-
   (::provider config))
 
 (defmulti reify-storage storage-dispatch)
