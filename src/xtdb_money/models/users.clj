@@ -24,9 +24,19 @@
                     (mny/model-type criteria :user)
                     options))))
 
+(defn find-by
+  ([criteria] (find-by criteria {}))
+  ([criteria opts]
+   (first (select criteria (assoc opts :limit 1)))))
+
 (defn find
   [id]
-  (first (select {:id (->id id)} {:limit 1})))
+  (find-by {:id (->id id)}))
+
+(defn find-by-oauth
+  [[provider id]]
+  (find-by {:identities {:provider provider
+                         :id id}}))
 
 (defn- resolve-put-result
   [x]
