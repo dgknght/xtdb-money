@@ -17,6 +17,10 @@
   (:import org.joda.time.LocalDate
            java.lang.String))
 
+(derive clojure.lang.PersistentVector ::vector)
+(derive clojure.lang.PersistentArrayMap ::map)
+(derive clojure.lang.PersistentHashMap ::map)
+
 (defn- conj* [& args]
   (apply (fnil conj []) args))
 
@@ -117,13 +121,9 @@
 (defmethod before-save :default [m] m)
 (defmethod after-read :default [m] m)
 
-(defmulti ^:private prep-for-put
-  (fn [m]
-    (if (map? m)
-      :map
-      :vector)))
+(defmulti ^:private prep-for-put type)
 
-(defmethod prep-for-put :map
+(defmethod prep-for-put ::map
   [m]
   (let [[m* nils] (split-nils m)
         mt (mny/model-type m)]
@@ -141,7 +141,7 @@
   {::mny/delete :db/retract
    ::mny/put    :db/add})
 
-(defmethod prep-for-put :vector
+(defmethod prep-for-put ::vector
   [[action {:keys [id] :as model}]]
   ; This is primarily for delete (retract), which seems to want
   ; the list form instead of the map form, so we retract each datom
