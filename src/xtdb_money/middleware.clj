@@ -7,7 +7,8 @@
             [ring.middleware.oauth2 :refer [wrap-oauth2]]
             [ring.util.response :as res]
             [xtdb-money.core :as mny]
-            [xtdb-money.oauth :refer [fetch-profile]])
+            [xtdb-money.models.users :as usrs]
+            [xtdb-money.oauth :refer [fetch-profiles]])
   (:import clojure.lang.ExceptionInfo))
 
 (def error-res
@@ -91,11 +92,21 @@
       (-> (res/response {:message "bad request: must specify a db-strategy header"})
           (res/status 400)))))
 
-(defn wrap-auth-resolution
+(defn wrap-fetch-oauth-profile
   [handler]
   (fn [{:oauth2/keys [access-tokens] :as req}]
-    (log/debugf "wrap-auth-resolution %s" (pr-str access-tokens))
-    (handler req)))
+    (handler (if-let [profiles fetch-profiles]
+               (assoc req :oauth2/profiles profiles)
+               req))))
+
+(defn wrap-user-lookup
+  [handler]
+  (fn [{:oauth2/keys [profiles] :as req}]
+    (handler (if-let [user (when (seq profiles)
+                             (some usrs/find-by-oauth
+                                   profiles))]
+               (assoc req :authenticated user)
+               req))))
 
 (defn wrap-site []
   (let [c-store (cookie-store)]

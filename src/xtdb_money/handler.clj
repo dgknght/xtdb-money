@@ -16,7 +16,7 @@
                                            wrap-db
                                            wrap-logging
                                            wrap-oauth
-                                           wrap-auth-resolution
+                                           wrap-fetch-oauth-profile
                                            wrap-site]]
             [xtdb-money.models.mongodb.ref]
             [xtdb-money.models.sql.ref]
@@ -93,7 +93,8 @@
                           wrap-remove-last-modified-header
                           wrap-logging
                           wrap-oauth
-                          wrap-auth-resolution]}
+                          wrap-fetch-oauth-profile
+                          wrap-user-lookup]}
         ["" {:get {:handler index}}]
         ["oauth/*" {:get (wrap-json-response not-found)}]]
        ["/api" {:middleware [#(wrap-defaults % api-defaults)
