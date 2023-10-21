@@ -9,7 +9,11 @@
 (s/def ::email v/email?)
 (s/def ::given-name string?)
 (s/def ::surname string?)
-(s/def ::user (s/keys :req-un [::email ::given-name ::surname]))
+(s/def ::identity (s/tuple keyword? string?))
+(s/def ::identity-record (s/keys :req-un [::identity]))
+(s/def ::identities (s/coll-of ::identity-record))
+(s/def ::user (s/keys :req-un [::email ::given-name ::surname]
+                      :opt-un [::identities]))
 
 (s/def ::criteria (s/keys :opt-un [::email
                                    ::mdls/id]))
@@ -34,22 +38,21 @@
   (find-by {:id (->id id)}))
 
 (defn find-by-oauth
-  [[provider id]]
-  (find-by {:identities {:provider provider
-                         :id id}}))
+  [tuple] ; tuple contains provider in 1st pos., id in 2nd pos.
+  (find-by {:identities tuple}))
 
 (defn- resolve-put-result
-  [x]
+  [[x :as records]]
   (if (map? x)
     (mny/model-type x :user)
-    (find x)))
+    (some find records))) ; This is because when adding a user, identities are inserted first, so the primary record isn't the first one returned
 
 (defn put
   [user]
   {:pre [user (s/valid? ::user user)]}
   (let [records-or-ids (mny/put (mny/storage)
                                 [(mny/model-type user :user)])]
-    (resolve-put-result (first records-or-ids)))) ; TODO: return all of the saved models instead of the first?
+    (resolve-put-result records-or-ids))) ; TODO: return all of the saved models instead of the first?
 
 (defn delete
   [user]

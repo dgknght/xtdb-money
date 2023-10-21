@@ -30,7 +30,7 @@
 
 (defmulti reify-storage storage-dispatch)
 
-(def ^:dynamic *storage*)
+(def ^:dynamic *storage* nil)
 
 (defn storage []
   (or *storage*

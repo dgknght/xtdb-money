@@ -95,7 +95,7 @@
 (defn wrap-fetch-oauth-profile
   [handler]
   (fn [{:oauth2/keys [access-tokens] :as req}]
-    (handler (if-let [profiles fetch-profiles]
+    (handler (if-let [profiles (seq (fetch-profiles access-tokens))]
                (assoc req :oauth2/profiles profiles)
                req))))
 

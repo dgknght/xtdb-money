@@ -17,6 +17,7 @@
                                            wrap-logging
                                            wrap-oauth
                                            wrap-fetch-oauth-profile
+                                           wrap-user-lookup
                                            wrap-site]]
             [xtdb-money.models.mongodb.ref]
             [xtdb-money.models.sql.ref]

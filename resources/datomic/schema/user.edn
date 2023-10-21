@@ -1,6 +1,7 @@
 [{:db/ident :user/email
   :db/valueType :db.type/string
   :db/cardinality :db.cardinality/one
+  :db/unique :db.unique/identity
   :db/doc "The users email and a uniquely identifying value"}
  {:db/ident :user/given-name
   :db/valueType :db.type/string
@@ -9,4 +10,25 @@
  {:db/ident :user/surname
   :db/valueType :db.type/string
   :db/cardinality :db.cardinality/one
-  :db/doc "The user's surname"}]
+  :db/doc "The user's surname"}
+ {:db/ident :user/identities
+  :db/valueType :db.type/ref
+  :db/cardinality :db.cardinality/many
+  :db/doc "References to the users oauth identities"}
+ 
+ 
+ {:db/ident :oauth/provider
+  :db/valueType :db.type/keyword
+  :db/cardinality :db.cardinality/one
+  :db/doc "Identifies the oauth provider"}
+ {:db/ident :oauth/id
+  :db/valueType :db.type/string
+  :db/cardinality :db.cardinality/one
+  :db/doc "The ID for the user with the specified provider"}
+ 
+ {:db/ident :oauth/identity
+  :db/valueType :db.type/tuple
+  :db/tupleAttrs [:oauth/provider :oauth/id]
+  :db/cardinality :db.cardinality/one
+  :db/unique :db.unique/identity
+  :db/doc "An oauth identity for a user"}]

@@ -1,5 +1,6 @@
 (ns xtdb-money.datomic
   (:require [clojure.set :refer [rename-keys]]
+            [clojure.pprint :refer [pprint]]
             [clojure.java.io :as io]
             [clojure.edn :as edn]
             [config.core :refer [env]]
@@ -20,6 +21,14 @@
 (derive clojure.lang.PersistentVector ::vector)
 (derive clojure.lang.PersistentArrayMap ::map)
 (derive clojure.lang.PersistentHashMap ::map)
+
+(defmulti deconstruct mny/model-type)
+(defmulti before-save mny/model-type)
+(defmulti after-read mny/model-type)
+
+(defmethod deconstruct :default [m] [m])
+(defmethod before-save :default [m] m)
+(defmethod after-read :default [m] m)
 
 (defn- conj* [& args]
   (apply (fnil conj []) args))
@@ -116,12 +125,6 @@
         (exclude-deleted opts)
         (dtl/apply-options opts :model-type m-type))))
 
-(defmulti before-save mny/model-type)
-(defmulti after-read mny/model-type)
-
-(defmethod before-save :default [m] m)
-(defmethod after-read :default [m] m)
-
 (defmulti ^:private prep-for-put type)
 
 (defmethod prep-for-put ::map
@@ -131,7 +134,6 @@
     (cons (-> m*
               (mny/model-type mt)
               before-save
-              (+id (comp str random-uuid))
               (rename-keys {:id :db/id})
               qualify-keys)
           (->> nils
@@ -143,29 +145,35 @@
    ::mny/put    :db/add})
 
 (defmethod prep-for-put ::vector
-  [[action {:keys [id] :as model}]]
-  ; This is primarily for delete (retract), which seems to want
-  ; the list form instead of the map form, so we retract each datom
-  ; that is part of the map
-  ; It's also necessary to nullify an existing value, such as an
-  ; accounts :first-trx-date after deleting the only transaction
-  (let [model-type (-> model mny/model-type name)
-        op (action-map action)]
-    (if (= :db/retract op)
-      [[:db/retractEntity id]]
-      (->> (-> model
-               (dissoc :id)
-               before-save)
-           (map (fn [kv] ; qualify the key to make it a datomic attribute
-                  (update-in kv [0] #(keyword model-type (name %)))))
-           (reduce (fn [res [k v]]
-                     (conj res [op id k v]))
-                   [])))))
+  [[action {:keys [id] :as model} :as v]]
+  (if (map? model)
+    ; This is primarily for delete (retract), which seems to want
+    ; the list form instead of the map form, so we retract each datom
+    ; that is part of the map
+    ; It's also necessary to nullify an existing value, such as an
+    ; accounts :first-trx-date after deleting the only transaction
+    (let [model-type (-> model mny/model-type name)
+          op (action-map action)]
+      (if (= :db/retract op)
+        [[:db/retractEntity id]]
+        (->> (-> model
+                 (dissoc :id)
+                 before-save)
+             (map (fn [kv] ; qualify the key to make it a datomic attribute
+                    (update-in kv [0] #(keyword model-type (name %)))))
+             (reduce (fn [res [k v]]
+                       (conj res [op id k v]))
+                     []))))
+    [v]))
 
 (defn- put*
   [models {:keys [conn]}]
   {:pre [(satisfies? Connection conn)]}
-  (let [prepped (vec (mapcat prep-for-put models))
+  (let [prepped (->> models
+                     (map #(+id % (comp str random-uuid)))
+                     (mapcat deconstruct)
+                     (mapcat prep-for-put)
+                     vec)
         {:keys [tempids]} (d/transact conn {:tx-data prepped})]
     (map #(or (tempids (:db/id %))
               (:db/id %))
@@ -197,6 +205,10 @@
                              prepend
                              (or (::db options)
                                  (d/db conn))))
+
+        _ (pprint {::select* criteria
+                   ::query query})
+
         raw-result (d/q query)]
     (->> raw-result
          (map first)

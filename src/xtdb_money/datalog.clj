@@ -29,11 +29,12 @@
 
 (defmulti apply-criterion
   (fn [_query [_k v]]
-    (when (vector? v)
-      (case (first v)
-        (:< :<= :> :>=) :comparison
-        :and            :intersection
-        :or             :union))))
+    (cond
+      (map? v) :compound
+      (vector? v) (case (first v)
+                    (:< :<= :> :>=) :comparison
+                    :and            :intersection
+                    :or             :union))))
 
 (defn- arg-ident
   ([k] (arg-ident k nil))
@@ -41,9 +42,10 @@
   (symbol (str "?" (name k) suffix))))
 
 (defn- field-ref
-  [k]
+  [k & {explicit-type :model-type}]
   (or ((:remap *opts*) k)
-      (keyword (name (model-type))
+      (keyword (name (or explicit-type
+                         (model-type)))
                (name k))))
 
 (defmethod apply-criterion :default
@@ -101,6 +103,27 @@
                                [(list (-> oper name symbol)
                                        attr-ref
                                        input-ref)]))))))))
+
+; NB This should probably be recursive
+(defmethod apply-criterion :compound
+  [query [k1 m]] ; TODO: Maybe this could also be a vector instead of a map?
+  (let [input (arg-ident k1)]
+    (reduce (fn [q [k2 v]]
+              (-> q
+                  (update-in (query-key :where)
+                             conj*
+                             [input
+                              (field-ref k2 :model-type k1)
+                              (arg-ident k2 "-in")])
+                  (update-in (query-key :in) conj* (arg-ident k2 "-in"))
+                  (update-in (args-key) conj* (coerce v))))
+            (-> query
+                (update-in (query-key :where)
+                           conj*
+                           ['?x
+                            (field-ref k1)
+                            input]))
+            m)))
 
 (s/def ::args-key (s/coll-of keyword? :kind vector?))
 (s/def ::query-prefix (s/coll-of keyword :kind vector?))

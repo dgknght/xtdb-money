@@ -77,23 +77,24 @@
 
 (def ^:private oauth-context
   (-> update-context
-      (assoc-in [:users 0 :identities] [{:provider :google
-                                         :id "abc123"}
-                                        {:provider :github
-                                         :id "def456"}])
+      (assoc-in [:users 0 :identities] [{:identity [:google "abc123"]}
+                                        {:identity [:github "def456"]}])
       (update-in [:users] conj {:email "jane@doe.com"
                                 :given-name "Jane"
                                 :surname "Doe"
-                                :identities [{:provider :google
-                                              :id "def456"}
-                                             {:provider :github
-                                              :id "abc123"}]})))
+                                :identities [{:identity [:google "def456"]}
+                                             {:identity [:github "abc123"]}]})))
 ; NB The above provider/id pairs contain the same provider and id values
 ; but grouped differently
 
 (dbtest find-a-user-by-oauth-id
-  (with-context update-context
+  (with-context oauth-context
     (is (comparable? {:email "john@doe.com"
                       :given-name "John"
-                      :surname "Doe"}
+                      :surname "Doe"
+                      :identities {:google "abc123"
+                                   :github "def456"}}
                      (usrs/find-by-oauth [:google "abc123"])))))
+
+; TODO: add an identity
+; TODO: remove an identity
