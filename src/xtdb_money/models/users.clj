@@ -9,9 +9,7 @@
 (s/def ::email v/email?)
 (s/def ::given-name string?)
 (s/def ::surname string?)
-(s/def ::identity (s/tuple keyword? string?))
-(s/def ::identity-record (s/keys :req-un [::identity]))
-(s/def ::identities (s/coll-of ::identity-record))
+(s/def ::identities (s/map-of keyword? string?))
 (s/def ::user (s/keys :req-un [::email ::given-name ::surname]
                       :opt-un [::identities]))
 
@@ -39,7 +37,7 @@
 
 (defn find-by-oauth
   [tuple] ; tuple contains provider in 1st pos., id in 2nd pos.
-  (find-by {:identities tuple}))
+  (find-by {:identities [:= tuple]}))
 
 (defn- resolve-put-result
   [[x :as records]]

@@ -34,7 +34,8 @@
       (vector? v) (case (first v)
                     (:< :<= :> :>=) :comparison
                     :and            :intersection
-                    :or             :union))))
+                    :or             :union
+                    :=              :equality))))
 
 (defn- arg-ident
   ([k] (arg-ident k nil))
@@ -48,7 +49,7 @@
                          (model-type)))
                (name k))))
 
-(defmethod apply-criterion :default
+(defn- simple-match
   [query [k v]]
   (let [input (arg-ident k "-in")]
     (-> query
@@ -59,6 +60,14 @@
                     input])
         (update-in (query-key :in) conj* input)
         (update-in (args-key) conj* (coerce v)))))
+
+(defmethod apply-criterion :default
+  [query tuple]
+  (simple-match query tuple))
+
+(defmethod apply-criterion :equality
+  [query [k [_ v]]]
+  (simple-match query [k v]))
 
 (defmethod apply-criterion :comparison
   [query [k [oper v]]]
@@ -104,19 +113,22 @@
                                        attr-ref
                                        input-ref)]))))))))
 
+(defn- apply-key-value-criterion
+  [input k1 q [k2 v]]
+  (-> q
+      (update-in (query-key :where)
+                 conj*
+                 [input
+                  (field-ref k2 :model-type k1)
+                  (arg-ident k2 "-in")])
+      (update-in (query-key :in) conj* (arg-ident k2 "-in"))
+      (update-in (args-key) conj* (coerce v))))
+
 ; NB This should probably be recursive
 (defmethod apply-criterion :compound
   [query [k1 m]] ; TODO: Maybe this could also be a vector instead of a map?
   (let [input (arg-ident k1)]
-    (reduce (fn [q [k2 v]]
-              (-> q
-                  (update-in (query-key :where)
-                             conj*
-                             [input
-                              (field-ref k2 :model-type k1)
-                              (arg-ident k2 "-in")])
-                  (update-in (query-key :in) conj* (arg-ident k2 "-in"))
-                  (update-in (args-key) conj* (coerce v))))
+    (reduce (partial apply-key-value-criterion input k1)
             (-> query
                 (update-in (query-key :where)
                            conj*

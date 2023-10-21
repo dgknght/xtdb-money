@@ -68,24 +68,15 @@
                              :model-type :transaction))
       "statements are added directly to the where chain"))
 
-; if needed, maybe use meta data to indicate how
-; the map should be interpreted, like
-; ^:exact {:settings {:theme :dark}} =>
-; {:where [[?x :user/identities ?identities-in]]
-;  :in [?identities-in]
-;  :args [{:theme :dark}]}
-(deftest apply-a-deep-criterion
+(deftest apply-a-tuple-match-criterion
   (is (= '{:find [?x]
-           :where [[?x :user/identities ?identities]
-                   [?identities :identities/provider ?provider-in]
-                   [?identities :identities/id ?id-in]]
-           :in [?provider-in ?id-in]
-           :args [:google "abc123"]}
+           :where [[?x :user/identities ?identities-in]]
+           :in [?identities-in]
+           :args [[:google "abc123"]]}
          (dtl/apply-criteria query
-                             {:identities {:provider :google
-                                           :id "abc123"}}
+                             {:identities [:= [:google "abc123"]]}
                              :model-type :user))
-      "A map is interpreted as another criteria map"))
+      "Using :match, a vector is passed in as the match value"))
 
 (deftest apply-options
   (testing "limit"

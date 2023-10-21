@@ -205,10 +205,6 @@
                              prepend
                              (or (::db options)
                                  (d/db conn))))
-
-        _ (pprint {::select* criteria
-                   ::query query})
-
         raw-result (d/q query)]
     (->> raw-result
          (map first)
