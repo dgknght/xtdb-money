@@ -27,6 +27,8 @@
                (:json-body res))
             "The created entity is returned")))))
 
+; TODO: Test without authentcation, ensure API-friendly response
+; TODO: Add authentication
 (deftest get-a-list-of-entities
   (let [calls (atom [])]
     (with-redefs [ents/select (fn [& args]

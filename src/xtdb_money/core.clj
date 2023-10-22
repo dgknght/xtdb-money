@@ -54,6 +54,10 @@
   ([m model-or-type]
    (vary-meta m assoc :model-type (extract-model-type model-or-type))))
 
+(defn +model-type
+  [m-type]
+  #(model-type % m-type))
+
 (defn set-meta
   [m model-or-type]
   (vary-meta m assoc

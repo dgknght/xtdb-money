@@ -56,7 +56,7 @@
   [db model]
   (let [table (infer-table-name model)
         s (for-insert table
-                      (before-save model)
+                      model
                       jdbc/snake-kebab-opts)
         result (jdbc/execute-one! db s {:return-keys [:id]})]
 
@@ -69,7 +69,7 @@
   [db {:keys [id] :as model}]
   (let [table (infer-table-name model)
         s (for-update table
-                      (dissoc (before-save model) :id)
+                      (dissoc model :id)
                       {:id id}
                       jdbc/snake-kebab-opts)
         result (jdbc/execute-one! db s {:return-keys [:id]})]
@@ -174,12 +174,13 @@
     ::mny/update (update db model)
     ::mny/delete (delete-one db model)))
 
-(defn- put*
+(defn put*
   [db models]
   (jdbc/with-transaction [tx db]
-    (mapv (comp #(put-one tx %)
-                wrap-oper)
-          models)))
+    (->> models
+         (mapv (comp #(put-one tx %)
+                     wrap-oper
+                     before-save)))))
 
 (defn- select*
   [db criteria options]
