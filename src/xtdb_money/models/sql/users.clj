@@ -47,3 +47,13 @@
     (reduce-kv sql/apply-criterion
                (apply-identities-criterion s criteria)
                (dissoc criteria :identities))))
+
+(defmethod sql/after-read :user
+  [user {:keys [db]}]
+  ; TODO: I either need the db or the config here
+  ; maybe after-read should have an options map
+  (assoc user :identities (->> (-> {:user-id (:id user)}
+                                   (mny/model-type :identity)
+                                   (select db))
+                               (map (juxt :provider :provider-id))
+                               (into {}))))
