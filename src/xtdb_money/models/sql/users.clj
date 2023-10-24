@@ -49,11 +49,14 @@
                (dissoc criteria :identities))))
 
 (defmethod sql/after-read :user
-  [user {:keys [db]}]
+  [user db]
   ; TODO: I either need the db or the config here
   ; maybe after-read should have an options map
-  (assoc user :identities (->> (-> {:user-id (:id user)}
-                                   (mny/model-type :identity)
-                                   (select db))
+  (assoc user :identities (->> (sql/select* 
+                                 db
+                                 (mny/model-type
+                                   {:user-id (:id user)}
+                                   :identity)
+                                 {})
                                (map (juxt :provider :provider-id))
                                (into {}))))

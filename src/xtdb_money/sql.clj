@@ -124,8 +124,8 @@
     limit (assoc :limit limit)
     order-by (assoc :order-by order-by)))
 
-(defmulti after-read mny/model-type)
-(defmethod after-read :default [m] m)
+(defmulti after-read (fn [m _] (mny/model-type m)))
+(defmethod after-read :default [m _] m)
 
 (defmulti attributes identity)
 
@@ -140,7 +140,7 @@
     ; TODO: scrub sensitive data
     (log/debugf "database select %s with options %s -> %s" criteria options query)
 
-    (map (comp after-read
+    (map (comp #(after-read % db)
                #(mny/model-type % criteria))
          (select! db
                   (attributes (mny/model-type criteria))
@@ -182,7 +182,7 @@
                      wrap-oper
                      before-save)))))
 
-(defn- select*
+(defn select*
   [db criteria options]
   (select db criteria options))
 
