@@ -1,6 +1,7 @@
 (ns xtdb-money.models.users
   (:refer-clojure :exclude [find])
   (:require [clojure.spec.alpha :as s]
+            [clojure.pprint :refer [pprint]]
             [dgknght.app-lib.validation :as v]
             [xtdb-money.models :as mdls]
             [xtdb-money.util :refer [->id]]
@@ -16,12 +17,34 @@
 (s/def ::criteria (s/keys :opt-un [::email
                                    ::mdls/id]))
 
+(defn- select-identities
+  [user]
+  (mny/select (mny/storage)
+              (-> {:user-id (:id user)}
+                  (mny/model-type :identity))
+              {}))
+
+(defn- assoc-identities
+  [user]
+  ; Some of the data storage strategies embed the identities
+  ; in the user record
+  (if (:identities user)
+    user
+    (assoc user :identities (->> (select-identities user)
+                                 (map (juxt :provider :provider-id))
+                                 (into {})))))
+(defn- after-read
+  [user]
+  (-> user
+      assoc-identities
+      (mny/set-meta user)))
+
 (defn select
   ([criteria] (select criteria {}))
   ([criteria options]
    {:pre [(s/valid? ::criteria criteria)
           (s/valid? ::mny/options options)]}
-   (map #(mny/set-meta % :user)
+   (map after-read
         (mny/select (mny/storage)
                     (mny/model-type criteria :user)
                     options))))

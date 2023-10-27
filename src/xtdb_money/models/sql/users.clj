@@ -1,34 +1,27 @@
 (ns xtdb-money.models.sql.users
-  (:require [clojure.tools.logging :as log]
-            [next.jdbc :as jdbc]
-            [next.jdbc.sql.builder :refer [for-insert]]
-            [honey.sql.helpers :as h]
+  (:require [honey.sql.helpers :as h]
             [xtdb-money.core :as mny]
-            [xtdb-money.sql :as sql]))
+            [xtdb-money.sql :as sql])
+  (:import java.util.UUID))
 
 (defmethod sql/attributes :user [_]
   [:id :email :given-name :surname])
 
 (defn- inflate-identity
-  [[p id]]
-  ; TODO: This is going to need the user-id value also
-  {:provider p
-   :provider-id id})
+  [user-id [p id]]
+  (mny/model-type {:user-id user-id
+                   :provider p
+                   :provider-id id}
+                  :identity))
 
-(defmethod sql/insert :user
-  [db {:keys [identities] :as user}]
-  (let [s (for-insert :users
-                      (dissoc user :identities)
-                      jdbc/snake-kebab-opts)
-        result (jdbc/execute-one! db s {:return-keys [:id]})
-        id (get-in result [:users/id])]
-    (->> identities
-         (mapv (comp (mny/+model-type :identity)
-                     #(assoc % :user-id id)
-                     inflate-identity))
-         (sql/put* db))
-    (log/debugf "insert user %s -> %s" s result)
-    id))
+(defmethod sql/deconstruct :user
+  [{:as user :keys [identities]}]
+  (let [id (or (:id user) (UUID/randomUUID))]
+    (-> user
+        (assoc :id id)
+        (dissoc :identities)
+        (cons (map (partial inflate-identity id)
+                   identities)))))
 
 (defn- apply-identities-criterion
   [s {[_ [provider provider-id] :as identities] :identities}]
@@ -47,16 +40,3 @@
     (reduce-kv sql/apply-criterion
                (apply-identities-criterion s criteria)
                (dissoc criteria :identities))))
-
-(defmethod sql/after-read :user
-  [user db]
-  ; TODO: I either need the db or the config here
-  ; maybe after-read should have an options map
-  (assoc user :identities (->> (sql/select* 
-                                 db
-                                 (mny/model-type
-                                   {:user-id (:id user)}
-                                   :identity)
-                                 {})
-                               (map (juxt :provider :provider-id))
-                               (into {}))))

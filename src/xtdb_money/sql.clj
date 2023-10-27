@@ -48,12 +48,16 @@
 (defmulti before-save mny/model-type)
 (defmethod before-save :default [m] m)
 
+(defmulti deconstruct mny/model-type)
+(defmethod deconstruct :default [m] [m])
+
 (def ^:private infer-table-name
   (comp plural
         mny/model-type))
 
 (defmethod insert :default
   [db model]
+  {:pre [(mny/model-type model)]}
   (let [table (infer-table-name model)
         s (for-insert table
                       model
@@ -112,20 +116,14 @@
                s
                criteria)))
 
-(defn apply-id
-  [s {:keys [id]}]
-  (if id
-    (h/where s [:= :id id])
-    s))
-
 (defn- apply-options
   [s {:keys [limit order-by]}]
   (cond-> s
     limit (assoc :limit limit)
     order-by (assoc :order-by order-by)))
 
-(defmulti after-read (fn [m _] (mny/model-type m)))
-(defmethod after-read :default [m _] m)
+(defmulti after-read mny/model-type)
+(defmethod after-read :default [m] m)
 
 (defmulti attributes identity)
 
@@ -140,8 +138,8 @@
     ; TODO: scrub sensitive data
     (log/debugf "database select %s with options %s -> %s" criteria options query)
 
-    (map (comp #(after-read % db)
-               #(mny/model-type % criteria))
+    (map (comp after-read
+               (mny/+model-type criteria))
          (select! db
                   (attributes (mny/model-type criteria))
                   query
@@ -176,8 +174,10 @@
 
 (defn put*
   [db models]
+  ; TODO: refactor this to handle temporary ids
   (jdbc/with-transaction [tx db]
     (->> models
+         (mapcat deconstruct)
          (mapv (comp #(put-one tx %)
                      wrap-oper
                      before-save)))))
