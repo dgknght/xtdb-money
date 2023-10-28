@@ -40,3 +40,7 @@
     (reduce-kv sql/apply-criterion
                (apply-identities-criterion s criteria)
                (dissoc criteria :identities))))
+
+(defmethod sql/resolve-temp-ids :identity
+  [ident id-map]
+  (update-in ident [:user-id] id-map))

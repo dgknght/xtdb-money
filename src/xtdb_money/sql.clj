@@ -160,7 +160,8 @@
   [m]
   (if (vector? m)
     m
-    [(if (:id m)
+    [(if (and (:id m)
+              (not (uuid? (:id m))))
        ::mny/update
        ::mny/insert)
      m]))
@@ -172,15 +173,43 @@
     ::mny/update (update db model)
     ::mny/delete (delete-one db model)))
 
+; this is not unlike the way datomic handles temporary ids
+; if saving multiple models that need to reference each other
+; before the database has issued an ID, we can specify temporary
+; ids that will be resolved as needed during the save process
+(defmulti resolve-temp-ids
+  (fn [model _id-map]
+    (mny/model-type model)))
+
+(defmethod resolve-temp-ids :default
+  [model _id-map]
+  model)
+
+(defn- temp-id?
+  [{:keys [id]}]
+  (uuid? id))
+
+(defn- execute-and-aggregate
+  [db {:as result :keys [id-map]} [operator m]]
+  (let [ready-to-save (cond-> (resolve-temp-ids m id-map)
+                        (temp-id? m) (dissoc :id))
+        saved (put-one db [operator ready-to-save])]
+    (cond-> (update-in result [:saved] conj saved)
+      (temp-id? m)
+      (assoc-in [:id-map (:id m)]
+                saved))))
+
 (defn put*
   [db models]
   ; TODO: refactor this to handle temporary ids
   (jdbc/with-transaction [tx db]
-    (->> models
-         (mapcat deconstruct)
-         (mapv (comp #(put-one tx %)
-                     wrap-oper
-                     before-save)))))
+    (:saved (->> models
+                 (mapcat deconstruct)
+                 (map (comp wrap-oper
+                            before-save))
+                 (reduce (partial execute-and-aggregate tx)
+                         {:id-map {}
+                          :saved []})))))
 
 (defn select*
   [db criteria options]
