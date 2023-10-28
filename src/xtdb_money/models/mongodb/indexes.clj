@@ -8,7 +8,7 @@
 (def ^:private all-indexes
   {:users {"uk_user_email" {:fields [:email]
                             :options {:unique true}}
-           "uk_user_oauth_id" {:fields [:oauth-ids.provider :oauth-ids.provider-id]}}
+           "uk_user_oauth_id" {:fields [:identities.oauth-provider :identities.oauth-id]}}
    :entities {"uk_entity_name" {:fields [:name]
                                 :options {:unique true}}}
    :accounts {"ix_account_entity" {:fields [:entity-id]}}

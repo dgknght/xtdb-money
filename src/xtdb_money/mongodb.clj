@@ -42,6 +42,8 @@
   [id]
   (when id (coerce-id id)))
 
+(defmulti before-save mny/model-type)
+(defmethod before-save :default [m] m)
 (defmulti after-read mny/model-type)
 (defmethod after-read :default [m] m)
 
@@ -87,7 +89,8 @@
                  (rename-keys % {:_id :id})
                  %)
               #(put-model conn %)
-              wrap-oper)
+              wrap-oper
+              before-save)
         models))
 
 (def ^:private oper-map
@@ -96,7 +99,7 @@
    :< :$lt
    :<= :$lte})
 
-(defmulti ^:private adjust-complex-criterion
+(defmulti adjust-complex-criterion
   (fn [[_k v]]
     (when (vector? v)
       (let [[oper] v]
@@ -136,7 +139,8 @@
        (map adjust-complex-criterion)
        (into {})))
 
-(defn apply-criteria
+(defmulti apply-criteria (fn [_q c] (mny/model-type c)))
+(defmethod apply-criteria :default
   [query criteria]
   (if (seq criteria)
     (assoc query :where (-> criteria
