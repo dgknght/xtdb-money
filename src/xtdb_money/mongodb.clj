@@ -202,7 +202,7 @@
 (defn- reset*
   [conn]
   (m/with-mongo conn
-    (doseq [c [:transactions :accounts :entities]]
+    (doseq [c [:transactions :accounts :entities :users]]
       (m/destroy! c {}))))
 
 (defn connect
