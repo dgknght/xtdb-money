@@ -37,7 +37,7 @@
   [user]
   (-> user
       assoc-identities
-      (mny/set-meta user)))
+      (mny/set-meta :user)))
 
 (defn select
   ([criteria] (select criteria {}))

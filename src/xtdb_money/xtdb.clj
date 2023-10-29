@@ -1,6 +1,6 @@
 (ns xtdb-money.xtdb
-  (:require [clojure.walk :refer [postwalk]]
-            [clojure.java.io :as io]
+  (:require [clojure.java.io :as io]
+            [clojure.set :refer [rename-keys]]
             [xtdb.api :as xt]
             [dgknght.app-lib.core :refer [update-in-if]]
             [xtdb-money.datalog :as dtl]
@@ -11,7 +11,11 @@
                                      ->storable-date]])
   (:import org.joda.time.LocalDate
            java.util.UUID
-           java.lang.String))
+           java.lang.String
+           [clojure.lang PersistentVector PersistentArrayMap]))
+
+(derive PersistentVector ::vector)
+(derive PersistentArrayMap ::map)
 
 (defmulti coerce-id type)
 (defmethod coerce-id :default [id] id)
@@ -19,106 +23,61 @@
   [id]
   (UUID/fromString id))
 
-(defn- two-count?
-  [coll]
-  (= 2 (count coll)))
-
-(defn- f-keyword?
-  [[x]]
-  (keyword? x))
-
-(def map-tuple?
-  (every-pred vector?
-              two-count?
-              f-keyword?))
-
-(defmulti ^:private ->xt*
-  (fn [x _]
-    (cond
-      (map-tuple? x) :tuple
-      (local-date? x) :date)))
-
-(defmethod ->xt* :default
-  [x _]
-  x)
-
-(defmethod ->xt* :date
-  [x _]
-  (->storable-date x))
-
-(defmethod ->xt* :tuple
-  [x model-type-name]
-  (if (= :id (first x))
-    (assoc-in x [0] :xt/id)
-    (update-in x [0] #(keyword model-type-name
-                               (name %)))))
-
-(defn- ->xt-keys
-  [m model-type]
-  (postwalk #(->xt* % (name model-type)) m))
-
-(defmulti ^:private ->xt-map #(cond
-                                (map? %) :map
-                                (vector? %) :vector))
-
-(defmethod ->xt-map :map
-  [m]
-  {:pre [(-> m meta :model-type)]}
-
-  (let [model-type (-> m meta :model-type)]
-    (-> m
-        (update-in [:id] make-id)
-        (->xt-keys model-type))))
-
-(defmethod ->xt-map :vector
-  [m]
-  (update-in m [1] ->xt-map))
-
-(defmethod ->xt-map :default
-  [m]
-  m)
+(defmulti before-save mny/model-type)
+(defmethod before-save :default [m] m)
+(defmulti after-read mny/model-type)
+(defmethod after-read :default [m] m)
 
 (def ^:private action-map
   {::mny/delete ::xt/delete})
 
-(defmulti ^:private wrap-trans #(cond
-                                  (map? %) :map
-                                  (vector? %) :vector))
+(defmulti ^:private wrap-trans type)
 
-(defmethod wrap-trans :vector
+(defmethod wrap-trans ::vector
   [t]
   (update-in t [0] action-map)) ; exchange the generic action for the xtdb action
 
-(defmethod wrap-trans :map
+(defmethod wrap-trans ::map
   [t]
   [::xt/put t]) ; assume put if no action is specified
 
-(defn- simplify-deletions
-  "Given a tuple with a delete operation, extracts the
-  :id from the model in the second position"
+(defn- qualify-keys
+  [m]
+  ; this only qualifies the top-level keys, while the fn in util
+  ; does it recursively
+  (let [nspace (name (mny/model-type m))
+        +nspace (fn [k]
+                  (if (namespace k) ; if it's already qualified, leave it as-is
+                    k
+                    (keyword nspace (name k))))]
+    (with-meta (->> m
+                    (map #(update-in % [0] +nspace))
+                    (into {}))
+               (meta m))))
+
+(defn- prep-for-put
   [[oper :as tuple]]
-  (if (= ::xt/delete oper)
-    (update-in tuple [1] :id)
-    tuple))
+  (update-in tuple [1] (if (= :xt/delete oper)
+                         :id
+                         (comp qualify-keys
+                               #(rename-keys % {:id :xt/id})
+                               #(update-in % [:id] (fnil identity (UUID/randomUUID)))))))
 
 (defn- submit
-  "Give a list of model maps, or vector tuples with an action in the
+  "Given a list of model maps, or vector tuples with an action in the
   1st position and a model in the second, execute the actions and
   return the id values of the models"
   [node docs]
   {:pre [(sequential? docs)]} ; TODO: Use the "&" syntax for any number of documents
 
   (let [prepped (->> docs
-                     (map (comp ->xt-map
-                                simplify-deletions
-                                wrap-trans))
+                     (map (comp prep-for-put
+                                wrap-trans
+                                before-save))
                      (into []))]
     (xt/submit-tx node prepped)
     (xt/sync node)
     (map #(get-in % [1 :xt/id]) prepped)))
-
-(defmulti after-read mny/model-type)
-(defmethod after-read :default [m] m)
 
 (defmulti ->storable type)
 
@@ -216,7 +175,6 @@
                           (dissoc query ::args)
                           args)]
     (map (comp after-read
-               #(mny/model-type % criteria)
                unqualify-keys
                first)
          raw-result)))
