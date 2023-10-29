@@ -5,8 +5,7 @@
             [dgknght.app-lib.core :refer [update-in-if]]
             [xtdb-money.datalog :as dtl]
             [xtdb-money.core :as mny]
-            [xtdb-money.util :refer [local-date?
-                                     make-id
+            [xtdb-money.util :refer [make-id
                                      unqualify-keys
                                      ->storable-date]])
   (:import org.joda.time.LocalDate
@@ -61,7 +60,7 @@
                          :id
                          (comp qualify-keys
                                #(rename-keys % {:id :xt/id})
-                               #(update-in % [:id] (fnil identity (UUID/randomUUID)))))))
+                               #(update-in % [:id] make-id)))))
 
 (defn- submit
   "Given a list of model maps, or vector tuples with an action in the
@@ -97,6 +96,9 @@
     query
     (assoc query :where [(identifying-where-clause criteria)])))
 
+(defmulti before-query mny/model-type)
+(defmethod before-query :default [c] c)
+
 (defmulti criteria->query
   (fn [criteria _opts] (mny/model-type criteria)))
 
@@ -105,7 +107,9 @@
   (let [model-type (mny/model-type criteria)]
     (-> '{:find [(pull ?x [*])]
         :in [$]}
-      (dtl/apply-criteria (update-in-if criteria [:id] coerce-id)
+      (dtl/apply-criteria (-> criteria
+                              (update-in-if [:id] coerce-id)
+                              before-query)
                           :coerce ->storable
                           :model-type model-type
                           :args-key [::args]

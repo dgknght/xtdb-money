@@ -30,3 +30,8 @@
                        (reduce (fn [r [p id]]
                                  (assoc r p id))
                                {})))))
+
+(defmethod x/before-query :user
+  [criteria]
+  (update-in-if criteria [:identities 1] (fn [[k v]]
+                                         {k v})))
