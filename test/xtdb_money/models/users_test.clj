@@ -89,9 +89,6 @@
 
 (dbtest find-a-user-by-oauth-id
   (with-context oauth-context
-
-    (clojure.pprint/pprint {::find-by-oauth (usrs/find-by-oauth [:google "abc123"])})
-
     (is (comparable? {:email "john@doe.com"
                       :given-name "John"
                       :surname "Doe"
