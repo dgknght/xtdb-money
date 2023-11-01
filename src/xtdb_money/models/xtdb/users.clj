@@ -17,19 +17,14 @@
   (update-in-if user
                 [:identities]
                 (fn [i]
-                  (map #(apply hash-map %)
+                  (mapv #(apply hash-map %)
                        i))))
 
 (defmethod x/after-read :user
   [user]
   (update-in-if user
                 [:identities]
-                (fn [i]
-                  (->> i
-                       (mapcat identity)
-                       (reduce (fn [r [p id]]
-                                 (assoc r p id))
-                               {})))))
+                #(apply merge %)))
 
 (defmethod x/before-query :user
   [criteria]

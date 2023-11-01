@@ -179,6 +179,7 @@
                           (dissoc query ::args)
                           args)]
     (map (comp after-read
+               (mny/+model-type criteria)
                unqualify-keys
                first)
          raw-result)))
