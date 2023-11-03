@@ -12,9 +12,8 @@
                       {:oauth-token token
                        :accept :json
                        :as :json})]
-    (if (= 200 (:status res))
-      (clojure.pprint/pprint {::profile (:body res)})
-      (clojure.pprint/pprint {::no-profile (:body res)}))))
+    (when (= 200 (:status res))
+      (:body res))))
 
 (defn fetch-profiles
   "Given a map of access tokens like:

@@ -42,7 +42,7 @@
                     parse-json-body)
             [c :as cs] @calls]
         (is (http-success? res))
-        (is (comparable? {"Content-Type" "application/json; charset=utf-8"}
+        (is (comparable? {"Content-Type" "application/json"}
                          (:headers res))
             "The response has the correct content type")
         (is (= [{:id 101 :name "Personal"}
