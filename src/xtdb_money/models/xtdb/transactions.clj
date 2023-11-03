@@ -1,6 +1,16 @@
 (ns xtdb-money.models.xtdb.transactions
   (:require [xtdb-money.datalog :as dtl]
-            [xtdb-money.xtdb :as x]))
+            [xtdb-money.xtdb :as x]
+            [xtdb-money.util :refer [->storable-date
+                                     <-storable-date]]))
+
+(defmethod x/before-save :transaction
+  [transaction]
+  (update-in transaction [:transaction-date] ->storable-date))
+
+(defmethod x/after-read :transaction
+  [transaction]
+  (update-in transaction [:transaction-date] <-storable-date))
 
 (defn- apply-account-id
   [query {:keys [account-id]}]

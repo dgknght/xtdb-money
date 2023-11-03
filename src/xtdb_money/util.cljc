@@ -1,8 +1,8 @@
 (ns xtdb-money.util
   (:require [clojure.walk :refer [prewalk]]
             [clojure.string :as string]
-            #?(:clj [clj-time.core :as t]
-               :cljs [cljs-time.core :as t])
+            #?(:clj [clojure.pprint :refer [pprint]]
+               :cljs [cljs.pprint :refer [pprint]])
             #?(:clj [clj-time.coerce :as tc]
                :cljs [cljs-time.coerce :as tc]))
   #?(:clj (:import org.joda.time.LocalDate)))

@@ -11,10 +11,14 @@
   (:import org.joda.time.LocalDate
            java.util.UUID
            java.lang.String
-           [clojure.lang PersistentVector PersistentArrayMap]))
+           [clojure.lang
+            PersistentVector
+            PersistentArrayMap
+            PersistentHashMap]))
 
 (derive PersistentVector ::vector)
 (derive PersistentArrayMap ::map)
+(derive PersistentHashMap ::map)
 
 (defmulti coerce-id type)
 (defmethod coerce-id :default [id] id)
@@ -56,7 +60,7 @@
 
 (defn- prep-for-put
   [[oper :as tuple]]
-  (update-in tuple [1] (if (= :xt/delete oper)
+  (update-in tuple [1] (if (= ::xt/delete oper)
                          :id
                          (comp qualify-keys
                                #(rename-keys % {:id :xt/id})

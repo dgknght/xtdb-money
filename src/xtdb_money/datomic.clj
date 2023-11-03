@@ -8,12 +8,11 @@
             [datomic.client.api.protocols :refer [Connection]]
             [clj-time.coerce :as tc]
             [xtdb-money.datalog :as dtl]
-            [xtdb-money.util :refer [qualify-keys
-                                     unqualify-keys
-                                     +id
-                                     prepend
-                                     apply-sort
-                                     split-nils]]
+            [xtdb-money.util :as u :refer [qualify-keys
+                                           unqualify-keys
+                                           prepend
+                                           apply-sort
+                                           split-nils]]
             [xtdb-money.core :as mny])
   (:import org.joda.time.LocalDate
            java.lang.String))
@@ -166,11 +165,24 @@
                      []))))
     [v]))
 
+(derive ::mny/put ::map+id)
+
+(defmulti ^:private +id
+  (fn [x]
+    (if (vector? x)
+      (first x)
+      ::map+id)))
+
+(defmethod +id :default [m] m)
+
+(defmethod +id ::map+id [m]
+  (u/+id m (comp str random-uuid)))
+
 (defn- put*
   [models {:keys [conn]}]
   {:pre [(satisfies? Connection conn)]}
   (let [prepped (->> models
-                     (map #(+id % (comp str random-uuid)))
+                     (map +id)
                      (mapcat deconstruct)
                      (mapcat prep-for-put)
                      vec)
