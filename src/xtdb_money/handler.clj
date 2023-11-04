@@ -104,7 +104,6 @@
                              wrap-api-exception
                              wrap-db
                              wrap-logging
-                             wrap-content-type
                              wrap-no-cache-header
                              wrap-file-etag
                              wrap-not-modified
