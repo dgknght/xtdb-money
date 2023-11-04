@@ -136,22 +136,21 @@
 
 (defn wrap-site []
   (let [c-store (cookie-store)]
-    #(wrap-defaults % (update-in site-defaults
-                                 [:session]
-                                 merge
-                                 {:store c-store
-                                  :cookie-attrs {:same-site :lax
-                                                 :http-only true}}))))
+    [wrap-defaults (update-in site-defaults
+                              [:session]
+                              merge
+                              {:store c-store
+                               :cookie-attrs {:same-site :lax
+                                              :http-only true}})]))
 
 (def wrap-oauth
-  #(wrap-oauth2
-     %
-     {:google
-      {:authorize-uri "https://accounts.google.com/o/oauth2/v2/auth"
-       :access-token-uri "https://www.googleapis.com/oauth2/v4/token"
-       :client-id (env :google-oauth-client-id)
-       :client-secret (env :google-oauth-client-secret)
-       :scopes ["email" "profile"]
-       :launch-uri "/oauth/google"
-       :redirect-uri "/oauth/google/callback"
-       :landing-uri "/"}}))
+  [wrap-oauth2
+   {:google
+    {:authorize-uri "https://accounts.google.com/o/oauth2/v2/auth"
+     :access-token-uri "https://www.googleapis.com/oauth2/v4/token"
+     :client-id (env :google-oauth-client-id)
+     :client-secret (env :google-oauth-client-secret)
+     :scopes ["email" "profile"]
+     :launch-uri "/oauth/google"
+     :redirect-uri "/oauth/google/callback"
+     :landing-uri "/"}}])

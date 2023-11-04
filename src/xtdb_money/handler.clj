@@ -101,8 +101,8 @@
                           wrap-issue-auth-token]}
         ["" {:get {:handler index}}]
         ["oauth/*" {:get (wrap-json-response not-found)}]]
-       ["/api" {:middleware [#(wrap-defaults % api-defaults)
-                             #(wrap-json-body % {:keywords? true :bigdecimals? true})
+       ["/api" {:middleware [[wrap-defaults api-defaults]
+                             [wrap-json-body {:keywords? true :bigdecimals? true}]
                              wrap-json-response
                              wrap-api-exception
                              wrap-db
