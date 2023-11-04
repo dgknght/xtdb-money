@@ -1,5 +1,6 @@
 (ns xtdb-money.api.entities-test
   (:require [cljs.test :refer [deftest is async]]
+            [cljs.pprint :refer [pprint]]
             [xtdb-money.api.entities :as ents]))
 
 (deftest get-a-list-of-entities
@@ -11,7 +12,7 @@
                  :callback
                  (fn [res]
 
-                   (cljs.pprint/pprint {::res res})
+                   (pprint {::res res})
 
                    (is (= [{:id 101
                             :name "Personal"}

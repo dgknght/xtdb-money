@@ -4,8 +4,7 @@
             [xtdb-money.helpers :refer [reset-db
                                         dbtest]]
             [xtdb-money.test-context :refer [with-context
-                                             find-user
-                                             find-commodity]]
+                                             find-user]]
             [xtdb-money.models.users :as usrs]
             [xtdb-money.models.mongodb.ref]
             [xtdb-money.models.sql.ref]

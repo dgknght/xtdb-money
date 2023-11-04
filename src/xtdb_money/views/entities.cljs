@@ -10,13 +10,10 @@
                                                 current-entity
                                                 entities
                                                 +busy
-                                                -busy-xf
-                                                busy?]]
+                                                -busy-xf]]
             [xtdb-money.components :refer [icon-button]]
-            [xtdb-money.icons :refer [icon
-                                      icon-with-text]]
-            [xtdb-money.notifications :refer [alert
-                                              toast]]
+            [xtdb-money.icons :refer [icon]]
+            [xtdb-money.notifications :refer [toast]]
             [xtdb-money.api.entities :as ents]))
 
 (defn- receive-entities
