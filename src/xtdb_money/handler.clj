@@ -18,7 +18,9 @@
                                            wrap-oauth
                                            wrap-fetch-oauth-profile
                                            wrap-user-lookup
-                                           wrap-site]]
+                                           wrap-issue-auth-token
+                                           wrap-site
+                                           wrap-authenticate]]
             [xtdb-money.models.mongodb.ref]
             [xtdb-money.models.sql.ref]
             [xtdb-money.models.xtdb.ref]
@@ -95,7 +97,8 @@
                           wrap-logging
                           wrap-oauth
                           wrap-fetch-oauth-profile
-                          wrap-user-lookup]}
+                          wrap-user-lookup
+                          wrap-issue-auth-token]}
         ["" {:get {:handler index}}]
         ["oauth/*" {:get (wrap-json-response not-found)}]]
        ["/api" {:middleware [#(wrap-defaults % api-defaults)
@@ -104,6 +107,7 @@
                              wrap-api-exception
                              wrap-db
                              wrap-logging
+                             wrap-authenticate
                              wrap-no-cache-header
                              wrap-file-etag
                              wrap-not-modified

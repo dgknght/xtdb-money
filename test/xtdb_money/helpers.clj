@@ -1,7 +1,10 @@
 (ns xtdb-money.helpers
   (:require [clojure.test :refer [deftest testing]]
             [config.core :refer [env]]
-            [xtdb-money.core :as mny]))
+            [ring.mock.request :as req]
+            [xtdb-money.core :as mny]
+            [xtdb-money.tokens :as tkns]
+            [xtdb-money.models.users :as usrs]))
 
 (def ^:dynamic *strategy* nil)
 
@@ -55,3 +58,7 @@
            (testing (format "database strategy %s" name#)
              (mny/with-db [config#]
                ~@bod)))))))
+
+(defn authorize
+  [rq user]
+  (req/header rq "Authorization" (format "Bearer %s" (tkns/encode (usrs/tokenize user)))))

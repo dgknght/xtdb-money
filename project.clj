@@ -15,10 +15,7 @@
                        [ring/ring-defaults "0.3.4" :exclusions [ring/ring-core ring/ring-codec crypto-equality commons-io]]
                        [ring/ring-json "0.5.1" :exclusions [ring/ring-core ring/ring-codec]]
                        [co.deps/ring-etag-middleware "0.2.1"]
-                       [ring-oauth2 "0.2.2" :exclusions [com.fasterxml.jackson.dataformat/jackson-dataformat-smile
-                                                         com.fasterxml.jackson.dataformat/jackson-dataformat-cbor
-                                                         crypto-equality
-                                                         cheshire]]
+                       [ring-oauth2 "0.2.2" :exclusions [com.fasterxml.jackson.dataformat/jackson-dataformat-smile ring/ring-core com.fasterxml.jackson.dataformat/jackson-dataformat-cbor ring/ring-codec commons-fileupload crypto-equality cheshire commons-io]]
                        [metosin/reitit "0.7.0-alpha5" :exclusions [com.bhauman/spell-spec
                                                                    com.cognitect/transit-clj
                                                                    com.cognitect/transit-java
@@ -30,6 +27,7 @@
                                                                    org.clojure/tools.reader
                                                                    ring/ring-codec
                                                                    ring/ring-core]]
+                       [buddy/buddy-sign "3.5.351" :exclusions [com.fasterxml.jackson.dataformat/jackson-dataformat-smile com.fasterxml.jackson.dataformat/jackson-dataformat-cbor commons-fileupload crypto-equality cheshire commons-codec]]
                        [venantius/accountant "0.2.5"]
                        [clj-commons/secretary "1.2.4"]
                        [clj-time "0.15.2"]
@@ -120,7 +118,8 @@
 
                                                          "mongodb"
                                                          {:xtdb-money.core/provider :mongodb
-                                                          :database "money_development"}}}}
+                                                          :database "money_development"}}}
+                                       :app-secret "this is a weak secret for testing only"}
                                  :dependencies [[org.clojure/data.zip "1.0.0"]
                                                 [org.eclipse.jetty/jetty-server "9.4.36.v20210114"]
                                                 [org.eclipse.jetty.websocket/websocket-servlet "9.4.36.v20210114"]

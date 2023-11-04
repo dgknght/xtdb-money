@@ -2,6 +2,9 @@
   (:refer-clojure :exclude [find])
   (:require [clojure.spec.alpha :as s]
             [clojure.pprint :refer [pprint]]
+            [clj-time.core :as t]
+            [clj-time.coerce :refer [to-long
+                                     from-long]]
             [dgknght.app-lib.validation :as v]
             [xtdb-money.models :as mdls]
             [xtdb-money.util :refer [->id]]
@@ -79,3 +82,23 @@
   [user]
   {:pre [user (map? user)]}
   (mny/delete (mny/storage) [user]))
+
+(defn- +expiration
+  [m]
+  (assoc m :expires-at (to-long
+                         (t/plus (t/now)
+                                 (t/hours 6)))))
+
+(defn- expired?
+  [{:keys [expires-at]}]
+  (t/after? (from-long expires-at)
+            (t/now)))
+
+(defn tokenize
+  [user]
+  (+expiration {:user-id (:id user)}))
+
+(defn detokenize
+  [{:keys [user-id] :as token}]
+  (when-not (expired? token)
+    (find user-id)))

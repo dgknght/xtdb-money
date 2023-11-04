@@ -6,7 +6,9 @@
             [ring.middleware.session.cookie :refer [cookie-store]]
             [ring.middleware.oauth2 :refer [wrap-oauth2]]
             [ring.util.response :as res]
+            [dgknght.app-lib.api :as api]
             [xtdb-money.core :as mny]
+            [xtdb-money.tokens :as tkns]
             [xtdb-money.models.users :as usrs]
             [xtdb-money.oauth :refer [fetch-profiles]])
   (:import clojure.lang.ExceptionInfo))
@@ -107,6 +109,30 @@
                                    profiles))]
                (assoc req :authenticated user)
                req))))
+
+(defn wrap-issue-auth-token
+  [handler]
+  (fn [{:keys [authenticated] :as req}]
+    (handler (cond-> req
+               authenticated (res/set-cookie :auth-token
+                                             (tkns/encode (usrs/tokenize authenticated))
+                                             {:same-site true
+                                              :max-age (* 6 60 60)})))))
+
+(defn- extract-authorization
+  [{:keys [headers]}]
+  (when-let [authorization (headers "authorization")]
+    (when-let [parsed (re-find #"(?<=^Bearer ).*" authorization)]
+      (usrs/detokenize (tkns/decode parsed)))))
+
+; Validates the credentials of the request by token bearer
+; and associates the found user with the request
+(defn wrap-authenticate
+  [handler]
+  (fn [req]
+    (if-let [user (usrs/detokenize (extract-authorization req))]
+      (handler (assoc req :authenticated user))
+      api/unauthorized)))
 
 (defn wrap-site []
   (let [c-store (cookie-store)]

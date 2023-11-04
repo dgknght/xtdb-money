@@ -4,16 +4,22 @@
             [dgknght.app-lib.test-assertions]
             [dgknght.app-lib.web :refer [path]]
             [dgknght.app-lib.test :refer [parse-json-body]]
+            [xtdb-money.helpers :refer [authorize]]
             [xtdb-money.models.entities :as ents]
+            [xtdb-money.models.users :as usrs]
             [xtdb-money.handler :refer [app]]))
 
 (deftest create-an-entity
   (let [calls (atom [])]
     (with-redefs [ents/put (fn [& args]
-                              (swap! calls conj args)
-                              (assoc (first args) :id 123))]
+                             (swap! calls conj args)
+                             (assoc (first args) :id 123))
+                  usrs/find (fn [id]
+                              (when (= 101 id)
+                                {:id 101}))]
       (let [res (-> (req/request :post "/api/entities")
                     (req/json-body {:name "Personal"})
+                    (authorize {:id 101})
                     app
                     parse-json-body)
             [c :as cs] @calls]
@@ -36,8 +42,12 @@
                                 [{:id 101
                                   :name "Personal"}
                                  {:id 102
-                                  :name "Business"}])]
+                                  :name "Business"}])
+                  usrs/find (fn [id]
+                              (when (= 101 id)
+                                {:id 101}))]
       (let [res (-> (req/request :get "/api/entities")
+                    (authorize {:id 101})
                     app
                     parse-json-body)
             [c :as cs] @calls]
@@ -61,9 +71,13 @@
                                (swap! calls conj args)
                                (first args))
                     ents/select (constantly [{:id 101
-                                              :name "The old name"}])]
+                                              :name "The old name"}])
+                    usrs/find (fn [id]
+                                (when (= 101 id)
+                                  {:id 101}))]
         (let [res (-> (req/request :patch (path :api :entities 101))
                       (req/json-body {:name "The new name"})
+                      (authorize {:id 101})
                       app
                       parse-json-body)
               [c :as cs] @calls]
@@ -98,8 +112,12 @@
                                   (swap! calls conj args)
                                   nil)
                     ents/select (constantly [{:id 101
-                                              :name "My Money"}])]
+                                              :name "My Money"}])
+                    usrs/find (fn [id]
+                                (when (= 101 id)
+                                  {:id 101}))]
         (let [res (-> (req/request :delete (path :api :entities 101))
+                      (authorize {:id 101})
                       app)
               [c :as cs] @calls]
           (is (http-no-content? res))
@@ -114,7 +132,10 @@
       (with-redefs [ents/delete (fn [& args]
                                   (swap! calls conj args)
                                   nil)
-                    ents/select (constantly [])]
+                    ents/select (constantly [])
+                    usrs/find (fn [id]
+                                (when (= 101 id)
+                                  {:id 101}))]
         (is (http-not-found? (-> (req/request :delete (path :api :entities 101))
                                  app)))
         (is (zero? (count @calls))
