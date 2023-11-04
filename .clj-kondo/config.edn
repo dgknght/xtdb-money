@@ -18,7 +18,8 @@
                                                       xtdb-money.util/apply-sort
                                                       xtdb-money.util/split-nils
                                                       xtdb-money.util/valid-id?
-                                                      xtdb-money.util/truncate-html}}
+                                                      xtdb-money.util/truncate-html
+                                                      xtdb-money.handler/print-routes}}
            :unresolved-var {:exclude [figwheel.main.testing/run-tests-async]}
            :unused-referred-var {:exclude {clojure.pprint [pprint]
                                            cljs.pprint [pprint]}}
