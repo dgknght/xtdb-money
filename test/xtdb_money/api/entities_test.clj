@@ -4,34 +4,34 @@
             [dgknght.app-lib.test-assertions]
             [dgknght.app-lib.web :refer [path]]
             [dgknght.app-lib.test :refer [parse-json-body]]
-            [xtdb-money.helpers :refer [+auth]]
+            [xtdb-money.api-context :refer [with-context]]
+            [xtdb-money.helpers :refer [+auth
+                                        +db-strategy]]
             [xtdb-money.models.entities :as ents]
             [xtdb-money.models.users :as usrs]
             [xtdb-money.handler :refer [app]]))
 
+(def ^:private create-context
+  {:user [{:id 101}]})
+
 (deftest create-an-entity
-  (let [calls (atom [])]
-    (with-redefs [ents/put (fn [& args]
-                             (swap! calls conj args)
-                             (assoc (first args) :id 123))
-                  usrs/find (fn [id]
-                              (when (= 101 id)
-                                {:id 101}))]
-      (let [res (-> (req/request :post "/api/entities")
-                    (req/json-body {:name "Personal"})
-                    (+auth {:id 101})
-                    app
-                    parse-json-body)
-            [c :as cs] @calls]
-        (is (http-success? res))
-        (is (= 1 (count cs))
-            "The entities/put fn is called once")
-        (is (= [{:name "Personal"}] c)
-            "The entities/create fn is called with the correct arguments")
-        (is (= {:id 123
-                :name "Personal"}
-               (:json-body res))
-            "The created entity is returned")))))
+  (with-context [create-context calls]
+    (let [res (-> (req/request :post "/api/entities")
+                  (req/json-body {:name "Personal"})
+                  +db-strategy
+                  (+auth {:id 101})
+                  app
+                  parse-json-body)
+          [c :as cs] (get-in @calls [:entity :put])]
+      (is (http-success? res))
+      (is (= 1 (count cs))
+          "The entities/put fn is called once")
+      (is (= [{:name "Personal"}] c)
+          "The entities/create fn is called with the correct arguments")
+      (is (= {:id 123
+              :name "Personal"}
+             (:json-body res))
+          "The created entity is returned"))))
 
 (deftest get-a-list-of-entities
   (let [calls (atom [])]
@@ -45,6 +45,7 @@
                               (when (= 101 id)
                                 {:id 101}))]
       (let [res (-> (req/request :get "/api/entities")
+                    (+db-strategy :test)
                     (+auth {:id 101})
                     app
                     parse-json-body)

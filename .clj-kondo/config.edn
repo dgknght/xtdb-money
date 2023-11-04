@@ -11,7 +11,8 @@
                                                                    not-found-path])
                                          (xtdb-money.xtdb/query-map)
                                          (xtdb-money.core/dbfn)
-                                         (xtdb-money.helpers/dbtest)]}
+                                         (xtdb-money.helpers/dbtest)
+                                         (xtdb-money.api-context/with-context [calls])]}
            :clojure-lsp/unused-public-var {:exclude #{xtdb-money.util/local-date?
                                                       xtdb-money.util/<-storable-date
                                                       xtdb-money.util/qualify-keys

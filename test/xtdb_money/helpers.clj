@@ -62,3 +62,7 @@
 (defn +auth
   [rq user]
   (req/header rq "Authorization" (format "Bearer %s" (tkns/encode (usrs/tokenize user)))))
+
+(defn +db-strategy
+  [rq]
+  (req/header rq "Db-Strategy" "mock"))
