@@ -119,20 +119,14 @@
                                              {:same-site true
                                               :max-age (* 6 60 60)})))))
 
-(defn- extract-authorization
-  [{:keys [headers]}]
-  (when-let [authorization (headers "authorization")]
-    (when-let [parsed (re-find #"(?<=^Bearer ).*" authorization)]
-      (usrs/detokenize (tkns/decode parsed)))))
-
 ; Validates the credentials of the request by token bearer
 ; and associates the found user with the request
-(defn wrap-authenticate
-  [handler]
-  (fn [req]
-    (if-let [user (usrs/detokenize (extract-authorization req))]
-      (handler (assoc req :authenticated user))
-      api/unauthorized)))
+(def wrap-authentication
+  [api/wrap-authentication
+   {:authenticate-fn
+    (comp usrs/detokenize
+          tkns/decode
+          api/extract-token-bearer)}])
 
 (defn wrap-site []
   (let [c-store (cookie-store)]

@@ -20,7 +20,7 @@
                                            wrap-user-lookup
                                            wrap-issue-auth-token
                                            wrap-site
-                                           wrap-authenticate]]
+                                           wrap-authentication]]
             [xtdb-money.models.mongodb.ref]
             [xtdb-money.models.sql.ref]
             [xtdb-money.models.xtdb.ref]
@@ -107,7 +107,7 @@
                              wrap-api-exception
                              wrap-db
                              wrap-logging
-                             wrap-authenticate
+                             wrap-authentication
                              wrap-no-cache-header
                              wrap-file-etag
                              wrap-not-modified

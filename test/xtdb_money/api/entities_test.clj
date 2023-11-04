@@ -4,7 +4,7 @@
             [dgknght.app-lib.test-assertions]
             [dgknght.app-lib.web :refer [path]]
             [dgknght.app-lib.test :refer [parse-json-body]]
-            [xtdb-money.helpers :refer [authorize]]
+            [xtdb-money.helpers :refer [+auth]]
             [xtdb-money.models.entities :as ents]
             [xtdb-money.models.users :as usrs]
             [xtdb-money.handler :refer [app]]))
@@ -19,7 +19,7 @@
                                 {:id 101}))]
       (let [res (-> (req/request :post "/api/entities")
                     (req/json-body {:name "Personal"})
-                    (authorize {:id 101})
+                    (+auth {:id 101})
                     app
                     parse-json-body)
             [c :as cs] @calls]
@@ -33,8 +33,6 @@
                (:json-body res))
             "The created entity is returned")))))
 
-; TODO: Test without authentcation, ensure API-friendly response
-; TODO: Add authentication
 (deftest get-a-list-of-entities
   (let [calls (atom [])]
     (with-redefs [ents/select (fn [& args]
@@ -47,7 +45,7 @@
                               (when (= 101 id)
                                 {:id 101}))]
       (let [res (-> (req/request :get "/api/entities")
-                    (authorize {:id 101})
+                    (+auth {:id 101})
                     app
                     parse-json-body)
             [c :as cs] @calls]
@@ -64,6 +62,22 @@
         (is (= [{}] c)
             "The ents/select fn is called with the correct arguments")))))
 
+(deftest an-unauthenticated-user-cannot-get-a-list-of-entities
+  (let [calls (atom [])]
+    (with-redefs [ents/select (fn [& args]
+                                (swap! calls conj args)
+                                [{:id 101
+                                  :name "Personal"}
+                                 {:id 102
+                                  :name "Business"}])
+                  usrs/find (constantly nil)]
+      (testing "no authorization header")
+      (let [res (-> (req/request :get "/api/entities")
+                    app
+                    parse-json-body)]
+        (is (http-unauthorized? res))
+        (is (empty? @calls))))))
+
 (deftest update-an-entity
   (testing "update an existing entity"
     (let [calls (atom [])]
@@ -77,7 +91,7 @@
                                   {:id 101}))]
         (let [res (-> (req/request :patch (path :api :entities 101))
                       (req/json-body {:name "The new name"})
-                      (authorize {:id 101})
+                      (+auth {:id 101})
                       app
                       parse-json-body)
               [c :as cs] @calls]
@@ -97,9 +111,13 @@
       (with-redefs [ents/put (fn [& args]
                                (swap! calls conj args)
                                (first args))
-                    ents/select (constantly [])]
+                    ents/select (constantly [])
+                    usrs/find (fn [id]
+                                (when (= 101 id)
+                                  {:id 101}))]
         (is (http-not-found? (-> (req/request :patch (path :api :entities 101))
                                  (req/json-body {:name "The new name"})
+                                 (+auth {:id 101})
                                  app
                                  parse-json-body)))
         (is (zero? (count @calls))
@@ -117,7 +135,7 @@
                                 (when (= 101 id)
                                   {:id 101}))]
         (let [res (-> (req/request :delete (path :api :entities 101))
-                      (authorize {:id 101})
+                      (+auth {:id 101})
                       app)
               [c :as cs] @calls]
           (is (http-no-content? res))
@@ -137,6 +155,7 @@
                                 (when (= 101 id)
                                   {:id 101}))]
         (is (http-not-found? (-> (req/request :delete (path :api :entities 101))
+                                 (+auth {:id 101})
                                  app)))
         (is (zero? (count @calls))
             "The delete fn is not called")))))

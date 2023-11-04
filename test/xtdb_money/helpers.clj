@@ -59,6 +59,6 @@
              (mny/with-db [config#]
                ~@bod)))))))
 
-(defn authorize
+(defn +auth
   [rq user]
   (req/header rq "Authorization" (format "Bearer %s" (tkns/encode (usrs/tokenize user)))))

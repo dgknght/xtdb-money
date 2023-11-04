@@ -10,4 +10,5 @@
 (defn decode
   [token]
   (assert (:app-secret env) "Missing :app-secret configuration")
-  (jwt/unsign token (:app-secret env)))
+  (when token
+    (jwt/unsign token (:app-secret env))))

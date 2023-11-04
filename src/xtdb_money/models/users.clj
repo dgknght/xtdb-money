@@ -91,8 +91,8 @@
 
 (defn- expired?
   [{:keys [expires-at]}]
-  (t/after? (from-long expires-at)
-            (t/now)))
+  (t/before? (from-long expires-at)
+             (t/now)))
 
 (defn tokenize
   [user]
@@ -100,5 +100,6 @@
 
 (defn detokenize
   [{:keys [user-id] :as token}]
-  (when-not (expired? token)
-    (find user-id)))
+  (when token
+    (when-not (expired? token)
+      (find user-id))))
