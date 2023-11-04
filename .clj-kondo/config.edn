@@ -3,6 +3,7 @@
                                                            http-success?
                                                            http-not-found?
                                                            http-no-content?
+                                                           http-unauthorized?
                                                            seq-of-maps-like?])
                                          (secretary.core/defroute [welcome-path
                                                                    entities-path
