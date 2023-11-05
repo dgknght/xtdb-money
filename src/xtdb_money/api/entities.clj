@@ -9,15 +9,17 @@
       (select-keys [:name])))
 
 (defn- create
-  [req]
+  [{:as req :keys [authenticated]}]
   (-> req
       extract-entity
+      (assoc :user-id (:id authenticated))
       ents/put
       api/creation-response))
 
 (defn- extract-criteria
-  [_req]
-  {})
+  [{:keys [authenticated]}]
+  ; TODO: move this to the authorization ns
+  {:user-id (:id authenticated)})
 
 (defn- index
   [req]

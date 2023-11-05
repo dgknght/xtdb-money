@@ -66,10 +66,8 @@
   (find-by {:identities [:= tuple]}))
 
 (defn- resolve-put-result
-  [[x :as records]]
-  (if (map? x)
-    (mny/model-type x :user)
-    (some find records))) ; This is because when adding a user, identities are inserted first, so the primary record isn't the first one returned
+  [records]
+  (some find records)) ; This is because when adding a user, identities are inserted first, so the primary record isn't the first one returned
 
 (defn put
   [user]

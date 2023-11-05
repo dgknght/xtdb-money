@@ -51,17 +51,19 @@
   (comp plural
         mny/model-type))
 
-(defmulti put-model
+(defmulti transact
   (fn [_conn [op _m]]
     op))
 
-(defmethod put-model ::mny/insert
+(defmethod transact ::mny/insert
   [conn [_ m]]
   (m/with-mongo conn
-    (m/insert! (infer-collection-name m)
-               m)))
+    (let [col-name (infer-collection-name m)]
+      ; TODO: redact sensitive data
+      (log/debugf "insert into %s model %s" col-name m)
+      (m/insert! col-name m))))
 
-(defmethod put-model ::mny/update
+(defmethod transact ::mny/update
   [conn [_ m]]
   (m/with-mongo conn
     (m/update! (infer-collection-name m)
@@ -69,7 +71,7 @@
                {:$set (dissoc m :id)})
     (:id m)))
 
-(defmethod put-model ::mny/delete
+(defmethod transact ::mny/delete
   [conn [_ m]]
   (m/with-mongo conn
     (m/destroy! (infer-collection-name m)
@@ -88,7 +90,7 @@
   (mapv (comp #(if (map? %)
                  (rename-keys % {:_id :id})
                  %)
-              #(put-model conn %)
+              #(transact conn %)
               wrap-oper
               before-save)
         models))

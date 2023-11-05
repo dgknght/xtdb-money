@@ -109,14 +109,14 @@
 
 (defn- realize-user
   [user _ctx]
-  (usrs/put user))
+  (put-with user usrs/put ))
 
 (defn- realize-users
   [ctx]
   (update-in ctx [:users] (fn [users]
-                               (mapv (comp (throw-on-failure "user")
-                                           #(realize-user % ctx))
-                                     users))))
+                            (mapv (comp (throw-on-failure "user")
+                                        #(realize-user % ctx))
+                                  users))))
 
 (defn- realize-entity
   [entity ctx]

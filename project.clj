@@ -70,7 +70,7 @@
         :profiles {:uberjar {:aot :all
                              :jvm-opts ["-Dclojure.compiler.direct-linking=true"]}
                    :test [:project/test :profiles/test] ; this performs a deep merge, so it's only necessary to override the specific attributes that need to change in profiles.clj
-                   :project/test {:env {:db {:active "xtdb"
+                   :project/test {:env {:db {:active "mongodb"
                                              :strategies {"datomic"
                                                           {:system "money-test"}
 
