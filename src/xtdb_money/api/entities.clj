@@ -9,10 +9,9 @@
       (select-keys [:name])))
 
 (defn- create
-  [{:as req :keys [authenticated]}]
+  [req]
   (-> req
       extract-entity
-      (assoc :user-id (:id authenticated))
       ents/put
       api/creation-response))
 

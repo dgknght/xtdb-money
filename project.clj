@@ -81,10 +81,7 @@
                                                           {:dbname "xtdb_money_test"}
 
                                                           "mongodb"
-                                                          {:database "money_test"}
-                                                          
-                                                          "mock"
-                                                          {:xtdb-money.core/provider :mock}}}
+                                                          {:database "money_test"}}}
                                         :google-oauth-client-id "google-client-id"
                                         :google-oauth-client-secret "google-client-secret"}}
                    :ci {:env ^:replace {:db {:strategies {"sql" {:xtdb-money.core/provider :sql
