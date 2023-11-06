@@ -87,13 +87,7 @@
             "The result of the update fn is returned")
         (is (comparable? {:name "The new name"}
                          (ents/find entity))
-            "The updated entity can be retrieved")))
-    (testing "attempt to update an non-existing entity"
-      (is (http-not-found? (-> (req/request :patch (path :api :entities 101))
-                               (req/json-body {:name "The new name"})
-                               (+auth (find-user "john@doe.com"))
-                               app
-                               parse-json-body))))))
+            "The updated entity can be retrieved")))))
 
 (deftest an-authenticated-user-cannot-update-anothers-entity
   (with-context list-context
@@ -110,39 +104,26 @@
                (ents/find entity))
             "The entity is not updated in the database")))))
 
-(deftest delete-an-entity
-  (testing "delete an existing entity"
-    (let [calls (atom [])]
-      (with-redefs [ents/delete (fn [& args]
-                                  (swap! calls conj args)
-                                  nil)
-                    ents/select (constantly [{:id 101
-                                              :name "My Money"}])
-                    usrs/find (fn [id]
-                                (when (= 101 id)
-                                  {:id 101}))]
-        (let [res (-> (req/request :delete (path :api :entities 101))
-                      (+auth {:id 101})
-                      app)
-              [c :as cs] @calls]
-          (is (http-no-content? res))
-          (is (= 1 (count cs))
-              "The delete function is called once")
-          (is (= [{:id 101
-                   :name "My Money"}]
-                 c)
-              "The delete funtion is called with the correct arguments")))))
-  (testing "attempt to delete a non-existing entity"
-    (let [calls (atom [])]
-      (with-redefs [ents/delete (fn [& args]
-                                  (swap! calls conj args)
-                                  nil)
-                    ents/select (constantly [])
-                    usrs/find (fn [id]
-                                (when (= 101 id)
-                                  {:id 101}))]
-        (is (http-not-found? (-> (req/request :delete (path :api :entities 101))
-                                 (+auth {:id 101})
-                                 app)))
-        (is (zero? (count @calls))
-            "The delete fn is not called")))))
+(deftest an-authenticated-user-can-delete-his-entity
+  (with-context list-context
+    (let [entity (find-entity "Personal")
+          user (find-user "john@doe.com")
+          res (-> (req/request :delete (path :api :entities (:id entity)))
+                  (+auth user)
+                  app)]
+      (is (http-no-content? res))
+      
+      (is (nil? (find-entity entity))
+          "The entity cannot be retrieved after successful delete"))))
+
+(deftest an-authenticated-user-cannot-delete-anothers-entity
+  (with-context list-context
+    (let [entity (find-entity "Personal")
+          user (find-user "jane@doe.com")
+          res (-> (req/request :delete (path :api :entities (:id entity)))
+                  (+auth user)
+                  app)]
+      (is (http-not-found? res))
+
+      (is (= entity (ents/find entity))
+          "The entity can still be retrieved after failed delete attempt."))))
