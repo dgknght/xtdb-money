@@ -10,6 +10,8 @@
             [ring.middleware.content-type :refer [wrap-content-type]]
             [ring.util.response :as res]
             [co.deps.ring-etag-middleware :refer [wrap-file-etag]]
+            [dgknght.app-lib.authorization :refer [wrap-authorization-config]]
+            [xtdb-money.core :as mny]
             [xtdb-money.middleware :refer [wrap-no-cache-header
                                            wrap-api-exception
                                            wrap-remove-last-modified-header
@@ -108,6 +110,7 @@
                              wrap-db
                              wrap-logging
                              wrap-authentication
+                             [wrap-authorization-config {:type-fn mny/model-type}]
                              wrap-no-cache-header
                              wrap-file-etag
                              wrap-not-modified
