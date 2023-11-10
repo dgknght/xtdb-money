@@ -118,19 +118,30 @@
   [handler]
   (fn [{:keys [authenticated] :as req}]
     (handler (cond-> req
-               authenticated (res/set-cookie :auth-token
-                                             (tkns/encode (usrs/tokenize authenticated))
-                                             {:same-site true
-                                              :max-age (* 6 60 60)})))))
+               authenticated (res/set-cookie
+                               :auth-token
+                               (-> (usrs/tokenize authenticated)
+                                   (assoc :user-agent
+                                          (get-in req
+                                                  [:headers "user-agent"]))
+                                   tkns/encode)
+                               {:same-site true
+                                :max-age (* 6 60 60)})))))
+
+(defn- validate-token-and-lookup-user
+  [req]
+  (let [decoded (-> req
+                    api/extract-token-bearer
+                    tkns/decode)]
+    (when (= (get-in req [:headers "user-agent"])
+             (:user-agent decoded))
+      (usrs/detokenize decoded))))
 
 ; Validates the credentials of the request by token bearer
 ; and associates the found user with the request
 (def wrap-authentication
   [api/wrap-authentication
-   {:authenticate-fn
-    (comp usrs/detokenize
-          tkns/decode
-          api/extract-token-bearer)}])
+   {:authenticate-fn validate-token-and-lookup-user}])
 
 (defn wrap-site []
   (let [c-store (cookie-store)]

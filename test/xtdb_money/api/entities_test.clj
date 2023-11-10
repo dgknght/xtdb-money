@@ -24,6 +24,7 @@
   (with-context create-context
     (let [user (find-user "john@doe.com")
           res (-> (req/request :post "/api/entities")
+                  (req/header "user-agent" "test-user-agent")
                   (req/json-body {:name "Personal"})
                   (+auth user)
                   app
@@ -47,21 +48,28 @@
 
 (deftest get-a-list-of-entities
   (with-context list-context
-    (let [user (find-user "john@doe.com")
-          res (-> (req/request :get "/api/entities")
-                  (+auth user)
-                  app
-                  parse-json-body)]
-      (is (http-success? res))
-      (is (comparable? {"Content-Type" "application/json; charset=utf-8"}
-                       (:headers res))
-          "The response has the correct content type")
-      (is (seq-of-maps-like?
-            (map #(hash-map :user-id (str (:id user))
-                            :name %)
-                 ["Business" "Personal"])
-            (:json-body res))
-          "The entity data is returned"))))
+    (testing "with same user-agent as the authentication token"
+      (let [user (find-user "john@doe.com")
+            res (-> (req/request :get "/api/entities")
+                    (req/header "user-agent" "test-user-agent")
+                    (+auth user)
+                    app
+                    parse-json-body)]
+        (is (http-success? res))
+        (is (comparable? {"Content-Type" "application/json; charset=utf-8"}
+                         (:headers res))
+            "The response has the correct content type")
+        (is (seq-of-maps-like?
+              (map #(hash-map :user-id (str (:id user))
+                              :name %)
+                   ["Business" "Personal"])
+              (:json-body res))
+            "The entity data is returned")))
+    (testing "with an invalid user-agent"
+      (is (http-unauthorized? (-> (req/request :get "/api/entities")
+                                  (+auth (find-user "john@doe.com"))
+                                  app
+                                  parse-json-body))))))
 
 (deftest an-unauthenticated-user-cannot-get-a-list-of-entities
   (with-context list-context
@@ -77,6 +85,7 @@
       (let [user (find-user "john@doe.com")
             entity (find-entity "Personal")
             res (-> (req/request :patch (path :api :entities (:id entity)))
+                    (req/header "user-agent" "test-user-agent")
                     (req/json-body {:name "The new name"})
                     (+auth user)
                     app
@@ -95,6 +104,7 @@
       (let [user (find-user "john@doe.com")
             entity (find-entity "Jane's Money")
             res (-> (req/request :patch (path :api :entities (:id entity)))
+                    (req/header "user-agent" "test-user-agent")
                     (req/json-body {:name "The new name"})
                     (+auth user)
                     app
@@ -109,6 +119,7 @@
     (let [entity (find-entity "Personal")
           user (find-user "john@doe.com")
           res (-> (req/request :delete (path :api :entities (:id entity)))
+                  (req/header "user-agent" "test-user-agent")
                   (+auth user)
                   app)]
       (is (http-no-content? res))
@@ -121,6 +132,7 @@
     (let [entity (find-entity "Personal")
           user (find-user "jane@doe.com")
           res (-> (req/request :delete (path :api :entities (:id entity)))
+                  (req/header "user-agent" "test-user-agent")
                   (+auth user)
                   app)]
       (is (http-not-found? res))

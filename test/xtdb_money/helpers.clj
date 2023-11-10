@@ -60,5 +60,11 @@
                ~@bod)))))))
 
 (defn +auth
-  [rq user]
-  (req/header rq "Authorization" (format "Bearer %s" (tkns/encode (usrs/tokenize user)))))
+  [rq user & [user-agent]]
+  (req/header rq
+              "Authorization"
+              (format "Bearer %s" (-> user
+                                      usrs/tokenize
+                                      (assoc :user-agent (or user-agent
+                                                             "test-user-agent"))
+                                      tkns/encode))))
