@@ -7,6 +7,7 @@
             [ring.middleware.oauth2 :refer [wrap-oauth2]]
             [ring.util.response :as res]
             [dgknght.app-lib.api :as api]
+            [dgknght.app-lib.authorization :as auth]
             [xtdb-money.core :as mny]
             [xtdb-money.tokens :as tkns]
             [xtdb-money.models.users :as usrs]
@@ -26,7 +27,10 @@
         (log/errorf "Unexpected error while handling API request: %s - %s"
                     (.getMessage e)
                     (pr-str (ex-data e)))
-        error-res)
+        (case (:type (ex-data e))
+          ::auth/not-found api/not-found
+          ::auth/forbidden api/forbidden
+          error-res))
       (catch Exception e
         (log/errorf "Unexpected error while handling API request: %s - %s"
                     (.getMessage e)
