@@ -18,9 +18,13 @@
                     (mny/model-type criteria :entity)
                     (update-in options [:order-by] (fnil identity [:name]))))))
 
+(defn find-by
+  [criteria & [options]]
+  (first (select criteria (assoc options :limit 1))))
+
 (defn find
   [id]
-  (first (select {:id (->id id)} {:limit 1})))
+  (find-by {:id (->id id)}))
 
 (defn- resolve-put-result
   [x]
