@@ -1,17 +1,14 @@
 (ns xtdb-money.api.entities-test
   (:require [clojure.test :refer [deftest is testing use-fixtures]]
-            [ring.mock.request :as req]
             [dgknght.app-lib.test-assertions]
             [dgknght.app-lib.web :refer [path]]
-            [dgknght.app-lib.test :refer [parse-json-body]]
+            
             [xtdb-money.test-context :refer [with-context
                                              find-user
                                              find-entity]]
             [xtdb-money.helpers :refer [reset-db
-                                        +auth]]
-            [xtdb-money.models.entities :as ents]
-            [xtdb-money.models.users :as usrs]
-            [xtdb-money.handler :refer [app]]))
+                                        request]]
+            [xtdb-money.models.entities :as ents]))
 
 (use-fixtures :each reset-db)
 
@@ -23,12 +20,9 @@
 (deftest create-an-entity
   (with-context create-context
     (let [user (find-user "john@doe.com")
-          res (-> (req/request :post "/api/entities")
-                  (req/header "user-agent" "test-user-agent")
-                  (req/json-body {:name "Personal"})
-                  (+auth user)
-                  app
-                  parse-json-body)]
+          res (request :post "/api/entities"
+                       :user user
+                       :json-body {:name "Personal"})]
       (is (comparable? {:user-id (str (:id user)) ; This is probably specific to mongodb
                         :name "Personal"}
                        (:json-body res))
@@ -50,11 +44,8 @@
   (with-context list-context
     (testing "with same user-agent as the authentication token"
       (let [user (find-user "john@doe.com")
-            res (-> (req/request :get "/api/entities")
-                    (req/header "user-agent" "test-user-agent")
-                    (+auth user)
-                    app
-                    parse-json-body)]
+            res (request :get "/api/entities"
+                         :user user)]
         (is (http-success? res))
         (is (comparable? {"Content-Type" "application/json; charset=utf-8"}
                          (:headers res))
@@ -66,17 +57,16 @@
               (:json-body res))
             "The entity data is returned")))
     (testing "with an invalid user-agent"
-      (is (http-unauthorized? (-> (req/request :get "/api/entities")
-                                  (+auth (find-user "john@doe.com"))
-                                  app
-                                  parse-json-body))))))
+      (is (http-unauthorized?
+            (request :get "/api/entities"
+                     :user (find-user "john@doe.com")
+                     :header-user-agent "not-valid"))))))
 
 (deftest an-unauthenticated-user-cannot-get-a-list-of-entities
   (with-context list-context
     (testing "no authorization header")
-    (let [res (-> (req/request :get "/api/entities")
-                  app
-                  parse-json-body)]
+    (let [res (request :get "/api/entities"
+                       :user nil)]
       (is (http-unauthorized? res)))))
 
 (deftest an-authenticated-user-can-update-his-entity
@@ -84,12 +74,9 @@
     (testing "update an existing entity"
       (let [user (find-user "john@doe.com")
             entity (find-entity "Personal")
-            res (-> (req/request :patch (path :api :entities (:id entity)))
-                    (req/header "user-agent" "test-user-agent")
-                    (req/json-body {:name "The new name"})
-                    (+auth user)
-                    app
-                    parse-json-body)]
+            res (request :patch (path :api :entities (:id entity))
+                         :user user
+                         :json-body {:name "The new name"})]
         (is (http-success? res))
         (is (comparable? {:name "The new name"}
                          (:json-body res))
@@ -103,12 +90,9 @@
     (testing "update an existing entity"
       (let [user (find-user "john@doe.com")
             entity (find-entity "Jane's Money")
-            res (-> (req/request :patch (path :api :entities (:id entity)))
-                    (req/header "user-agent" "test-user-agent")
-                    (req/json-body {:name "The new name"})
-                    (+auth user)
-                    app
-                    parse-json-body)]
+            res (request :patch (path :api :entities (:id entity))
+                         :user user
+                         :json-body {:name "The new name"})]
         (is (http-not-found? res))
         (is (= entity
                (ents/find entity))
@@ -118,10 +102,8 @@
   (with-context list-context
     (let [entity (find-entity "Personal")
           user (find-user "john@doe.com")
-          res (-> (req/request :delete (path :api :entities (:id entity)))
-                  (req/header "user-agent" "test-user-agent")
-                  (+auth user)
-                  app)]
+          res (request :delete (path :api :entities (:id entity))
+                       :user user)]
       (is (http-no-content? res))
       
       (is (nil? (find-entity entity))
@@ -131,10 +113,8 @@
   (with-context list-context
     (let [entity (find-entity "Personal")
           user (find-user "jane@doe.com")
-          res (-> (req/request :delete (path :api :entities (:id entity)))
-                  (req/header "user-agent" "test-user-agent")
-                  (+auth user)
-                  app)]
+          res (request :delete (path :api :entities (:id entity))
+                       :usser user)]
       (is (http-not-found? res))
 
       (is (= entity (ents/find entity))
