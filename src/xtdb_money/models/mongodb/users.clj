@@ -25,17 +25,8 @@
                       :oauth-id))
            (into {})))))
 
-(defn- assoc-identities
-  [query identities]
-  (if (seq identities)
-    (assoc query :identities {:$elemMatch {:oauth-provider (first identities)
-                                           :oauth-id (second identities)}})
-    query))
-
-(defmethod m/apply-criteria :user
-  [query {:as criteria :keys [identities]}]
-  (-> query
-      (m/apply-criteria (-> criteria
-                            (dissoc :identities)
-                            (with-meta {::mny/model-type :generic})))
-      (assoc-identities identities)))
+(defmethod m/prepare-criteria :user
+  [criteria]
+  (update-in-if criteria [:identities] (fn [[provider id]]
+                                         [:= {:oauth-provider provider
+                                              :oauth-id id}])))

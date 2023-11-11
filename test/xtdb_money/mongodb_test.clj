@@ -49,7 +49,19 @@
                               [:or
                                [:>= "start"]
                                [:< "end"]]}))
-      "A union of two criteria a translated to mongodb operators"))
+      "A union of two criteria a translated to mongodb operators")
+  (is (= {:where {:$or [{:debit-account-id 1}
+                        {:credit-account-id 1}]}}
+         (mdb/apply-criteria {}
+                             [:or
+                              {:debit-account-id 1}
+                              {:credit-account-id 1}]))
+      "A top-level conjunction is converted to a mongodb conjunction")
+  (is (= {:where {:identities {:$elemMatch {:oauth-provider "google"
+                                            :oauth-id "abc123"}}}}
+         (mdb/apply-criteria {}
+                             {:identities [:= {:oauth-provider "google"
+                                               :oauth-id "abc123"}]}))))
 
 (deftest union-of-account-id
   (is (= {:where {:$or

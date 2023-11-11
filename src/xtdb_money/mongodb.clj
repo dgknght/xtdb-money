@@ -17,6 +17,9 @@
            org.bson.types.ObjectId
            com.fasterxml.jackson.core.JsonGenerator))
 
+(derive clojure.lang.PersistentVector ::vector)
+(derive clojure.lang.PersistentArrayMap ::map)
+
 (add-encoder ObjectId
              (fn [^ObjectId id ^JsonGenerator g]
                (.writeString g (str id))))
@@ -135,20 +138,35 @@
                    {(->mongodb-op op) v})
                  cs)}})
 
+; TODO: merge this with a recursive call to criteria->query
 (defn- adjust-complex-criteria
   [criteria]
   (->> criteria
        (map adjust-complex-criterion)
        (into {})))
 
-(defmulti apply-criteria (fn [_q c] (mny/model-type c)))
-(defmethod apply-criteria :default
+(defmulti ^:private criteria->query type)
+
+(defmethod criteria->query ::map
+  [criteria]
+  (-> criteria
+      (update-in-if [:id] coerce-id)
+      (rename-keys {:id :_id})
+      adjust-complex-criteria))
+
+(defmethod criteria->query ::vector
+  [[oper & [c :as cs]]]
+  (case oper
+    :or {:$or (mapv criteria->query cs)}
+    :and {:$and (mapv criteria->query cs)}
+    := (if (map? c)
+         {:$elemMatch c}
+         c)))
+
+(defn apply-criteria
   [query criteria]
   (if (seq criteria)
-    (assoc query :where (-> criteria
-                            (update-in-if [:id] coerce-id)
-                            (rename-keys {:id :_id})
-                            adjust-complex-criteria))
+    (assoc query :where (criteria->query criteria))
     query))
 
 (defn apply-account-id
@@ -181,12 +199,14 @@
     limit (assoc :limit limit)
     order-by (assoc :sort (coerce-ordered-fields (map ->mongodb-sort order-by)))))
 
+(defmulti prepare-criteria mny/model-type)
+(defmethod prepare-criteria :default [c] c)
+
 (defn- select*
   [conn criteria options]
   (m/with-mongo conn
     (let [query (-> {}
-                    (apply-criteria (dissoc criteria :account-id))
-                    (apply-account-id criteria)
+                    (apply-criteria (prepare-criteria criteria))
                     (apply-options options))]
       (log/debugf "fetch %s with options %s -> %s" criteria options query)
       (map (comp after-read
