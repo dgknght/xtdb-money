@@ -34,7 +34,10 @@
 
 (defn- find-and-authorize
   [{:keys [path-params authenticated]} action]
-  (some-> (ents/find (:id path-params))
+  (some-> (-> path-params
+              (select-keys [:id])
+              (+scope :entity authenticated)
+              ents/find-by)
           (authorize action authenticated)))
 
 (defn- update
