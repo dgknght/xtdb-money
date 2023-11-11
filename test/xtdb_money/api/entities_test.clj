@@ -114,7 +114,7 @@
     (let [entity (find-entity "Personal")
           user (find-user "jane@doe.com")
           res (request :delete (path :api :entities (:id entity))
-                       :usser user)]
+                       :user user)]
       (is (http-not-found? res))
 
       (is (= entity (ents/find entity))
