@@ -154,7 +154,8 @@
     ; TODO: scrub sensitive data
     (log/debugf "database delete %s -> %s" m s)
 
-    (jdbc/execute! db s)))
+    (jdbc/execute! db s)
+    1))
 
 (defn- wrap-oper
   [m]
@@ -218,9 +219,11 @@
 (defn- delete*
   [db models]
   (jdbc/with-transaction [tx db]
-    (doseq [m (map #(update-in % [:id] coerce-id)
-                    models)]
-      (put-one tx [::mny/delete m]))))
+    (->> models
+         (map (comp #(put-one tx %)
+                    #(vector ::mny/delete %)
+                    #(update-in % [:id] coerce-id)))
+         (reduce +))))
 
 (defn- reset*
   [db]

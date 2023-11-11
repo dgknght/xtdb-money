@@ -62,7 +62,8 @@
 
 (dbtest delete-an-entity
   (with-context update-context
-    (let [entity (find-entity "Personal")]
-      (ents/delete entity)
+    (let [entity (find-entity "Personal")
+          res (ents/delete entity)]
+      (is res "It returns a non-nil value")
       (is (nil? (ents/find (:id entity)))
           "The entity cannot be retrieved after delete"))))

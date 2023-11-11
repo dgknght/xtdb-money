@@ -48,13 +48,17 @@
               api/response)
       api/not-found))
 
+(defn- no-content
+  [& _]
+  api/no-content)
+
 (defn- delete
   [req]
-  (if-let [entity (find-and-authorize req ::auth/destroy)]
-    (do (ents/delete entity)
-        api/no-content)
-    api/not-found))
-
+  (or (some-> req
+              (find-and-authorize ::auth/destroy)
+              ents/delete
+              no-content)
+      api/not-found))
 
 (def routes
   ["/entities"

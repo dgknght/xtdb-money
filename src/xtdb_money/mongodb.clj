@@ -222,12 +222,13 @@
 (defn- delete*
   [conn models]
   (m/with-mongo conn
-    (let [coll-name (infer-collection-name (first models))]
-      (doseq [query (map (comp #(hash-map :_id %)
-                               :id)
-                         models)]
-        (log/debugf "delete %s" query)
-        (m/destroy! coll-name query)))))
+    (->> models
+         (mapv (comp #(.getN %)
+                     #(apply m/destroy! %)
+                     #(update-in % [1] (fn [{:keys [id]}]
+                                         {:_id id}))
+                     #(vector (infer-collection-name %) %)))
+         (reduce +))))
 
 (defn- reset*
   [conn]
