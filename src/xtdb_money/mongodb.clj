@@ -108,7 +108,7 @@
   (fn [[_k v]]
     (when (vector? v)
       (let [[oper] v]
-        (or (#{:and :or} oper)
+        (or (#{:and :or :=} oper)
             (when (oper-map oper) :comparison)
             (first v))))))
 
@@ -117,6 +117,8 @@
   (get-in oper-map
           [op]
           (keyword (str "$" (name op)))))
+
+(declare adjust-complex-criteria)
 
 (defmethod adjust-complex-criterion :default [c] c)
 
@@ -138,7 +140,12 @@
                    {(->mongodb-op op) v})
                  cs)}})
 
-; TODO: merge this with a recursive call to criteria->query
+(defmethod adjust-complex-criterion :=
+  [[f [_ v]]]
+  {f (if (map? v)
+       {:$elemMatch (adjust-complex-criteria v)}
+       v)})
+
 (defn- adjust-complex-criteria
   [criteria]
   (->> criteria
@@ -155,13 +162,10 @@
       adjust-complex-criteria))
 
 (defmethod criteria->query ::vector
-  [[oper & [c :as cs]]]
+  [[oper & cs]]
   (case oper
     :or {:$or (mapv criteria->query cs)}
-    :and {:$and (mapv criteria->query cs)}
-    := (if (map? c)
-         {:$elemMatch c}
-         c)))
+    :and {:$and (mapv criteria->query cs)}))
 
 (defn apply-criteria
   [query criteria]

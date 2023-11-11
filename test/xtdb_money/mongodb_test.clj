@@ -61,7 +61,8 @@
                                             :oauth-id "abc123"}}}}
          (mdb/apply-criteria {}
                              {:identities [:= {:oauth-provider "google"
-                                               :oauth-id "abc123"}]}))))
+                                               :oauth-id "abc123"}]}))
+      "Equality to a map is translated to $elemMatch"))
 
 (deftest union-of-account-id
   (is (= {:where {:$or
