@@ -37,6 +37,20 @@
                                       ::credit-balance
                                       ::correlation-id]))
 
+(def ^:private attributes
+  [:id
+   :entity-id
+   :transaction-date
+   :description
+   :credit-account-id
+   :debit-account-id,
+   :quantity
+   :debit-index
+   :debit-balance
+   :credit-index
+   :credit-balance
+   :correlation-id])
+
 (defn- criterion?
   [pred]
   (some-fn pred
@@ -88,13 +102,24 @@
 (def ^:private default-opts
   {:order-by [[:transaction-date :asc]]})
 
+(defn- adj-account-id
+  [{:as criteria :keys [account-id]}]
+  (if account-id
+    [:and (dissoc criteria :account-id)
+     [:or {:credit-account-id account-id}
+      {:debit-account-id account-id}]]
+    criteria))
+
 (defn select
-  ([criteria]         (select criteria {}))
+  ([criteria]
+   (select criteria {}))
   ([criteria options]
    {:pre [(s/valid? ::criteria criteria)
           (s/valid? ::mny/options options)]}
    (map after-read (mny/select (mny/storage)
-                               (mny/model-type criteria :transaction)
+                               (-> criteria
+                                   adj-account-id
+                                   (mny/model-type :transaction))
                                (merge default-opts options)))))
 
 (defn- mark-deleted
@@ -380,6 +405,20 @@
          (apply-first-trx-date-change trx prev)
          (into []))))
 
+(defn- bilateralize
+  [trx]
+  (if (unilateral? trx)
+    (bilateral trx)
+    trx))
+
+; TODO: Maybe this should be done in a more central location for all model types?
+(defn- prune
+  [trx]
+  (if (= :transaction
+         (mny/model-type trx))
+    (select-keys trx attributes)
+    trx))
+
 (defn- propagate
   [trx]
   {:pre [(= (:entity-id trx)
@@ -393,9 +432,8 @@
     (->> (rest debit-side)
          (concat credit-side)
          (map (comp ensure-model-type
-                    #(if (unilateral? %)
-                       (bilateral %)
-                       %)))
+                    prune
+                    bilateralize))
          (remove deleted?)
          (into []))))
 
