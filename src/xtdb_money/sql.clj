@@ -1,41 +1,16 @@
 (ns xtdb-money.sql
   (:refer-clojure :exclude [update])
   (:require [clojure.tools.logging :as log]
-            [clj-time.coerce :refer [to-sql-date
-                                     to-local-date]]
+            [clojure.pprint :refer [pprint]]
             [next.jdbc :as jdbc]
             [next.jdbc.plan :refer [select!]]
             [next.jdbc.sql.builder :refer [for-insert
                                            for-update
                                            for-delete]]
-            [honey.sql.helpers :as h]
-            [honey.sql :as hsql]
-            [dgknght.app-lib.inflection :refer [plural]]
-            [dgknght.app-lib.core :refer [update-in-if]]
-            [xtdb-money.core :as mny])
-  (:import org.joda.time.LocalDate
-           java.sql.Date
-           java.lang.String))
-
-(defmulti coerce-id type)
-
-(defmethod coerce-id :default [id] id)
-
-(defmethod coerce-id String
-  [id]
-  (Long/parseLong id))
-
-(defmulti ->storable type)
-(defmethod ->storable :default [x] x)
-(defmethod ->storable LocalDate
-  [d]
-  (to-sql-date d))
-
-(defmulti <-storable type)
-(defmethod <-storable :default [x] x)
-(defmethod <-storable Date
-  [d]
-  (to-local-date d))
+            [xtdb-money.sql.queries :refer [criteria->query
+                                            infer-table-name]]
+            [xtdb-money.sql.types :refer [coerce-id]]
+            [xtdb-money.core :as mny]))
 
 (defn- dispatch
   [_db model & _]
@@ -50,10 +25,6 @@
 
 (defmulti deconstruct mny/model-type)
 (defmethod deconstruct :default [m] [m])
-
-(def ^:private infer-table-name
-  (comp plural
-        mny/model-type))
 
 (defmethod insert :default
   [db model]
@@ -83,57 +54,20 @@
 
     (get-in result [(keyword (name table) "id")])))
 
-(defmulti apply-criteria (fn [_s c] (mny/model-type c)))
-
-(defmulti apply-criterion
-  (fn [_s _k v]
-    (when (vector? v)
-      (case (first v)
-        (:< :<= :> :>= :!=) :explicit-oper
-        (:and :or)          :conjunction
-        (throw (ex-info (str "Unknown operator: " (first v))
-                        {:criterion v}))))))
-
-(defmethod apply-criterion :default
-  [s k v]
-  (h/where s [:= k (->storable v)]))
-
-(defmethod apply-criterion :explicit-oper
-  [s k [oper v]]
-  (h/where s [oper k (->storable v)]))
-
-(defmethod apply-criterion :conjunction
-  [s k [oper & stmts]]
-  (apply h/where s oper (map (fn [[op v]]
-                               [op k (->storable v)])
-                             stmts)))
-
-(defmethod apply-criteria :default
-  [s criteria]
-  (if (empty? criteria)
-    s
-    (reduce-kv apply-criterion
-               s
-               criteria)))
-
-(defn- apply-options
-  [s {:keys [limit order-by]}]
-  (cond-> s
-    limit (assoc :limit limit)
-    order-by (assoc :order-by order-by)))
 
 (defmulti after-read mny/model-type)
 (defmethod after-read :default [m] m)
 
 (defmulti attributes identity)
 
+(defmulti prepare-criteria mny/model-type)
+(defmethod prepare-criteria :default [m] m)
+
 (defmethod select :default
   [db criteria options]
-  (let [query (-> (h/select :*)
-                  (h/from (infer-table-name criteria))
-                  (apply-criteria (update-in-if criteria [:id] coerce-id))
-                  (apply-options options)
-                  hsql/format)]
+  (let [query (-> criteria
+                  prepare-criteria
+                  (criteria->query options))]
 
     ; TODO: scrub sensitive data
     (log/debugf "database select %s with options %s -> %s" criteria options query)

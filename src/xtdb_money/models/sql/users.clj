@@ -33,13 +33,12 @@
                   [:= :identities.provider_id provider-id]]))
     s))
 
-(defmethod sql/apply-criteria :user
-  [s criteria]
-  (if (empty? criteria)
-    s
-    (reduce-kv sql/apply-criterion
-               (apply-identities-criterion s criteria)
-               (dissoc criteria :identities))))
+(defmethod sql/prepare-criteria :user
+  [{:as criteria :keys [identities]}]
+
+  (if (seq identities)
+    criteria ; TODO: Work out the join logic with identities table
+    criteria))
 
 (defmethod sql/resolve-temp-ids :identity
   [ident id-map]

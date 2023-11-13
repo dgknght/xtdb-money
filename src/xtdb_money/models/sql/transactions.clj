@@ -1,23 +1,11 @@
 (ns xtdb-money.models.sql.transactions
-  (:require [honey.sql.helpers :refer [where]]
+  (:require [xtdb-money.sql.types :refer [->storable
+                                          <-storable]]
             [xtdb-money.sql :as sql]
             [dgknght.app-lib.core :refer [uuid
                                           update-in-if]]))
 
-(defn- apply-account-id
-  [s {:keys [account-id]}]
-  (if account-id
-    (where s [:or
-              [:= :debit-account-id account-id]
-              [:= :credit-account-id account-id]])
-    s))
-
-(defmethod sql/apply-criteria :transaction
-  [s criteria]
-  (reduce-kv sql/apply-criterion
-             (apply-account-id s criteria)
-             (dissoc criteria :account-id)))
-
+; TODO: Dedupe this with what is also in mongodb
 (def ^:private attr
   [:id
    :entity-id
@@ -37,11 +25,11 @@
 (defmethod sql/before-save :transaction
   [transaction]
   (-> transaction
-      (update-in [:transaction-date] sql/->storable)
+      (update-in [:transaction-date] ->storable)
       (select-keys attr)))
 
 (defmethod sql/after-read :transaction
   [transaction]
   (-> transaction
       (update-in-if [:correlation-id] uuid)
-      (update-in [:transaction-date] sql/<-storable)))
+      (update-in [:transaction-date] <-storable)))
