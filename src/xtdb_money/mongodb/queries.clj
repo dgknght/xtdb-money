@@ -6,6 +6,7 @@
 
 (derive clojure.lang.PersistentVector ::vector)
 (derive clojure.lang.PersistentArrayMap ::map)
+(derive clojure.lang.Keyword ::keyword)
 
 (def ^:private oper-map
   {:> :$gt
@@ -15,7 +16,11 @@
 
 (defmulti adjust-complex-criterion
   (fn [[_k v]]
-    (when (vector? v)
+    (cond
+      (map? v)
+      ::map
+
+      (vector? v)
       (let [[oper] v]
         (or (#{:and :or :=} oper)
             (when (oper-map oper) :comparison)
@@ -54,6 +59,10 @@
   {f (if (map? v)
        {:$elemMatch (adjust-complex-criteria v)}
        v)})
+
+(defmethod adjust-complex-criterion ::map
+  [[f m]]
+  {f {:$elemMatch m}})
 
 (defn- adjust-complex-criteria
   [criteria]
@@ -95,8 +104,27 @@
   [sort]
   (update-in sort [1] #(if (= :asc %) 1 -1)))
 
+(defmulti ^:private ->sort type)
+
+(defmethod ->sort :default
+  [attrs]
+  (->> attrs
+       (map ->mongodb-sort)
+       coerce-ordered-fields))
+
+(defmethod ->sort ::keyword
+  [attr]
+  (->sort [attr]))
+
 (defn apply-options
-  [query {:keys [limit order-by]}]
+  [query {:keys [limit
+                 order-by
+                 sort
+                 skip
+                 offset]}]
   (cond-> query
     limit (assoc :limit limit)
-    order-by (assoc :sort (coerce-ordered-fields (map ->mongodb-sort order-by)))))
+    skip (assoc :skip skip)
+    offset (assoc :skip offset)
+    order-by (assoc :sort (->sort order-by))
+    sort (assoc :sort (->sort sort))))
