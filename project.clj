@@ -54,6 +54,7 @@
                        [dev.weavejester/ragtime "0.9.3"]
                        [com.github.seancorfield/honeysql "2.4.1033"]
                        [congomongo "2.6.0" :exclusions [org.clojure/data.json]]
+                       [stowaway "0.1.16"]
                        [com.github.dgknght/app-lib "0.3.6" :exclusions [args4j
                                                                         commons-logging
                                                                         commons-io

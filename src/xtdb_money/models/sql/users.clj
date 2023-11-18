@@ -1,6 +1,5 @@
 (ns xtdb-money.models.sql.users
-  (:require [honey.sql.helpers :as h]
-            [xtdb-money.core :as mny]
+  (:require [xtdb-money.core :as mny]
             [xtdb-money.sql :as sql])
   (:import java.util.UUID))
 
@@ -23,21 +22,16 @@
         (cons (map (partial inflate-identity id)
                    identities)))))
 
-(defn- apply-identities-criterion
-  [s {[_ [provider provider-id] :as identities] :identities}]
-  (if identities
-    (-> s
-        (h/join :identities [:= :users.id :identities.user_id])
-        (h/where [:and
-                  [:= :identities.provider (name provider)]
-                  [:= :identities.provider_id provider-id]]))
-    s))
-
 (defmethod sql/prepare-criteria :user
   [{:as criteria :keys [identities]}]
-
+  ; Identities should look like this:
+  ; [:= [:google "abc123"]]
   (if (seq identities)
-    criteria ; TODO: Work out the join logic with identities table
+    (let [[_ [oauth-provider oauth-id]] identities]
+      (-> criteria
+          (dissoc :identities)
+          (assoc [:identity :provider] oauth-provider
+                 [:identity :provider-id] oauth-id)))
     criteria))
 
 (defmethod sql/resolve-temp-ids :identity
