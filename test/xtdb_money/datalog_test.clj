@@ -12,7 +12,7 @@
            :args ["Personal"]}
          (dtl/apply-criteria query
                              {:name "Personal"}
-                             :model-type :entity))))
+                             {:model-type :entity}))))
 
 (deftest specify-the-args-key
   (is (= '{:find [?x]
@@ -52,7 +52,7 @@
            :args [500M]}
          (dtl/apply-criteria query
                              {:balance [:>= 500M]}
-                             :model-type :account))))
+                             {:model-type :account}))))
 
 (deftest apply-an-intersection-criterion
   (is (= '{:find [?x]
@@ -65,7 +65,7 @@
                              {:transaction-date [:and
                                                  [:>= "2020-01-01"]
                                                  [:< "2020-02-01"]]}
-                             :model-type :transaction))
+                             {:model-type :transaction}))
       "statements are added directly to the where chain"))
 
 (deftest apply-a-tuple-match-criterion
@@ -75,8 +75,20 @@
            :args [[:google "abc123"]]}
          (dtl/apply-criteria query
                              {:identities [:= [:google "abc123"]]}
-                             :model-type :user))
+                             {:model-type :user}))
       "Using :match, a vector is passed in as the match value"))
+
+(deftest apply-a-union-of-criterias
+  (is (= '{:find [?x]
+           :where (or [?x :transaction/debit-account-id ?debit-account-id-in]
+                      [?x :transaction/credit-account-id ?credit-account-id-in])
+           :in [?debit-account-id ?credit-account-id]
+           :args [101 101]}
+         (dtl/apply-criteria query
+                             [:or
+                              {:debit-account-id 101}
+                              {:credit-account-id 101}]
+                             {:model-type :transaction}))))
 
 (deftest apply-options
   (testing "limit"
@@ -91,14 +103,14 @@
              :order-by [[?size :asc]]}
            (dtl/apply-options query
                               {:order-by :size}
-                              :model-type :shirt))
+                              {:model-type :shirt}))
         "A single column is symbolized and ascended is assumed")
     (is (= '{:find [?x ?size]
              :where [[?x :shirt/size ?size]]
              :order-by [[?size :desc]]}
            (dtl/apply-options query
                               {:order-by [[:size :desc]]}
-                              :model-type :shirt))
+                              {:model-type :shirt}))
         "An explicit direction is copied")
     (is (= '{:find [?x ?size ?weight]
              :where [[?x :shirt/size ?size]
@@ -107,5 +119,5 @@
                         [?weight :desc]]}
            (dtl/apply-options query
                               {:order-by [:size [:weight :desc]]}
-                              :model-type :shirt))
+                              {:model-type :shirt}))
         "Multiple fields are handled appropriately")))

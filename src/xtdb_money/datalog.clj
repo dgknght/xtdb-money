@@ -1,5 +1,9 @@
 (ns xtdb-money.datalog
-  (:require [clojure.spec.alpha :as s]))
+  (:require [clojure.spec.alpha :as s]
+            [clojure.pprint :refer [pprint]]))
+
+(derive clojure.lang.PersistentArrayMap ::map)
+(derive clojure.lang.PersistentVector ::vector)
 
 (def ^:private concat*
   (fnil (comp vec concat) []))
@@ -140,22 +144,48 @@
 (s/def ::args-key (s/coll-of keyword? :kind vector?))
 (s/def ::query-prefix (s/coll-of keyword :kind vector?))
 (s/def ::model-type keyword?)
-(s/def ::options (s/keys :req-un [::model-type]
-                         :opt-un [::args-key
-                                  ::query-prefix]))
+(defmulti options-spec type)
+(defmethod options-spec ::map [_]
+  (s/keys :req-un [::model-type]
+          :opt-un [::args-key
+                   ::query-prefix]))
+(defmethod options-spec ::vector [_]
+  (s/cat :operator #{:and :or}
+         :criteria (s/+ ::options)))
+(s/def ::options (s/multi-spec options-spec type))
+
 
 (defmacro ^:private with-options
   [opts & body]
   `(binding [*opts* (merge *opts* ~opts)]
      ~@body))
 
-(defn apply-criteria
-  [query criteria & {:as opts}]
+(defmulti apply-criteria
+  (fn [_q c _o]
+    (type c)))
+
+(defmethod apply-criteria ::map
+  [query criteria opts]
   {:pre [(s/valid? ::options opts)]}
+
+  (pprint {::transform-criteria-map criteria})
+
   (with-options opts criteria
     (reduce apply-criterion
             query
             criteria)))
+
+(defmethod apply-criteria ::vector
+  [query [oper & criterias :as c] opts]
+  {:pre [(s/valid? ::options opts)]}
+
+  (pprint {::transform-criteria-vector c})
+
+  (conj
+    (conj (->> criterias
+               (map #(apply-criteria % opts))
+               (into '()))
+          (symbol oper))))
 
 (defn- ensure-attr
   [{:keys [where] :as query} k arg-ident]

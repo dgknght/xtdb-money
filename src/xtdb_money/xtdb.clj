@@ -103,10 +103,7 @@
 (defmulti before-query mny/model-type)
 (defmethod before-query :default [c] c)
 
-(defmulti criteria->query
-  (fn [criteria _opts] (mny/model-type criteria)))
-
-(defmethod criteria->query :default
+(defn- criteria->query
   [criteria opts]
   (let [model-type (mny/model-type criteria)]
     (-> '{:find [(pull ?x [*])]
@@ -175,9 +172,14 @@
                                                      x))
                                              v))]))
 
+(defmulti prepare-criteria mny/model-type)
+(defmethod prepare-criteria :default [c] c)
+
 (defn- select*
   [node criteria options]
-  (let [{::keys [args] :as query} (criteria->query criteria options)
+  (let [{::keys [args] :as query} (-> criteria
+                                      prepare-criteria
+                                      (criteria->query options))
         raw-result (apply xt/q
                           (xt/db node)
                           (dissoc query ::args)
