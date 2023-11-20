@@ -79,9 +79,14 @@
       "Using :match, a vector is passed in as the match value"))
 
 (deftest apply-a-union-of-criterias
+  ; Note that the order of the criteria reverses as a result of
+  ; the implementation. Trying to write a test that allows for
+  ; the criteria in the result to be in any order that produces
+  ; the same logical result makes my head hurt
+  ; makes my head hurt
   (is (= '{:find [?x]
-           :where (or [?x :transaction/debit-account-id ?debit-account-id-in]
-                      [?x :transaction/credit-account-id ?credit-account-id-in])
+           :where (or [?x :transaction/credit-account-id ?credit-account-id-in]
+                      [?x :transaction/debit-account-id ?debit-account-id-in])
            :in [?debit-account-id ?credit-account-id]
            :args [101 101]}
          (dtl/apply-criteria query

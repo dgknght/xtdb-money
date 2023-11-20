@@ -5,6 +5,19 @@
 (derive clojure.lang.PersistentArrayMap ::map)
 (derive clojure.lang.PersistentVector ::vector)
 
+(s/def ::args-key (s/coll-of keyword? :kind vector?))
+(s/def ::query-prefix (s/coll-of keyword :kind vector?))
+(s/def ::model-type keyword?)
+(defmulti options-spec type)
+(defmethod options-spec ::map [_]
+  (s/keys :req-un [::model-type]
+          :opt-un [::args-key
+                   ::query-prefix]))
+(defmethod options-spec ::vector [_]
+  (s/cat :operator #{:and :or}
+         :criteria (s/+ ::options)))
+(s/def ::options (s/multi-spec options-spec type))
+
 (def ^:private concat*
   (fnil (comp vec concat) []))
 
@@ -31,15 +44,19 @@
   [& ks]
   (concat (:query-prefix *opts*) ks))
 
+(defn- dispatch-criterion
+  [[_k v]]
+  (cond
+    (map? v) :compound
+    (vector? v) (case (first v)
+                  (:< :<= :> :>=) :comparison
+                  :and            :intersection
+                  :or             :union
+                  :=              :equality)))
+
 (defmulti apply-criterion
-  (fn [_query [_k v]]
-    (cond
-      (map? v) :compound
-      (vector? v) (case (first v)
-                    (:< :<= :> :>=) :comparison
-                    :and            :intersection
-                    :or             :union
-                    :=              :equality))))
+  (fn [_query criterion]
+    (dispatch-criterion criterion)))
 
 (defn- arg-ident
   ([k] (arg-ident k nil))
@@ -53,15 +70,57 @@
                          (model-type)))
                (name k))))
 
+; This still isn't the right abstraction. I also need to be able
+; to collect the values to be placed in the :args list
+; and the :in list
+; Also, it didn't work for the intersection that looks like:
+; {:field [:and [:>= 1] [:<= 5]]}
+(defmulti ->where dispatch-criterion)
+
+(defmethod ->where :default
+  [[k _v]]
+  ['?x
+   (field-ref k)
+   (arg-ident k "-in")])
+
+(defmethod ->where :comparison
+  [[k [oper _v]]]
+  (let [arg (arg-ident k)]
+    [['?x
+      (field-ref k)
+      arg]
+     [(list (symbol (name oper))
+            arg
+            (arg-ident k "-in"))]]))
+
+#_(defmethod ->where :intersection
+  [[k [_and & vs]]]
+  (let [attr-ref (arg-ident k)
+        input-refs (map (comp symbol
+                              #(str "?" (name k) "-in-" %)
+                              #(+ 1 %))
+                        (range (count vs)))]
+    (cons
+      ['?x (field-ref k) attr-ref]
+      (->> vs
+           (interleave input-refs)
+           (partition 2)
+           (map (fn [[input-ref [oper]]]
+                  [(list (-> oper name symbol)
+                         attr-ref
+                         input-ref)]))))))
+
+(defmethod ->where :union
+  [[k criterion]]
+  )
+
 (defn- simple-match
   [query [k v]]
   (let [input (arg-ident k "-in")]
     (-> query
         (update-in (query-key :where)
                    conj*
-                   ['?x
-                    (field-ref k)
-                    input])
+                   ['?x (field-ref k) input])
         (update-in (query-key :in) conj* input)
         (update-in (args-key) conj* (coerce v)))))
 
@@ -74,48 +133,38 @@
   (simple-match query [k v]))
 
 (defmethod apply-criterion :comparison
-  [query [k [oper v]]]
-  (let [arg (arg-ident k)
-        input (arg-ident k "-in")]
+  [query [k [_oper v] :as criterion]]
+  (let [input (arg-ident k "-in")]
     (-> query
         (update-in (args-key) conj* (coerce v))
         (update-in (query-key :in) conj* input)
         (update-in (query-key :where)
                    concat*
-                   [['?x
-                     (keyword (name (model-type))
-                              (name k))
-                     arg]
-                    [(list (symbol (name oper))
-                           arg
-                           input)]]))))
+                   (->where criterion)))))
 
 (defmethod apply-criterion :intersection
-  [query [k [_and & vs]]]
+  [query [k [_and & vs :as criterion]]]
   ; 1. establish a reference to the model attribute
   ; 2. apply each comparison to the reference
   ; 3. decide if we need to wrap with (and ...)
   (let [attr (name k)
+        attr-ref (arg-ident k)
         input-refs (map (comp symbol
                               #(str "?" attr "-in-" %)
                               #(+ 1 %))
-                        (range (count vs)))
-        attr-ref (arg-ident k)
-        field (keyword (name (model-type)) attr)]
+                        (range (count vs)))]
     (-> query
-        (update-in (args-key) concat* (map (comp coerce last) vs))
+        (update-in (args-key)           concat* (map (comp coerce last) vs))
         (update-in (query-key :in)      concat* input-refs)
-        (update-in (query-key :where)
-                   concat*
-                   (cons
-                     ['?x field attr-ref]
-                     (->> vs
-                        (interleave input-refs)
-                        (partition 2)
-                        (map (fn [[input-ref [oper]]]
-                               [(list (-> oper name symbol)
-                                       attr-ref
-                                       input-ref)]))))))))
+        (update-in (query-key :where)   concat* (cons
+                                                  ['?x (field-ref k) attr-ref]
+                                                  (->> vs
+                                                       (interleave input-refs)
+                                                       (partition 2)
+                                                       (map (fn [[input-ref [oper]]]
+                                                              [(list (-> oper name symbol)
+                                                                     attr-ref
+                                                                     input-ref)]))))))))
 
 (defn- apply-key-value-criterion
   [input k1 q [k2 v]]
@@ -141,20 +190,6 @@
                             input]))
             m)))
 
-(s/def ::args-key (s/coll-of keyword? :kind vector?))
-(s/def ::query-prefix (s/coll-of keyword :kind vector?))
-(s/def ::model-type keyword?)
-(defmulti options-spec type)
-(defmethod options-spec ::map [_]
-  (s/keys :req-un [::model-type]
-          :opt-un [::args-key
-                   ::query-prefix]))
-(defmethod options-spec ::vector [_]
-  (s/cat :operator #{:and :or}
-         :criteria (s/+ ::options)))
-(s/def ::options (s/multi-spec options-spec type))
-
-
 (defmacro ^:private with-options
   [opts & body]
   `(binding [*opts* (merge *opts* ~opts)]
@@ -168,31 +203,36 @@
   [query criteria opts]
   {:pre [(s/valid? ::options opts)]}
 
-  (pprint {::transform-criteria-map criteria})
-
   (with-options opts criteria
     (reduce apply-criterion
             query
             criteria)))
 
 (defmethod apply-criteria ::vector
-  [query [oper & criterias :as c] opts]
+  [query [oper & criterias] opts]
   {:pre [(s/valid? ::options opts)]}
 
-  (pprint {::transform-criteria-vector c})
-
-  (conj
-    (conj (->> criterias
-               (map #(apply-criteria % opts))
-               (into '()))
-          (symbol oper))))
+  (-> query
+      (assoc-in (query-key :where)
+                (conj
+                  (->> criterias
+                       (mapcat (fn [criteria]
+                                 (with-options opts criteria
+                                   (mapv (fn [[k _v]] ; TODO: is this always a key-value pair?
+                                           ; TODO: v above needs to be written into args-key
+                                           ['?x (field-ref k) (arg-ident k)])
+                                         criteria))))
+                       (into '()))
+                  (symbol oper)))
+      #_(update-in (query-key :in) conj* (arg-ident k2 "-in"))
+      #_(update-in (args-key) conj* (coerce v))))
 
 (defn- ensure-attr
   [{:keys [where] :as query} k arg-ident]
   (if (some #(= arg-ident (last %))
             where)
     query
-    (update-in query [:where] conj* ['?x (field-ref k) arg-ident])))
+    (update-in query (query-key :where) conj* ['?x (field-ref k) arg-ident])))
 
 (defmulti apply-sort-segment
   (fn [_query seg]
