@@ -118,60 +118,6 @@
         (ensure-where criteria)
         (dtl/apply-options opts :model-type model-type))))
 
-(defmulti ^:private apply-criterion
-  (fn [_query [_k v]]
-    (when (vector? v)
-      (case (first v)
-        (:< :<= :> :>=) :comparison
-        :and            :intersection
-        :or             :union))))
-
-(defn- arg-ident
-  ([k] (arg-ident k nil))
-  ([k suffix]
-  (symbol (str "?" (name k) suffix))))
-
-(defmethod apply-criterion :default
-  [query [k v]]
-  (-> query
-      (update-in [:in] (fnil conj []) (arg-ident k))
-      (update-in [::args] (fnil conj []) (->storable v))))
-
-(defmethod apply-criterion :comparison
-  [query [k [oper v]]]
-  (let [arg (arg-ident k "-in")]
-    (-> query
-        (update-in [::args] (fnil conj []) (->storable v))
-        (update-in [:in] (fnil conj []) arg)
-        (update-in [:where] conj [(list (symbol (name oper))
-                                        (arg-ident k)
-                                        arg)]))))
-
-(defmethod apply-criterion :intersection
-  [query [k [_ & v]]]
-  (update-in query
-             [:where]
-             (comp vec concat)
-             (map (fn [[oper x]]
-                    (vector
-                      (list (-> oper name symbol)
-                            (symbol (str "?" (name k)))
-                            (->storable x))))
-                  v)))
-
-(defmethod apply-criterion :union
-  [query [k [_ & v]]]
-  ; This shape of this actually depends on the operator.
-  ; If it's equality, then it can look like [attr :qualified/attr value]
-  ; If it's comparison, it should look like ((< attr value))
-  ; It should also support nested ands and ors, which it currently does not
-  (update-in query [:where] conj [(list 'or
-                                        (map (fn [[oper x]]
-                                               (list (-> oper name symbol)
-                                                     (symbol (str "?" k))
-                                                     x))
-                                             v))]))
-
 (defmulti prepare-criteria mny/model-type)
 (defmethod prepare-criteria :default [c] c)
 
