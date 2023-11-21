@@ -56,12 +56,7 @@
                          (model-type)))
                (name k))))
 
-; This still isn't the right abstraction. I also need to be able
-; to collect the values to be placed in the :args list
-; and the :in list
-; Also, it didn't work for the intersection that looks like:
-; {:field [:and [:>= 1] [:<= 5]]}
-(defmulti ->where
+(defmulti dissect
   "Accepts a criterion and returns a map containing elements
   to be merged with :where, :args, and :in in the final
   datalog query."
@@ -74,7 +69,7 @@
                     :or             :union
                     :=              :equality))))
 
-(defmethod ->where :default
+(defmethod dissect :default
   [[k v]]
   (let [arg-in (arg-ident k "-in")]
     {:where [['?x
@@ -83,7 +78,7 @@
      :args [(coerce v)]
      :in [arg-in]}))
 
-(defmethod ->where :equality
+(defmethod dissect :equality
   [[k [_op v]]]
   ; note the destructing is different from above, but the rest is the same
   (let [arg-in (arg-ident k "-in")]
@@ -93,7 +88,7 @@
    :args [(coerce v)]
    :in [arg-in]}))
 
-(defmethod ->where :comparison
+(defmethod dissect :comparison
   [[k [oper v]]]
   (let [arg (arg-ident k)
         arg-in (arg-ident k "-in")]
@@ -112,7 +107,7 @@
 ;                                    :where [[?x :model/count ?count]
 ;                                            [(< ?count ?count-1)]]
 ;                                            [(>= ?count ?count-2)]}
-(defmethod ->where :intersection
+(defmethod dissect :intersection
   [[k [_and & vs]]]
   (let [attr-ref (arg-ident k)
         input-refs (mapv (comp symbol
@@ -131,13 +126,13 @@
      :args (map (comp coerce last) vs)
      :in input-refs}))
 
-(defmethod ->where :union
+(defmethod dissect :union
   [[k criterion]]
   )
 
 (defn- apply-criterion
   [query criterion]
-  (let [parts (->where criterion)]
+  (let [parts (dissect criterion)]
     (-> query
         (update-in (args-key)         concat* (:args parts))
         (update-in (query-key :in)    concat* (:in parts))
@@ -167,7 +162,7 @@
 
   (let [parts (mapcat (fn [criteria]
                         (with-options opts criteria
-                          (mapv ->where criteria)))
+                          (mapv dissect criteria)))
                     criterias)]
     (-> query
         (update-in (query-key :in) concat* (mapcat :in parts))
