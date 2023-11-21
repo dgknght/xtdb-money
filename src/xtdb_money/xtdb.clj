@@ -107,16 +107,16 @@
   [criteria opts]
   (let [model-type (mny/model-type criteria)]
     (-> '{:find [(pull ?x [*])]
-        :in [$]}
-      (dtl/apply-criteria (-> criteria
-                              (update-in-if [:id] coerce-id)
-                              before-query)
-                          :coerce ->storable
-                          :model-type model-type
-                          :args-key [::args]
-                          :remap {:id :xt/id})
-      (ensure-where criteria)
-      (dtl/apply-options opts :model-type model-type))))
+          :in [$]}
+        (dtl/apply-criteria (-> criteria
+                                (update-in-if [:id] coerce-id)
+                                before-query)
+                            {:coerce ->storable
+                             :model-type model-type
+                             :args-key [::args]
+                             :remap {:id :xt/id}})
+        (ensure-where criteria)
+        (dtl/apply-options opts :model-type model-type))))
 
 (defmulti ^:private apply-criterion
   (fn [_query [_k v]]
