@@ -95,6 +95,29 @@
                               {:credit-account-id 101}]
                              {:model-type :transaction}))))
 
+(deftest apply-union-and-intersection-together
+  (is (= '{:find [?x]
+           :in [?transaction-date-in
+                ?debit-account-id-in
+                ?credit-account-id-in]
+           :args ["2000-01-01" 101 101] ; TODO: maybe unify the two same variables?
+           :where (and
+                    (or [?x :transaction/debit-account-id ?debit-account-id-in]
+                        [?x :transaction/credit-account-id ?credit-account-id-in])
+                    [?x :transaction/transaction-date ?transaction-date-in])
+           ; TODO: Confirm that both of there queries work and are equivalent
+           ; TODO: If the above is true, turn an outer 'and' into a vector
+           #_:where  #_[[?x :transaction/transaction-date ?transaction-date-in]
+                    (or [?x :transaction/debit-account-id ?debit-account-id-in]
+                        [?x :transaction/credit-account-id ?credit-account-id-in])]}
+         (dtl/apply-criteria query
+                             [:and
+                              {:transaction-date "2000-01-01"}
+                              [:or
+                               {:debit-account-id 101}
+                               {:credit-account-id 101}]]
+                             {:model-type :transaction}))))
+
 (deftest apply-options
   (testing "limit"
     (is (= '{:find [?x]

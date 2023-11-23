@@ -60,14 +60,19 @@
   "Accepts a criterion and returns a map containing elements
   to be merged with :where, :args, and :in in the final
   datalog query."
-  (fn [[_k v]]
-    (cond
-      (map? v) :compound
-      (vector? v) (case (first v)
-                    (:< :<= :> :>=) :comparison
-                    :and            :intersection
-                    :or             :union
-                    :=              :equality))))
+  (fn [c]
+    ; c will always be a vector, either a key-value pair
+    ; or a construction like [:and crit1 crit2]
+    (if (= 2 (count c)) ; this is a tuple key-value pair
+      (let [[_k v] c]
+        (cond
+          (map? v) :compound
+          (vector? v) (case (first v)
+                        (:< :<= :> :>=) :comparison
+                        :and            :intersection
+                        :or             :union
+                        :=              :equality)))
+      :conjunction)))
 
 (defmethod dissect :default
   [[k v]]
@@ -77,6 +82,26 @@
               arg-in]]
      :args [(coerce v)]
      :in [arg-in]}))
+
+(defmethod dissect :conjunction
+  [[oper & cs]]
+  ; Here we need to return a map, like the other dissect versions.
+  ; While most of the keys are simple sequences, the where
+  ; is hierarchical
+  (let [x (reduce (fn [res c]
+                    (let [ps (if (map? c) ; this duplicates logic in apply-criteria[::vecto]
+                               (map dissect c)
+                               (dissect c))]
+                      (reduce (fn [r p] ; is it possible to do this with one reduce?
+                                (-> r
+                                    (update-in [:where] concat (:where p))
+                                    (update-in [:in] concat (:in p))
+                                    (update-in [:args] concat (:args p))))
+                              res
+                              ps)))
+                  {:where [] :args [] :in []}
+                  cs)]
+    (update-in x [:where] #(vector (conj % (symbol oper))))))
 
 (defmethod dissect :equality
   [[k [_op v]]]
@@ -126,10 +151,6 @@
      :args (map (comp coerce last) vs)
      :in input-refs}))
 
-(defmethod dissect :union
-  [[k criterion]]
-  )
-
 (defn- apply-criterion
   [query criterion]
   (let [parts (dissect criterion)]
@@ -151,7 +172,7 @@
   [query criteria opts]
   {:pre [(s/valid? ::options opts)]}
 
-  (with-options opts criteria
+  (with-options opts
     (reduce apply-criterion
             query
             criteria)))
@@ -159,15 +180,16 @@
 (defmethod apply-criteria ::vector
   [query [oper & criterias] opts]
   {:pre [(s/valid? ::options opts)]}
-
   (let [parts (mapcat (fn [criteria]
-                        (with-options opts criteria
-                          (mapv dissect criteria)))
-                    criterias)]
+                        (with-options opts
+                          (if (map? criteria)
+                            (mapv dissect criteria)
+                            [(dissect criteria)])))
+                      criterias)]
     (-> query
-        (update-in (query-key :in) concat* (mapcat :in parts))
-        (update-in (args-key)      concat* (mapcat :args parts))
-        (assoc-in (query-key :where) (conj (->> parts
+        (update-in (query-key :in)    concat* (mapcat :in parts))
+        (update-in (args-key)         concat* (mapcat :args parts))
+        (assoc-in  (query-key :where) (conj (->> parts
                                                 (mapcat :where)
                                                 (into '()))
                                            (symbol oper))))))
