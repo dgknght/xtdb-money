@@ -203,8 +203,11 @@
         query
         (update-in querylet
                    [:where]
-                   #(conj (into '() %)
-                          (symbol oper)))
+                   (fn [w]
+                     (if (= :and oper)
+                       (vec w)
+                       (conj (into '() w)
+                             (symbol oper)))))
         :->where (fn [existing new]
                    (if existing
                      (conj existing new)
