@@ -88,19 +88,18 @@
   ; Here we need to return a map, like the other dissect versions.
   ; While most of the keys are simple sequences, the where
   ; is hierarchical
-  (let [x (reduce (fn [res c]
-                    (let [ps (if (map? c) ; this duplicates logic in apply-criteria[::vecto]
-                               (map dissect c)
-                               (dissect c))]
-                      (reduce (fn [r p] ; is it possible to do this with one reduce?
-                                (-> r
-                                    (update-in [:where] concat (:where p))
-                                    (update-in [:in] concat (:in p))
-                                    (update-in [:args] concat (:args p))))
-                              res
-                              ps)))
+  (let [parts (mapcat (fn [c]
+                        (if (map? c)
+                          (mapv dissect c)
+                          [(dissect c)]))
+                      cs)
+        x (reduce (fn [res p]
+                    (-> res
+                        (update-in [:where] concat (:where p))
+                        (update-in [:in] concat (:in p))
+                        (update-in [:args] concat (:args p))))
                   {:where [] :args [] :in []}
-                  cs)]
+                  parts)]
     (update-in x [:where] #(vector (conj % (symbol oper))))))
 
 (defmethod dissect :equality
