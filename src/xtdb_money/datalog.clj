@@ -180,19 +180,19 @@
 (defmethod apply-criteria ::vector
   [query [oper & criterias] opts]
   {:pre [(s/valid? ::options opts)]}
-  (let [parts (mapcat (fn [criteria]
-                        (with-options opts
+  (with-options opts
+    (let [parts (mapcat (fn [criteria]
                           (if (map? criteria)
                             (mapv dissect criteria)
-                            [(dissect criteria)])))
-                      criterias)]
-    (-> query
-        (update-in (query-key :in)    concat* (mapcat :in parts))
-        (update-in (args-key)         concat* (mapcat :args parts))
-        (assoc-in  (query-key :where) (conj (->> parts
-                                                (mapcat :where)
-                                                (into '()))
-                                           (symbol oper))))))
+                            [(dissect criteria)]))
+                        criterias)]
+      (-> query
+          (update-in (query-key :in)    concat* (mapcat :in parts))
+          (update-in (args-key)         concat* (mapcat :args parts))
+          (assoc-in  (query-key :where) (conj (->> parts
+                                                   (mapcat :where)
+                                                   (into '()))
+                                              (symbol oper)))))))
 
 (defn- ensure-attr
   [{:keys [where] :as query} k arg-ident]
