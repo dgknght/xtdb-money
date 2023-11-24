@@ -157,11 +157,14 @@
      :in input-refs}))
 
 (defn- apply-querylet
-  [query querylet]
+  [query querylet & {:keys [->in ->args ->where]
+                     :or {->in concat*
+                          ->args concat*
+                          ->where concat*}}]
   (-> query
-      (update-in (args-key)         concat* (:args querylet))
-      (update-in (query-key :in)    concat* (:in querylet))
-      (update-in (query-key :where) concat* (:where querylet))))
+      (update-in (args-key)         ->args  (:args querylet))
+      (update-in (query-key :in)    ->in    (:in querylet))
+      (update-in (query-key :where) ->where (:where querylet))))
 
 (defn- merge-querylets
   [target source]
@@ -201,7 +204,11 @@
         (update-in querylet
                    [:where]
                    #(conj (into '() %)
-                          (symbol oper)))))))
+                          (symbol oper)))
+        :->where (fn [existing new]
+                   (if existing
+                     (conj existing new)
+                     new))))))
 
 (defn- ensure-attr
   [{:keys [where] :as query} k arg-ident]
