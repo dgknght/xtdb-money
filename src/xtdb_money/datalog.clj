@@ -98,14 +98,14 @@
   ; Here we need to return a map, like the other dissect versions.
   ; While most of the keys are simple sequences, the where
   ; is hierarchical
-  (let [parts (mapcat ->querylets cs)
-        x (reduce (fn [res p]
-                    (-> res
-                        (update-in [:where] concat (:where p))
-                        (update-in [:in] concat (:in p))
-                        (update-in [:args] concat (:args p))))
-                  {:where [] :args [] :in []}
-                  parts)]
+  (let [x (->> cs
+               (mapcat ->querylets)
+               (reduce (fn [res p]
+                         (-> res
+                             (update-in [:where] concat (:where p))
+                             (update-in [:in] concat (:in p))
+                             (update-in [:args] concat (:args p))))
+                       {:where [] :args [] :in []}))]
     (update-in x [:where] #(vector (conj % (symbol oper))))))
 
 (defmethod dissect :equality
