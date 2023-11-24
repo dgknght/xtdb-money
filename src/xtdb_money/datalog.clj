@@ -191,15 +191,17 @@
 (defmethod apply-criteria ::vector
   [query [oper & criterias] opts]
   {:pre [(s/valid? ::options opts)]}
+
   (with-options opts
-    (let [parts (mapcat ->querylets criterias)]
-      (-> query
-          (update-in (query-key :in)    concat* (mapcat :in parts))
-          (update-in (args-key)         concat* (mapcat :args parts))
-          (assoc-in  (query-key :where) (conj (->> parts
-                                                   (mapcat :where)
-                                                   (into '()))
-                                              (symbol oper)))))))
+    (let [querylet (->> criterias
+                        (mapcat ->querylets)
+                        (reduce merge-querylets))]
+      (apply-querylet
+        query
+        (update-in querylet
+                   [:where]
+                   #(conj (into '() %)
+                          (symbol oper)))))))
 
 (defn- ensure-attr
   [{:keys [where] :as query} k arg-ident]
