@@ -83,16 +83,22 @@
      :args [(coerce v)]
      :in [arg-in]}))
 
+(defmulti ^:private ->querylets type)
+
+(defmethod ->querylets ::map
+  [c]
+  (mapv dissect c))
+
+(defmethod ->querylets ::vector
+  [c]
+  [(dissect c)])
+
 (defmethod dissect :conjunction
   [[oper & cs]]
   ; Here we need to return a map, like the other dissect versions.
   ; While most of the keys are simple sequences, the where
   ; is hierarchical
-  (let [parts (mapcat (fn [c]
-                        (if (map? c)
-                          (mapv dissect c)
-                          [(dissect c)]))
-                      cs)
+  (let [parts (mapcat ->querylets cs)
         x (reduce (fn [res p]
                     (-> res
                         (update-in [:where] concat (:where p))
@@ -180,11 +186,7 @@
   [query [oper & criterias] opts]
   {:pre [(s/valid? ::options opts)]}
   (with-options opts
-    (let [parts (mapcat (fn [criteria]
-                          (if (map? criteria)
-                            (mapv dissect criteria)
-                            [(dissect criteria)]))
-                        criterias)]
+    (let [parts (mapcat ->querylets criterias)]
       (-> query
           (update-in (query-key :in)    concat* (mapcat :in parts))
           (update-in (args-key)         concat* (mapcat :args parts))
