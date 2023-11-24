@@ -156,13 +156,18 @@
      :args (map (comp coerce last) vs)
      :in input-refs}))
 
-(defn- apply-criterion
-  [query criterion]
-  (let [parts (dissect criterion)]
-    (-> query
-        (update-in (args-key)         concat* (:args parts))
-        (update-in (query-key :in)    concat* (:in parts))
-        (update-in (query-key :where) concat* (:where parts)))))
+(defn- apply-querylet
+  [query querylet]
+  (-> query
+      (update-in (args-key)         concat* (:args querylet))
+      (update-in (query-key :in)    concat* (:in querylet))
+      (update-in (query-key :where) concat* (:where querylet))))
+
+(defn- merge-querylets
+  [target source]
+  (reduce #(update-in %1 [%2] concat (get-in source [%2]))
+          target
+          [:args :in :where]))
 
 (defmacro ^:private with-options
   [opts & body]
@@ -178,9 +183,10 @@
   {:pre [(s/valid? ::options opts)]}
 
   (with-options opts
-    (reduce apply-criterion
-            query
-            criteria)))
+    (->> criteria
+         (map dissect)
+         (reduce merge-querylets)
+         (apply-querylet query))))
 
 (defmethod apply-criteria ::vector
   [query [oper & criterias] opts]
