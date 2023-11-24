@@ -1,5 +1,5 @@
 (ns xtdb-money.datalog-test
-  (:require [clojure.test :refer [deftest testing is]]
+  (:require [clojure.test :refer [deftest testing is testing]]
             [xtdb-money.core :as mny]
             [xtdb-money.datalog :as dtl]))
 
@@ -96,21 +96,45 @@
                              {:model-type :transaction}))))
 
 (deftest apply-union-and-intersection-together
-  (is (= '{:find [?x]
-           :in [?transaction-date-in
-                ?debit-account-id-in
-                ?credit-account-id-in]
-           :args ["2000-01-01" 101 101] ; TODO: maybe unify the two same variables?
-           :where  [[?x :transaction/transaction-date ?transaction-date-in]
-                    (or [?x :transaction/debit-account-id ?debit-account-id-in]
-                        [?x :transaction/credit-account-id ?credit-account-id-in])]}
-         (dtl/apply-criteria query
-                             [:and
-                              {:transaction-date "2000-01-01"}
-                              [:or
-                               {:debit-account-id 101}
-                               {:credit-account-id 101}]]
-                             {:model-type :transaction}))))
+  (testing "the 'and' is the outer conjunction"
+    (is (= '{:find [?x]
+             :in [?transaction-date-in
+                  ?debit-account-id-in
+                  ?credit-account-id-in]
+             :args ["2000-01-01" 101 101] ; TODO: maybe unify the two same variables?
+             :where  [[?x :transaction/transaction-date ?transaction-date-in]
+                      (or [?x :transaction/debit-account-id ?debit-account-id-in]
+                          [?x :transaction/credit-account-id ?credit-account-id-in])]}
+           (dtl/apply-criteria query
+                               [:and
+                                {:transaction-date "2000-01-01"}
+                                [:or
+                                 {:debit-account-id 101}
+                                 {:credit-account-id 101}]]
+                               {:model-type :transaction}))))
+  (testing "the 'or' is the outer conjunction"
+    (is false "Need to adjust the test below to account for two inputs with the same name")
+    #_(is (= '{:find [?x]
+             :in [?debit-account-id-in
+                  ?transaction-date-in
+                  ?credit-account-id-in
+                  ?transaction-date-in]
+             :args [101
+                    "2000-01-01"
+                    101
+                    "2000-01-01"] ; TODO: maybe unify the two same variables?
+             :where  (or [[?x :transaction/credit-account-id ?credit-account-id-in]
+                          [?x :transaction/transaction-date ?transaction-date-in]]
+                         [[?x :transaction/debit-account-id ?debit-account-id-in]
+                          [?x :transaction/transaction-date ?transaction-date-in]])}
+           (dtl/apply-criteria query
+                               [:or
+                                {:debit-account-id 101
+                                 :transaction-date "2000-01-01"}
+                                {:credit-account-id 101
+                                 :transaction-date "2000-01-01"}]
+                               {:model-type :transaction})))))
+
 
 (deftest apply-options
   (testing "limit"

@@ -56,6 +56,20 @@
                          (model-type)))
                (name k))))
 
+(defn- merge-querylets
+  "Returns a fn for merging querylets. Options are available for
+  :in, :args, and :where and specify the function to use to combine
+  the values in the two maps. The default function is concat."
+  [& {:as opts}]
+  (fn [target source]
+    (reduce #(update-in %1
+                        [%2]
+                        (get-in opts [%2] concat)
+                        (get-in source [%2]))
+            target
+            [:args :in :where])))
+
+; TODO: This fn and ->querylets are confusingly similar
 (defmulti dissect
   "Accepts a criterion and returns a map containing elements
   to be merged with :where, :args, and :in in the final
@@ -70,7 +84,7 @@
           (vector? v) (case (first v)
                         (:< :<= :> :>=) :comparison
                         :and            :intersection
-                        :or             :union
+                        :or             :union ; TODO: Do we ever hit this?
                         :=              :equality)))
       :conjunction)))
 
@@ -93,20 +107,25 @@
   [c]
   [(dissect c)])
 
-(defmethod dissect :conjunction
+(defmethod dissect :conjunction ; TODO: This looks a lot like apply-criteria ::vector
   [[oper & cs]]
   ; Here we need to return a map, like the other dissect versions.
   ; While most of the keys are simple sequences, the where
   ; is hierarchical
   (let [x (->> cs
                (mapcat ->querylets)
-               (reduce (fn [res p]
-                         (-> res
-                             (update-in [:where] concat (:where p))
-                             (update-in [:in] concat (:in p))
-                             (update-in [:args] concat (:args p))))
+               (reduce (merge-querylets)
                        {:where [] :args [] :in []}))]
-    (update-in x [:where] #(vector (conj % (symbol oper))))))
+    (update-in x [:where] #(vector (conj % (symbol oper)))))
+  ; TODO: I'm pretty sure this mapcat is the wrong thing to do
+  ; I'm also pretty sure the right thing looks more like this below
+  ; but it still isn't quite right
+  #_(let [x (->> cs
+                 (map (comp #(reduce (merge-querylets) %)
+                            ->querylets))
+                 (reduce (merge-querylets :where conj)
+                         {:where [] :args [] :in []}))]
+      (update-in x [:where] #(vector (conj % (symbol oper))))))
 
 (defmethod dissect :equality
   [[k [_op v]]]
@@ -157,20 +176,15 @@
      :in input-refs}))
 
 (defn- apply-querylet
-  [query querylet & {:keys [->in ->args ->where]
-                     :or {->in concat*
-                          ->args concat*
-                          ->where concat*}}]
+  "Apply a querylet to a proper datalog query map"
+  [query querylet & {:keys [in args where]
+                     :or {in concat*
+                          args concat*
+                          where concat*}}]
   (-> query
-      (update-in (args-key)         ->args  (:args querylet))
-      (update-in (query-key :in)    ->in    (:in querylet))
-      (update-in (query-key :where) ->where (:where querylet))))
-
-(defn- merge-querylets
-  [target source]
-  (reduce #(update-in %1 [%2] concat (get-in source [%2]))
-          target
-          [:args :in :where]))
+      (update-in (args-key)         args  (:args querylet))
+      (update-in (query-key :in)    in    (:in querylet))
+      (update-in (query-key :where) where (:where querylet))))
 
 (defmacro ^:private with-options
   [opts & body]
@@ -188,7 +202,7 @@
   (with-options opts
     (->> criteria
          (map dissect)
-         (reduce merge-querylets)
+         (reduce (merge-querylets))
          (apply-querylet query))))
 
 (defmethod apply-criteria ::vector
@@ -197,8 +211,11 @@
 
   (with-options opts
     (let [querylet (->> criterias
-                        (mapcat ->querylets)
-                        (reduce merge-querylets))]
+                        (map #(reduce (merge-querylets (comp vec concat))
+                                      {:args [] :in [] :where []}
+                                      (->querylets %)))
+                        (reduce (merge-querylets)
+                                {:args [] :in [] :where []}))]
       (apply-querylet
         query
         (update-in querylet
@@ -208,10 +225,10 @@
                        (vec w)
                        (conj (into '() w)
                              (symbol oper)))))
-        :->where (fn [existing new]
-                   (if existing
-                     (conj existing new)
-                     new))))))
+        :where (fn [existing new]
+                 (if existing
+                   (conj existing new)
+                   new))))))
 
 (defn- ensure-attr
   [{:keys [where] :as query} k arg-ident]
