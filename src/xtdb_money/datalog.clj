@@ -69,20 +69,24 @@
     (first x)
     x))
 
-(defn- merge-where
-  [oper]
-  (if (= :and oper)
-    (fn [w1 w2]
-      (cond
-        (and (vector? w1) (vector? w2))
-        (vec (concat w1 w2))
+(defn- merge-and
+  [w1 w2]
+  (cond
+    (and (vector? w1) (vector? w2))
+    (vec (concat w1 w2))
 
-        :else
-        [(extract-singular w1) (extract-singular w2)]))
-    (fn [w1 w2]
-      (list 'or
-            (extract-singular w1)
-            (extract-singular w2)))))
+    :else
+    [(extract-singular w1) (extract-singular w2)]))
+
+(defn- merge-or
+  [w1 w2]
+  (list 'or
+        (extract-singular w1)
+        (extract-singular w2)))
+
+(def ^:private merge-where
+  {:and merge-and
+   :or merge-or})
 
 (defn- merge-querylets
   "Returns a fn for merging querylets. Options are available for
