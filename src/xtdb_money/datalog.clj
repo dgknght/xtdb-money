@@ -75,8 +75,11 @@
     (and (vector? w1) (vector? w2))
     (vec (concat w1 w2))
 
-    :else
-    [(extract-singular w1) (extract-singular w2)]))
+    (vector? w1)
+    (conj w1 w2)
+
+    :else ; w1 is a list
+    (apply vector w1 w2)))
 
 (defn- merge-or
   [w1 w2]
