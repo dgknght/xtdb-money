@@ -1,6 +1,7 @@
 (ns xtdb-money.xtdb
   (:require [clojure.java.io :as io]
             [clojure.set :refer [rename-keys]]
+            [clojure.pprint :refer [pprint]]
             [xtdb.api :as xt]
             [dgknght.app-lib.core :refer [update-in-if]]
             [xtdb-money.datalog :as dtl]
@@ -112,11 +113,11 @@
                                 (update-in-if [:id] coerce-id)
                                 before-query)
                             {:coerce ->storable
-                             :model-type model-type
+                             :qualifier model-type
                              :args-key [::args]
                              :remap {:id :xt/id}})
         (ensure-where criteria)
-        (dtl/apply-options opts :model-type model-type))))
+        (dtl/apply-options opts :qualifier model-type))))
 
 (defmulti prepare-criteria mny/model-type)
 (defmethod prepare-criteria :default [c] c)
