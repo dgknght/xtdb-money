@@ -7,10 +7,10 @@
 
 (s/def ::args-key (s/coll-of keyword? :kind vector?))
 (s/def ::query-prefix (s/coll-of keyword :kind vector?))
-(s/def ::model-type keyword?)
+(s/def ::qualifier keyword?)
 (defmulti options-spec type)
 (defmethod options-spec ::map [_]
-  (s/keys :req-un [::model-type]
+  (s/keys :req-un [::qualifier]
           :opt-un [::args-key
                    ::query-prefix]))
 (defmethod options-spec ::vector [_]
@@ -37,8 +37,8 @@
 (defn- args-key []
   (:args-key *opts*))
 
-(defn- model-type []
-  (:model-type *opts*))
+(defn- qualifier []
+  (:qualifier *opts*))
 
 (defn- query-key
   [& ks]
@@ -50,10 +50,10 @@
   (symbol (str "?" (name k) suffix))))
 
 (defn- field-ref
-  [k & {explicit-type :model-type}]
+  [k & {explicit-type :qualifier}]
   (or ((:remap *opts*) k)
       (keyword (name (or explicit-type
-                         (model-type)))
+                         (qualifier)))
                (name k))))
 
 (defn- merge-querylets
