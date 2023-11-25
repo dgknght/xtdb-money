@@ -18,7 +18,7 @@
                 [:identities]
                 (fn [i]
                   (mapv #(apply hash-map %)
-                       i))))
+                        i))))
 
 (defmethod x/after-read :user
   [user]
@@ -29,4 +29,4 @@
 (defmethod x/before-query :user
   [criteria]
   (update-in-if criteria [:identities 1] (fn [[k v]]
-                                         {k v})))
+                                           {k v})))
