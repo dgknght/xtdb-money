@@ -56,22 +56,48 @@
                          (qualifier)))
                (name k))))
 
+(defn- one?
+  [x]
+  (= 1 (count x)))
+
+(def ^:private vec-of-one?
+  (every-pred vector? one?))
+
+(defn- extract-singular
+  [x]
+  (if (vec-of-one? x)
+    (first x)
+    x))
+
+(defn- merge-where
+  [oper]
+  (if (= :and oper)
+    (fn [w1 w2]
+      (cond
+        (and (vector? w1) (vector? w2))
+        (vec (concat w1 w2))
+
+        :else
+        [(extract-singular w1) (extract-singular w2)]))
+    (fn [w1 w2]
+      (list 'or
+            (extract-singular w1)
+            (extract-singular w2)))))
+
 (defn- merge-querylets
   "Returns a fn for merging querylets. Options are available for
   :in, :args, and :where and specify the function to use to combine
   the values in the two maps. The default function is concat."
-  [& {:as opts}]
+  [oper]
   (fn [target source]
-    (reduce #(update-in %1
-                        [%2]
-                        (get-in opts [%2] concat)
-                        (get-in source [%2]))
-            target
-            [:args :in :where])))
+    (-> target
+        (update-in [:in]    (fnil concat [])   (:in source))
+        (update-in [:args]  (fnil concat [])   (:args source))
+        (update-in [:where] (merge-where oper) (:where source)))))
 
 ; TODO: This fn and ->querylets are confusingly similar
 (defmulti dissect
-  "Accepts a criterion and returns a map containing elements
+  "Accepts a criterion and returns a querylet map containing elements
   to be merged with :where, :args, and :in in the final
   datalog query."
   (fn [c]
@@ -107,25 +133,12 @@
   [c]
   [(dissect c)])
 
-(defmethod dissect :conjunction ; TODO: This looks a lot like apply-criteria ::vector
+(defmethod dissect :conjunction
   [[oper & cs]]
-  ; Here we need to return a map, like the other dissect versions.
-  ; While most of the keys are simple sequences, the where
-  ; is hierarchical
-  (let [x (->> cs
-               (mapcat ->querylets)
-               (reduce (merge-querylets)
-                       {:where [] :args [] :in []}))]
-    (update-in x [:where] #(vector (conj % (symbol oper)))))
-  ; TODO: I'm pretty sure this mapcat is the wrong thing to do
-  ; I'm also pretty sure the right thing looks more like this below
-  ; but it still isn't quite right
-  #_(let [x (->> cs
-                 (map (comp #(reduce (merge-querylets) %)
-                            ->querylets))
-                 (reduce (merge-querylets :where conj)
-                         {:where [] :args [] :in []}))]
-      (update-in x [:where] #(vector (conj % (symbol oper))))))
+  (->> cs
+       (map #(reduce (merge-querylets :and)
+                     (->querylets %)))
+       (reduce (merge-querylets oper))))
 
 (defmethod dissect :equality
   [[k [_op v]]]
@@ -202,42 +215,21 @@
   (with-options opts
     (->> criteria
          (map dissect)
-         (reduce (merge-querylets))
+         (reduce (merge-querylets :and))
          (apply-querylet query))))
 
-(defn- apply-conjunction
-  [clauses oper]
-  (if (= :and oper)
-    (vec (map first clauses))
-    (conj (->> clauses
-               (map #(if (= 1 (count %))
-                       (first %)
-                       %))
-               (into '()))
-          (symbol oper))))
-
 (defmethod apply-criteria ::vector
-  [query [oper & criterias] opts]
+  [query criteria opts]
   {:pre [(s/valid? ::options opts)]}
 
   (with-options opts
-    (let [querylet (->> criterias
-                        (map #(reduce (merge-querylets :where (comp vec concat))
-                                      {:args [] :in [] :where []}
-                                      (->querylets %)))
-                        (reduce (merge-querylets :where conj)
-                                {:args [] :in [] :where []}))
-          with-oper (update-in querylet
-                              [:where]
-                              apply-conjunction
-                              oper)]
-      (apply-querylet
+    (apply-querylet
         query
-        with-oper
+        (dissect criteria)
         :where (fn [existing new]
                  (if existing
                    (conj existing new)
-                   new))))))
+                   new)))))
 
 (defn- ensure-attr
   [{:keys [where] :as query} k arg-ident]

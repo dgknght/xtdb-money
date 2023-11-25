@@ -85,8 +85,8 @@
   ; the same logical result makes my head hurt
   ; makes my head hurt
   (is (= '{:find [?x]
-           :where (or [?x :transaction/credit-account-id ?credit-account-id-in]
-                      [?x :transaction/debit-account-id ?debit-account-id-in])
+           :where (or [?x :transaction/debit-account-id ?debit-account-id-in]
+                      [?x :transaction/credit-account-id ?credit-account-id-in])
            :in [?debit-account-id-in ?credit-account-id-in]
            :args [101 101]}
          (dtl/apply-criteria query
