@@ -122,9 +122,9 @@
                     "2000-01-01"
                     101
                     "2000-01-01"] ; TODO: maybe unify the two same variables?
-             :where  (or [[?x :transaction/credit-account-id ?credit-account-id-in]
+             :where  (or [[?x :transaction/debit-account-id ?debit-account-id-in]
                           [?x :transaction/transaction-date ?transaction-date-in]]
-                         [[?x :transaction/debit-account-id ?debit-account-id-in]
+                         [[?x :transaction/credit-account-id ?credit-account-id-in]
                           [?x :transaction/transaction-date ?transaction-date-in]])}
            (dtl/apply-criteria query
                                [:or
