@@ -95,8 +95,9 @@
         (update-in [:args]  (fnil concat [])   (:args source))
         (update-in [:where] (merge-where oper) (:where source)))))
 
-; TODO: This fn and ->querylets are confusingly similar
-(defmulti dissect
+(declare ->querylets)
+
+(defmulti ->querylet
   "Accepts a criterion and returns a querylet map containing elements
   to be merged with :where, :args, and :in in the final
   datalog query."
@@ -114,7 +115,7 @@
                         :=              :equality)))
       :conjunction)))
 
-(defmethod dissect :default
+(defmethod ->querylet :default
   [[k v]]
   (let [arg-in (arg-ident k "-in")]
     {:where [['?x
@@ -123,24 +124,14 @@
      :args [(coerce v)]
      :in [arg-in]}))
 
-(defmulti ^:private ->querylets type)
-
-(defmethod ->querylets ::map
-  [c]
-  (mapv dissect c))
-
-(defmethod ->querylets ::vector
-  [c]
-  [(dissect c)])
-
-(defmethod dissect :conjunction
+(defmethod ->querylet :conjunction
   [[oper & cs]]
   (->> cs
        (map #(reduce (merge-querylets :and)
                      (->querylets %)))
        (reduce (merge-querylets oper))))
 
-(defmethod dissect :equality
+(defmethod ->querylet :equality
   [[k [_op v]]]
   ; note the destructing is different from above, but the rest is the same
   (let [arg-in (arg-ident k "-in")]
@@ -150,7 +141,7 @@
    :args [(coerce v)]
    :in [arg-in]}))
 
-(defmethod dissect :comparison
+(defmethod ->querylet :comparison
   [[k [oper v]]]
   (let [arg (arg-ident k)
         arg-in (arg-ident k "-in")]
@@ -169,7 +160,7 @@
 ;                                    :where [[?x :model/count ?count]
 ;                                            [(< ?count ?count-1)]]
 ;                                            [(>= ?count ?count-2)]}
-(defmethod dissect :intersection
+(defmethod ->querylet :intersection
   [[k [_and & vs]]]
   (let [attr-ref (arg-ident k)
         input-refs (mapv (comp symbol
@@ -187,6 +178,19 @@
                                  input-ref)]))))
      :args (map (comp coerce last) vs)
      :in input-refs}))
+
+(defmulti ^:private ->querylets
+  "Accepts a criteria structure (map or vector) and returns
+  a sequence of querylets"
+  type)
+
+(defmethod ->querylets ::map
+  [c]
+  (mapv ->querylet c))
+
+(defmethod ->querylets ::vector
+  [c]
+  [(->querylet c)])
 
 (defn- apply-querylet
   "Apply a querylet to a proper datalog query map"
