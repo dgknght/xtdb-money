@@ -78,6 +78,25 @@
                              {:qualifier :user}))
       "Using :match, a vector is passed in as the match value"))
 
+(deftest apply-a-simple-match-with-complex-match
+  ; that or clause might really look like this (without the vectors):
+  ; (or (>= ?transaction-date ?transaction-date-in-1)
+        ;     (< ?transaction-date ?transaction-date-in-2))
+  (is (= '{:find [?x]
+           :where [[?x :transaction/entity-id ?entity-id-in]
+                   [?x :transaction/transaction-date ?transaction-date]
+                   [(>= ?transaction-date ?transaction-date-in-1)]
+                   [(< ?transaction-date ?transaction-date-in-2)]]
+           :in [?entity-id-in ?transaction-date-in-1 ?transaction-date-in-2]
+           :args [102 "2000-01-01" "2001-01-01"]}
+         (dtl/apply-criteria
+           query
+           {:entity-id 102
+            :transaction-date [:and
+                               [:>= "2000-01-01"]
+                               [:< "2001-01-01"]]}
+           {:qualifier :transaction}))))
+
 (deftest apply-a-union-of-criterias
   ; Note that the order of the criteria reverses as a result of
   ; the implementation. Trying to write a test that allows for
@@ -115,7 +134,7 @@
   (testing "the 'or' is the outer conjunction"
     (is (= '{:find [?x]
              :in [?debit-account-id-in
-                  ?transaction-date-in
+                  ?transaction-date-in ; TODO: We need to fix the ambigious variables here
                   ?credit-account-id-in
                   ?transaction-date-in]
              :args [101

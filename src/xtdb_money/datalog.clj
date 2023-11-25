@@ -174,15 +174,16 @@
                                #(str "?" (name k) "-in-" %)
                                #(+ 1 %))
                          (range (count vs)))]
-    {:where (cons
-              ['?x (field-ref k) attr-ref]
-              (->> vs
-                   (interleave input-refs)
-                   (partition 2)
-                   (map (fn [[input-ref [oper]]]
-                          [(list (-> oper name symbol)
-                                 attr-ref
-                                 input-ref)]))))
+    {:where (vec
+              (cons
+                ['?x (field-ref k) attr-ref]
+                (->> vs
+                     (interleave input-refs)
+                     (partition 2)
+                     (map (fn [[input-ref [oper]]]
+                            [(list (-> oper name symbol)
+                                   attr-ref
+                                   input-ref)])))))
      :args (map (comp coerce last) vs)
      :in input-refs}))
 
