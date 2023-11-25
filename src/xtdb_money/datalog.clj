@@ -190,14 +190,11 @@
 
 (defn- apply-querylet
   "Apply a querylet to a proper datalog query map"
-  [query querylet & {:keys [in args where]
-                     :or {in concat*
-                          args concat*
-                          where concat*}}]
+  [query querylet]
   (-> query
-      (update-in (args-key)         args  (:args querylet))
-      (update-in (query-key :in)    in    (:in querylet))
-      (update-in (query-key :where) where (:where querylet))))
+      (update-in (args-key)         concat* (:args querylet))
+      (update-in (query-key :in)    concat* (:in querylet))
+      (update-in (query-key :where) concat* (:where querylet))))
 
 (defmacro ^:private with-options
   [opts & body]
@@ -225,11 +222,7 @@
   (with-options opts
     (apply-querylet
         query
-        (dissect criteria)
-        :where (fn [existing new]
-                 (if existing
-                   (conj existing new)
-                   new)))))
+        (dissect criteria))))
 
 (defn- ensure-attr
   [{:keys [where] :as query} k arg-ident]
