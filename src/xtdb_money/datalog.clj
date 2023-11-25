@@ -201,28 +201,14 @@
   `(binding [*opts* (merge *opts* ~opts)]
      ~@body))
 
-(defmulti apply-criteria
-  (fn [_q c _o]
-    (type c)))
-
-(defmethod apply-criteria ::map
+(defn apply-criteria
   [query criteria opts]
   {:pre [(s/valid? ::options opts)]}
 
   (with-options opts
-    (->> criteria
-         (map dissect)
+    (->> (->querylets criteria)
          (reduce (merge-querylets :and))
          (apply-querylet query))))
-
-(defmethod apply-criteria ::vector
-  [query criteria opts]
-  {:pre [(s/valid? ::options opts)]}
-
-  (with-options opts
-    (apply-querylet
-        query
-        (dissect criteria))))
 
 (defn- ensure-attr
   [{:keys [where] :as query} k arg-ident]
