@@ -205,26 +205,35 @@
          (reduce (merge-querylets))
          (apply-querylet query))))
 
+(defn- apply-conjunction
+  [clauses oper]
+  (if (= :and oper)
+    (vec (map first clauses))
+    (conj (->> clauses
+               (map #(if (= 1 (count %))
+                       (first %)
+                       %))
+               (into '()))
+          (symbol oper))))
+
 (defmethod apply-criteria ::vector
   [query [oper & criterias] opts]
   {:pre [(s/valid? ::options opts)]}
 
   (with-options opts
     (let [querylet (->> criterias
-                        (map #(reduce (merge-querylets (comp vec concat))
+                        (map #(reduce (merge-querylets :where (comp vec concat))
                                       {:args [] :in [] :where []}
                                       (->querylets %)))
-                        (reduce (merge-querylets)
-                                {:args [] :in [] :where []}))]
+                        (reduce (merge-querylets :where conj)
+                                {:args [] :in [] :where []}))
+          with-oper (update-in querylet
+                              [:where]
+                              apply-conjunction
+                              oper)]
       (apply-querylet
         query
-        (update-in querylet
-                   [:where]
-                   (fn [w]
-                     (if (= :and oper)
-                       (vec w)
-                       (conj (into '() w)
-                             (symbol oper)))))
+        with-oper
         :where (fn [existing new]
                  (if existing
                    (conj existing new)

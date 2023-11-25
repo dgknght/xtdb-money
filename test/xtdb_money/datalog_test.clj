@@ -113,8 +113,7 @@
                                  {:credit-account-id 101}]]
                                {:model-type :transaction}))))
   (testing "the 'or' is the outer conjunction"
-    (is false "Need to adjust the test below to account for two inputs with the same name")
-    #_(is (= '{:find [?x]
+    (is (= '{:find [?x]
              :in [?debit-account-id-in
                   ?transaction-date-in
                   ?credit-account-id-in
