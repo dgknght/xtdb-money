@@ -3,5 +3,6 @@
             xtdb-money.models.datomic.users
             xtdb-money.models.datomic.accounts
             xtdb-money.models.datomic.entities
+            xtdb-money.models.datomic.commodities
             xtdb-money.models.datomic.prices
             xtdb-money.models.datomic.transactions))

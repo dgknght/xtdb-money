@@ -14,6 +14,17 @@
                              {:name "Personal"}
                              {:qualifier :entity}))))
 
+(deftest apply-a-simple-id-matching-criterion
+  (is (= '{:find [(pull ?x [*])]
+           :in [?x]
+           :args [101]
+           :where []}
+         (dtl/apply-criteria '{:find [(pull ?x [*])]}
+                             {:id 101}
+                             {:qualifier :entity
+                              :entity-key :id
+                              :entity-symbol '?x}))))
+
 (deftest specify-the-args-key
   (is (= '{:find [?x]
            :where [[?x :entity/name ?name-in]]
@@ -112,6 +123,24 @@
                              [:or
                               {:debit-account-id 101}
                               {:credit-account-id 101}]
+                             {:qualifier :transaction}))))
+
+; The structure of the or clause above works in XTDB, but not in datomic
+; because datomic insists that each criterion within the clause
+; operate on the same variables.
+; (That means ?debit-account-id-in in on and ?credit-account-id in
+;       the other one is illegal)
+(deftest apply-an-attributewise-or
+  ; Is it reasonable to use a set as the container for the
+  ; attributes that make up the union criteria? Would we ever
+  ; want that to be an intersection instead?
+  (is (= '{:find [?x]
+           :where (or [?x :transaction/debit-account-id ?in]
+                      [?x :transaction/credit-account-id ?in])
+           :in [?in]
+           :args [101]}
+         (dtl/apply-criteria query
+                             {#{:debit-account-id :credit-account-id} 101}
                              {:qualifier :transaction}))))
 
 (deftest apply-union-and-intersection-together

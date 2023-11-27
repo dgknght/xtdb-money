@@ -1,6 +1,5 @@
 (ns xtdb-money.models.xtdb.transactions
-  (:require [xtdb-money.datalog :as dtl]
-            [xtdb-money.xtdb :as x]
+  (:require [xtdb-money.xtdb :as x]
             [xtdb-money.util :refer [->storable-date
                                      <-storable-date]]))
 

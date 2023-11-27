@@ -21,3 +21,7 @@
 (defmethod d/after-read :user
   [user]
   (update-in user [:identities] #(into {} %)))
+
+(defmethod d/bounding-where-clause :user
+  [_]
+  '[?x :user/email ?email])

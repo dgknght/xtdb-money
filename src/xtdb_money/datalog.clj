@@ -8,15 +8,13 @@
 (s/def ::args-key (s/coll-of keyword? :kind vector?))
 (s/def ::query-prefix (s/coll-of keyword :kind vector?))
 (s/def ::qualifier keyword?)
-(defmulti options-spec type)
-(defmethod options-spec ::map [_]
-  (s/keys :req-un [::qualifier]
-          :opt-un [::args-key
-                   ::query-prefix]))
-(defmethod options-spec ::vector [_]
-  (s/cat :operator #{:and :or}
-         :criteria (s/+ ::options)))
-(s/def ::options (s/multi-spec options-spec type))
+(s/def ::entity-id keyword?)
+(s/def ::entity-symbol symbol?)
+(s/def ::options (s/keys :req-un [::qualifier]
+                         :opt-un [::args-key
+                                  ::query-prefix
+                                  ::entity-id
+                                  ::entity-symbol]))
 
 (def ^:private concat*
   (fnil (comp vec concat) []))
@@ -26,6 +24,7 @@
 
 (def ^{:private true :dynamic true} *opts*
   {:coerce identity
+   :coerce-id identity
    :args-key [:args]
    :query-prefix []
    :remap {}})
@@ -34,11 +33,19 @@
   [x]
   ((:coerce *opts*) x))
 
+(defn- coerce-id
+  [id]
+  ((:coerce-id *opts*) id))
+
 (defn- args-key []
   (:args-key *opts*))
 
 (defn- qualifier []
   (:qualifier *opts*))
+
+(defn- entity-key?
+  [k]
+  (= k (:entity-key *opts*)))
 
 (defn- query-key
   [& ks]
@@ -50,6 +57,7 @@
   (symbol (str "?" (name k) suffix))))
 
 (defn- field-ref
+  "Given a keyword, returns the qualified reference to a model attribute"
   [k & {explicit-type :qualifier}]
   (or ((:remap *opts*) k)
       (keyword (name (or explicit-type
@@ -111,25 +119,39 @@
   (fn [c]
     ; c will always be a vector, either a key-value pair
     ; or a construction like [:and crit1 crit2]
-    (if (= 2 (count c)) ; this is a tuple key-value pair
-      (let [[_k v] c]
+    (let [result (if (= 2 (count c)) ; this is a tuple key-value pair
+      (let [[k v] c]
         (cond
+          (set? k) :attribute-or
           (map? v) :compound
           (vector? v) (case (first v)
                         (:< :<= :> :>=) :comparison
                         :and            :intersection
                         :or             :union ; TODO: Do we ever hit this?
                         :=              :equality)))
-      :conjunction)))
+      :conjunction)]
+      result)))
 
 (defmethod ->querylet :default
   [[k v]]
-  (let [arg-in (arg-ident k "-in")]
-    {:where [['?x
-              (field-ref k)
-              arg-in]]
-     :args [(coerce v)]
-     :in [arg-in]}))
+  (if (entity-key? k)
+    {:args [(coerce-id v)]
+     :in [(get-in *opts* [:entity-symbol])]}
+    (let [arg-in (arg-ident k "-in")]
+      {:where [['?x
+                (field-ref k)
+                arg-in]]
+       :args [(coerce v)]
+       :in [arg-in]})))
+
+(defmethod ->querylet :attribute-or
+  [[ks v]]
+  {:pre [(not (sequential? v))]}
+  (let [arg '?in]
+    {:args [(coerce v)]
+     :in [arg]
+     :where (apply list 'or (map #(vector '?x (field-ref %) arg)
+                                 ks))}))
 
 (defmethod ->querylet :conjunction
   [[oper & cs]]
@@ -140,13 +162,14 @@
 
 (defmethod ->querylet :equality
   [[k [_op v]]]
-  ; note the destructing is different from above, but the rest is the same
+  ; note the destructing is different from the default (implicit equality),
+  ; but the rest is the same
   (let [arg-in (arg-ident k "-in")]
     {:where [['?x
-            (field-ref k)
-            arg-in]]
-   :args [(coerce v)]
-   :in [arg-in]}))
+              (field-ref k)
+              arg-in]]
+     :args [(coerce v)]
+     :in [arg-in]}))
 
 (defmethod ->querylet :comparison
   [[k [oper v]]]
@@ -202,11 +225,13 @@
 
 (defn- apply-querylet
   "Apply a querylet to a proper datalog query map"
-  [query querylet]
+  [query {:keys [args in where]}]
   (-> query
-      (update-in (args-key)         concat* (:args querylet))
-      (update-in (query-key :in)    concat* (:in querylet))
-      (update-in (query-key :where) concat* (:where querylet))))
+      (update-in (args-key)         concat* args)
+      (update-in (query-key :in)    concat* in)
+      (update-in (query-key :where) #(if %
+                                       (merge-and % where) 
+                                       where))))
 
 (defmacro ^:private with-options
   [opts & body]
@@ -217,10 +242,12 @@
   [query criteria opts]
   {:pre [(s/valid? ::options opts)]}
 
-  (with-options opts
-    (->> (->querylets criteria)
-         (reduce (merge-querylets :and))
-         (apply-querylet query))))
+  (if (seq criteria)
+    (with-options opts
+      (->> (->querylets criteria)
+           (reduce (merge-querylets :and))
+           (apply-querylet query)))
+    query))
 
 (defn- ensure-attr
   [{:keys [where] :as query} k arg-ident]

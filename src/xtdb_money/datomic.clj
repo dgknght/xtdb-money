@@ -75,18 +75,6 @@
 (defmethod ->storable :default [x] x)
 (defmethod ->storable LocalDate [d] (tc/to-long d))
 
-(defmulti criteria->query
-  (fn [m _opts]
-    (mny/model-type m)))
-
-(defn apply-id
-  [query {:keys [id]}]
-  (if id
-    (-> query
-        (update-in [:args] conj* (coerce-id id))
-        (update-in [:query :in] conj* '?x))
-    query))
-
 (defmulti bounding-where-clause
   (fn [crit-or-model-type]
     (if (keyword? crit-or-model-type)
@@ -108,21 +96,27 @@
   [query _opts]
   (update-in query [:query :where] conj* '(not [?x :model/deleted? true])))
 
-(defmethod criteria->query :default
+(defmulti prepare-criteria mny/model-type)
+
+(defmethod prepare-criteria :default [c] c)
+
+(defn- criteria->query
   [criteria opts]
   (let [m-type (or (mny/model-type criteria)
                    (:model-type opts))]
     (-> '{:query {:find [(pull ?x [*])]
                   :in [$]}
           :args []}
-        (apply-id criteria)
-        (dtl/apply-criteria (dissoc criteria :id)
-                            :model-type m-type
-                            :query-prefix [:query]
-                            :coerce ->storable)
+        (dtl/apply-criteria (prepare-criteria criteria)
+                            {:qualifier m-type
+                             :query-prefix [:query]
+                             :coerce ->storable
+                             :coerce-id coerce-id
+                             :entity-key :id
+                             :entity-symbol '?x})
         (ensure-bounded-query criteria)
         (exclude-deleted opts)
-        (dtl/apply-options opts :model-type m-type))))
+        (dtl/apply-options opts :qualifier m-type))))
 
 (defmulti ^:private prep-for-put type)
 

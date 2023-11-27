@@ -1,7 +1,7 @@
 (ns xtdb-money.models.transactions
   (:refer-clojure :exclude [find])
   (:require [clojure.spec.alpha :as s]
-            [clojure.pprint :as pp]
+            [clojure.pprint :refer [pprint] :as pp]
             [clj-time.core :as t]
             [clj-time.format :refer [formatters unparse]]
             [clj-time.coerce :refer [to-date-time]]
@@ -102,14 +102,6 @@
 (def ^:private default-opts
   {:order-by [[:transaction-date :asc]]})
 
-(defn- adj-account-id
-  [{:as criteria :keys [account-id]}]
-  (if account-id
-    [:and (dissoc criteria :account-id)
-     [:or {:credit-account-id account-id}
-      {:debit-account-id account-id}]]
-    criteria))
-
 (defn select
   ([criteria]
    (select criteria {}))
@@ -117,9 +109,7 @@
    {:pre [(s/valid? ::criteria criteria)
           (s/valid? ::mny/options options)]}
    (map after-read (mny/select (mny/storage)
-                               (-> criteria
-                                   adj-account-id
-                                   (mny/model-type :transaction))
+                               (mny/model-type criteria :transaction)
                                (merge default-opts options)))))
 
 (defn- mark-deleted
