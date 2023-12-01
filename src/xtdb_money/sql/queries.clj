@@ -5,10 +5,11 @@
             [honey.sql.helpers :refer [select
                                        from]]
             [stowaway.sql :refer [apply-criteria]]
-            [dgknght.app-lib.core :refer [update-in-if]]
             [dgknght.app-lib.inflection :refer [plural]]
             [xtdb-money.core :as mny]
-            [xtdb-money.sql.types :refer [coerce-id]]))
+            [xtdb-money.util :refer [update-in-criteria]]
+            [xtdb-money.sql.types :refer [coerce-id
+                                          ->storable]]))
 
 (derive clojure.lang.PersistentArrayMap ::map)
 (derive clojure.lang.PersistentVector ::vector)
@@ -34,7 +35,7 @@
 
   (-> (select :*)
       (from (infer-table-name criteria))
-      (apply-criteria (update-in-if criteria [:id] coerce-id)
+      (apply-criteria (update-in-criteria criteria [:id] coerce-id)
                       (merge query-options
                              {:target (mny/model-type criteria)}))
       (apply-options options)
