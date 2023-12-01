@@ -18,7 +18,7 @@
   (is (= '{:find [(pull ?x [*])]
            :in [?x]
            :args [101]
-           :where []}
+           :where nil}
          (dtl/apply-criteria '{:find [(pull ?x [*])]}
                              {:id 101}
                              {:qualifier :entity
