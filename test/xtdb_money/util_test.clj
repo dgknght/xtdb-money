@@ -110,3 +110,22 @@
        "Business Datomic" 12 "Business D"
        "Business Datomic" 16 "Business Datomic"
        nil                12 nil))
+
+(deftest update-in-criteria
+  (is (= {:count 2}
+         (utl/update-in-criteria {:count 1} [:count] inc))
+      "A value present in a map is updated")
+  (is (= [:or
+          {:count 3}
+          {:size :large}]
+         (utl/update-in-criteria [:or {:count 1} {:size :large}]
+                                 [:count]
+                                 + 2))
+      "A value in a map in a vector is updated"))
+
+(deftest rename-keys-is-a-criteria-structure
+  (is (= [:or
+          {#{:debit-account-id :credit-account-id} 101}
+          {:memo "this one"}]
+         (utl/rename-criteria-keys [:or {:account-id 101} {:memo "this one"}]
+                                   {:account-id #{:debit-account-id :credit-account-id}}))))

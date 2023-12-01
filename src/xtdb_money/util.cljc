@@ -1,6 +1,8 @@
 (ns xtdb-money.util
   (:require [clojure.walk :refer [prewalk]]
             [clojure.string :as string]
+            [clojure.set :refer [rename-keys]]
+            [dgknght.app-lib.core :refer [update-in-if]]
             #?(:clj [clojure.pprint :refer [pprint]]
                :cljs [cljs.pprint :refer [pprint]])
             #?(:clj [clj-time.coerce :as tc]
@@ -159,3 +161,23 @@
   ([s opts]
    [:span {:title s}
     (truncate s opts)]))
+
+(defn update-in-criteria
+  "Give a criteria, which is a map, or a vector with a conjunction in the first
+  position and criteria in the remaining positions, apply the update-in f
+  to all maps found by walking the data structure."
+  [c k f & args]
+  (prewalk #(if (map? %)
+              (apply update-in-if % k f args)
+              %)
+           c))
+
+(defn rename-criteria-keys
+  "Give a criteria, which is a map, or a vector with a conjunction in the first
+  position and criteria in the remaining positions, apply rename-keys
+  to all maps found by walking the data structure."
+  [c k-map]
+  (prewalk #(if (map? %)
+              (rename-keys % k-map)
+              %)
+           c))
