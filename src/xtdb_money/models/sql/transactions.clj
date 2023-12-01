@@ -3,7 +3,6 @@
             [clojure.pprint :refer [pprint]]
             [dgknght.app-lib.core :refer [uuid
                                           update-in-if]]
-            [xtdb-money.util :refer [local-date?]]
             [xtdb-money.sql.types :refer [->storable
                                           <-storable]]
             [xtdb-money.sql :as sql]))
@@ -48,12 +47,8 @@
                (meta c))
     c))
 
-(defn- prepare-criteria
-  [c]
-  (cond-> c
-    (map? c) extract-account-id
-    (local-date? c) ->storable))
-
 (defmethod sql/prepare-criteria :transaction
   [criteria]
-  (postwalk prepare-criteria criteria))
+  (postwalk #(cond-> %
+               (map? %) extract-account-id)
+            criteria))
