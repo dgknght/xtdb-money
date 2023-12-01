@@ -1,5 +1,6 @@
 (ns xtdb-money.models.mongodb.users
   (:require [dgknght.app-lib.core :refer [update-in-if]]
+            [xtdb-money.util :refer [update-in-criteria]]
             [xtdb-money.mongodb :as m]))
 
 (defmethod m/before-save :user
@@ -26,6 +27,8 @@
 
 (defmethod m/prepare-criteria :user
   [criteria]
-  (update-in-if criteria [:identities] (fn [[oper [provider id]]]
-                                         [oper {:oauth-provider provider
-                                                :oauth-id id}])))
+  (update-in-criteria criteria
+                      [:identities]
+                      (fn [[oper [provider id]]]
+                        [oper {:oauth-provider provider
+                               :oauth-id id}])))
