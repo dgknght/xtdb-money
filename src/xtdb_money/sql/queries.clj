@@ -8,8 +8,7 @@
             [dgknght.app-lib.inflection :refer [plural]]
             [xtdb-money.core :as mny]
             [xtdb-money.util :refer [update-in-criteria]]
-            [xtdb-money.sql.types :refer [coerce-id
-                                          ->storable]]))
+            [xtdb-money.sql.types :refer [coerce-id]]))
 
 (derive clojure.lang.PersistentArrayMap ::map)
 (derive clojure.lang.PersistentVector ::vector)
