@@ -10,6 +10,7 @@
                        [cljsjs/react "17.0.2-0"]
                        [cljsjs/react-dom "17.0.2-0"]
                        [reagent "1.1.1" ]
+                       [reagent-utils "0.3.3"]
                        [ring/ring-core "1.8.2"]
                        [ring/ring-jetty-adapter "1.8.2"]
                        [ring/ring-defaults "0.3.4" :exclusions [ring/ring-core ring/ring-codec crypto-equality commons-io]]
