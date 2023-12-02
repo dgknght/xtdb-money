@@ -4,7 +4,8 @@
             [clojure.set :refer [rename-keys]]
             [xtdb-money.util :refer [->storable-date
                                      <-storable-date]]
-            [xtdb-money.datomic :as d])
+            [xtdb-money.datomic :as d]
+            [xtdb-money.models.transactions :as trxs])
   (:import org.joda.time.LocalDate))
 
 (defmulti ->storable type)
@@ -44,3 +45,7 @@
 (defmethod d/after-read :transaction
   [trx]
   (update-in trx [:transaction-date] <-storable-date))
+
+(defmethod trxs/apply-account-id :datomic
+  [c]
+  (rename-keys c {:account-id #{:debit-account-id :credit-account-id}}))

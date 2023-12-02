@@ -235,9 +235,12 @@
   [config]
   (let [client (d/client config)
         conn (d/connect client {:db-name db-name})]
-    (reify mny/Storage
+    (reify
+      mny/Storage
       (put [_ models]       (put* models {:conn conn}))
       (select [_ crit opts] (select* crit opts {:conn conn}))
       (delete [_ models]    (delete* models {:conn conn}))
       (close [_])
-      (reset [_]            (reset* client)))))
+      (reset [_]            (reset* client))
+      mny/StorageMeta
+      (strategy-id [_] :datomic))))

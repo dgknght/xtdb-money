@@ -17,6 +17,10 @@
 ; implementation of the multi method reify-storage, which should
 ; return an implemention of Storage
 
+(defprotocol StorageMeta
+  "Declares additional, information about the storage strategy"
+  (strategy-id [this]))
+
 (defprotocol Storage
   "Defines the functions necessary to provider storage for the application"
   (put [this models] "Saves the models to the database in an atomic transaction")

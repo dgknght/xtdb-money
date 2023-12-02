@@ -243,9 +243,12 @@
 (defmethod mny/reify-storage :mongodb
   [config]
   (let [conn (connect config)]
-    (reify mny/Storage
+    (reify
+      mny/Storage
       (put [_ models]       (put* conn models))
       (select [_ crit opts] (select* conn crit opts))
       (delete [_ models]    (delete* conn models))
       (close [_])
-      (reset [_]            (reset* conn)))))
+      (reset [_]            (reset* conn))
+      mny/StorageMeta
+      (strategy-id [_] :mongodb))))

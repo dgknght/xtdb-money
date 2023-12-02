@@ -178,9 +178,12 @@
 (defmethod mny/reify-storage :sql
   [config]
   (let [db (jdbc/get-datasource config)]
-    (reify mny/Storage
+    (reify
+      mny/Storage
       (put [_ models]       (put* db models))
       (select [_ crit opts] (select* db crit opts))
       (delete [_ models]    (delete* db models))
       (close [_])
-      (reset [_]            (reset* db)))))
+      (reset [_]            (reset* db))
+      mny/StorageMeta
+      (strategy-id [_] :sql))))
