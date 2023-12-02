@@ -5,10 +5,7 @@
                                                            http-no-content?
                                                            http-unauthorized?
                                                            seq-of-maps-like?])
-                                         (secretary.core/defroute [welcome-path
-                                                                   entities-path
-                                                                   about-path
-                                                                   not-found-path])
+                                         (secretary.core/defroute)
                                          (xtdb-money.xtdb/query-map)
                                          (xtdb-money.core/dbfn)
                                          (xtdb-money.helpers/dbtest)]}
