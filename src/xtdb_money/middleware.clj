@@ -122,16 +122,19 @@
 (defn wrap-issue-auth-token
   [handler]
   (fn [{:keys [authenticated] :as req}]
-    (handler (cond-> req
-               authenticated (res/set-cookie
-                               :auth-token
-                               (-> (usrs/tokenize authenticated)
-                                   (assoc :user-agent
-                                          (get-in req
-                                                  [:headers "user-agent"]))
-                                   tkns/encode)
-                               {:same-site true
-                                :max-age (* 6 60 60)})))))
+    (let [cookie-val (when authenticated
+                       (-> (usrs/tokenize authenticated)
+                           (assoc :user-agent
+                                  (get-in req
+                                          [:headers "user-agent"]))
+                           tkns/encode))
+          res (handler req)]
+      (cond-> res
+        cookie-val (res/set-cookie
+                     "auth-token"
+                     cookie-val
+                     {:same-site :strict
+                      :max-age (* 6 60 60)})))))
 
 (defn- validate-token-and-lookup-user
   [req]

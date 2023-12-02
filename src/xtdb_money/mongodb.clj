@@ -1,6 +1,7 @@
 (ns xtdb-money.mongodb
   (:require [clojure.tools.logging :as log]
             [clojure.set :refer [rename-keys]]
+            [clojure.pprint :refer [pprint]]
             [clj-time.coerce :refer [to-local-date
                                      to-date]]
             [cheshire.generate :refer [add-encoder]]
