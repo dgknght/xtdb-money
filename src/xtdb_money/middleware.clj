@@ -1,6 +1,7 @@
 (ns xtdb-money.middleware
   (:require [clojure.tools.logging :as log]
             [clojure.string :as string]
+            [clojure.pprint :refer [pprint]]
             [config.core :refer [env]]
             [ring.middleware.defaults :refer [wrap-defaults site-defaults ]]
             [ring.middleware.session.cookie :refer [cookie-store]]
@@ -105,12 +106,16 @@
                (assoc req :oauth2/profiles profiles)
                req))))
 
+(defn- find-or-create-user
+  [profiles]
+  (when (seq profiles)
+    (or (some usrs/find-by-oauth profiles)
+        (some usrs/create-from-oauth profiles))))
+
 (defn wrap-user-lookup
   [handler]
   (fn [{:oauth2/keys [profiles] :as req}]
-    (handler (if-let [user (when (seq profiles)
-                             (some usrs/find-by-oauth
-                                   profiles))]
+    (handler (if-let [user (find-or-create-user profiles)]
                (assoc req :authenticated user)
                req))))
 
