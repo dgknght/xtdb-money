@@ -4,6 +4,8 @@
                                                            http-not-found?
                                                            http-no-content?
                                                            http-unauthorized?
+                                                           http-redirect-to?
+                                                           http-response-with-cookie?
                                                            seq-of-maps-like?])
                                          (secretary.core/defroute)
                                          (xtdb-money.xtdb/query-map)
