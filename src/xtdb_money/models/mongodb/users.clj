@@ -30,5 +30,5 @@
   (update-in-criteria criteria
                       [:identities]
                       (fn [[oper [provider id]]]
-                        [oper {:oauth-provider provider
+                        [oper {:oauth-provider (name provider)
                                :oauth-id id}])))
