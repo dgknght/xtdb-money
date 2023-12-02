@@ -7,6 +7,7 @@
 (def page (r/cursor app-state [:page]))
 (def entities (r/cursor app-state [:entities]))
 (def current-entity (r/cursor app-state [:current-entity]))
+(def current-user (r/cursor app-state [:current-user]))
 (def db-strategy (r/cursor app-state [:db-strategy]))
 (def process-count (r/cursor app-state [:process-count]))
 (def busy? (make-reaction #(not (zero? @process-count))))
