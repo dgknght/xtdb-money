@@ -109,7 +109,7 @@
 
 (defn- realize-user
   [user _ctx]
-  (put-with user usrs/put ))
+  (put-with user usrs/put))
 
 (defn- realize-users
   [ctx]
