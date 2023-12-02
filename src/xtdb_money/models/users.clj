@@ -94,6 +94,7 @@
 
 (defn tokenize
   [user]
+  {:pre [(:id user)]}
   (+expiration {:user-id (:id user)}))
 
 (defn detokenize
