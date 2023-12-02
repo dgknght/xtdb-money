@@ -109,8 +109,10 @@
 (defn- find-or-create-user
   [profiles]
   (when (seq profiles)
-    (or (some usrs/find-by-oauth profiles)
-        (some usrs/create-from-oauth profiles))))
+    (try (or (some usrs/find-by-oauth profiles)
+             (some usrs/create-from-oauth profiles))
+         (catch Exception e
+           (log/error e "Unable to fetch the user from the oauth profile")))))
 
 (defn wrap-user-lookup
   [handler]

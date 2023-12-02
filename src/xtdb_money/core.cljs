@@ -20,6 +20,7 @@
             [xtdb-money.notifications :refer [alerts
                                               toasts]]
             [xtdb-money.api.entities :as ents]
+            [xtdb-money.api.users :as usrs]
             [xtdb-money.views.pages]
             [xtdb-money.views.entities]))
 
@@ -70,7 +71,10 @@
   (debounce load-entities*))
 
 (defn- fetch-user []
-  (pprint {::auth-token (cookies/get :auth-token)}))
+  (when-let [auth-token (cookies/get :auth-token)]
+    (reset! state/auth-token auth-token)
+    (usrs/find-by-auth-token auth-token
+                             :on-success #(reset! current-user %))))
 
 (defn init! []
   (act/configure-navigation!
