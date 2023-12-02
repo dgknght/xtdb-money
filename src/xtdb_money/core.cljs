@@ -4,12 +4,16 @@
             [accountant.core :as act]
             [secretary.core :as sct]
             [reagent.dom :as rdom]
+            [reagent.cookies :as cookies]
             [dgknght.app-lib.forms :as forms]
             [dgknght.app-lib.bootstrap-5 :as bs]
             [dgknght.app-lib.api :as api]
             [dgknght.app-lib.dom :refer [debounce]]
             [xtdb-money.state :as state :refer [page
-                                                db-strategy]]
+                                                current-user
+                                                db-strategy
+                                                +busy
+                                                -busy]]
             [xtdb-money.api :refer [handle-error]]
             [xtdb-money.components :refer [title-bar
                                            entity-drawer]]
@@ -46,23 +50,27 @@
   (when-let [el (get-app-element)]
     (mount el)))
 
-(defn- load-entities []
-  (if @db-strategy
+(defn- load-entities* []
+  (when (and @db-strategy @current-user)
+    (+busy)
     (ents/select
-      :callback (fn [entities]
-                  (if (coll? entities)
-                    (do
-                      (swap! state/app-state
-                             assoc
-                             :entities entities
-                             :current-entity (first entities))
-                      (when (empty? entities)
-                        (sct/dispatch! "/entities")))
-                    (pprint {::invalid-entities entities}))))
-    (.warn js/console "Tried to load entities with no db-strategy")))
+      :callback -busy
+      :on-success (fn [entities]
+                    (if (coll? entities)
+                      (do
+                        (swap! state/app-state
+                               assoc
+                               :entities entities
+                               :current-entity (first entities))
+                        (when (empty? entities)
+                          (sct/dispatch! "/entities")))
+                      (pprint {::invalid-entities entities}))))))
 
-(def ^:private debounced-load-entities
-  (debounce load-entities))
+(def ^:private load-entities
+  (debounce load-entities*))
+
+(defn- fetch-user []
+  (pprint {::auth-token (cookies/get :auth-token)}))
 
 (defn init! []
   (act/configure-navigation!
@@ -76,10 +84,11 @@
                (when-let [s (last args)]
                  (when-not (= s @db-strategy)
                    (.log js/console (str "db strategy changed to " (last args)))
-                   (debounced-load-entities)))))
+                   (load-entities)))))
   (when-not @db-strategy
     (.log js/console (str "set initial db strategy to xtdb"))
-    (reset! db-strategy :xtdb))) ; TODO: get this from config
+    (reset! db-strategy :xtdb))
+  (fetch-user)) ; TODO: get this from config
 
 (init!)
 
