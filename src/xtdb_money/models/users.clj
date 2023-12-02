@@ -63,10 +63,6 @@
   [id]
   (find-by {:id (->id id)}))
 
-(defn find-by-oauth
-  [tuple] ; tuple contains provider in 1st pos., id in 2nd pos.
-  (find-by {:identities [:= tuple]}))
-
 (defn- resolve-put-result
   [records]
   (some find records)) ; This is because when adding a user, identities are inserted first, so the primary record isn't the first one returned
@@ -112,6 +108,10 @@
   [[provider]]
   (log/errorf "Unrecognized oauth provider %s" provider)
   nil)
+
+(defn find-by-oauth
+  [tuple] ; tuple contains provider in 1st pos., profile in the 2nd
+  (find-by {:identities [:= (update-in tuple [1] :id)]}))
 
 (defmethod create-from-oauth :google
   [[provider profile]]
