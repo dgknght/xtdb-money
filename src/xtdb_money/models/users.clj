@@ -2,6 +2,8 @@
   (:refer-clojure :exclude [find])
   (:require [clojure.spec.alpha :as s]
             [clojure.pprint :refer [pprint]]
+            [clojure.tools.logging :as log]
+            [clojure.set :refer [rename-keys]]
             [clj-time.core :as t]
             [clj-time.coerce :refer [to-long
                                      from-long]]
@@ -103,3 +105,19 @@
   (when token
     (when-not (expired? token)
       (find user-id))))
+
+(defmulti create-from-oauth (fn [[provider]] provider))
+
+(defmethod create-from-oauth :default
+  [[provider]]
+  (log/errorf "Unrecognized oauth provider %s" provider)
+  nil)
+
+(defmethod create-from-oauth :google
+  [[provider profile]]
+  (-> profile
+      (rename-keys {:given_name :given-name
+                    :family_name :surname})
+      (select-keys [:email :given-name :surname])
+      (assoc :identities {provider (:id profile)})
+      put))

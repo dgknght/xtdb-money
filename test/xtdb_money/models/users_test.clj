@@ -95,5 +95,20 @@
                                    :github "def456"}}
                      (usrs/find-by-oauth [:google "abc123"])))))
 
+(dbtest create-a-user-from-an-oauth-profile
+  (let [user (usrs/create-from-oauth [:google
+                                        {:id "abc123"
+                                         :email "john@doe.com"
+                                         :given_name "John"
+                                         :family_name "Doe"}])
+        expected {:email "john@doe.com"
+                  :given-name "John"
+                  :surname "Doe"
+                  :identities {:google "abc123"}}]
+    (is (comparable? expected user)
+        "The return value is the user map.")
+    (is (comparable? expected (usrs/find user))
+        "The user can be retrieved after creation")))
+
 ; TODO: add an identity
 ; TODO: remove an identity
