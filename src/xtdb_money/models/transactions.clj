@@ -1,7 +1,8 @@
 (ns xtdb-money.models.transactions
   (:refer-clojure :exclude [find])
   (:require [clojure.spec.alpha :as s]
-            [clojure.pprint :as pp]
+            [clojure.pprint :refer [pprint] :as pp]
+            [clojure.walk :refer [postwalk]]
             [clj-time.core :as t]
             [clj-time.format :refer [formatters unparse]]
             [clj-time.coerce :refer [to-date-time]]
@@ -36,6 +37,20 @@
                                       ::credit-index
                                       ::credit-balance
                                       ::correlation-id]))
+
+(def ^:private attributes
+  [:id
+   :entity-id
+   :transaction-date
+   :description
+   :credit-account-id
+   :debit-account-id,
+   :quantity
+   :debit-index
+   :debit-balance
+   :credit-index
+   :credit-balance
+   :correlation-id])
 
 (defn- criterion?
   [pred]
@@ -88,13 +103,52 @@
 (def ^:private default-opts
   {:order-by [[:transaction-date :asc]]})
 
+; dispatch based on the storage strategy, so we can
+; apply the id in a manner tha works with the storage
+; strategy.
+;
+; For mose strategies, this default version works, but
+; datomic has stricter rules for the 'or' clause than
+; the other strategies
+(defmulti apply-account-id (fn [_] (mny/strategy-id mny/*storage*)))
+
+(defmethod apply-account-id :default
+  [{:keys [account-id] :as c}]
+  (if account-id
+    (with-meta
+      [:and
+       (dissoc c :account-id)
+       [:or
+        {:debit-account-id account-id}
+        {:credit-account-id account-id}]]
+      (meta c))
+    c))
+
+; dispatch based on the type of the data structure
+; so we can address the maps
+(defmulti ^:private adj-criteria-account-id map?)
+
+(defmethod adj-criteria-account-id false [c] c)
+
+(defmethod adj-criteria-account-id true
+  [c]
+  (apply-account-id c))
+
+
+(defn- prepare-criteria
+  [criteria]
+  (-> criteria
+      adj-criteria-account-id
+      (mny/model-type :transaction)))
+
 (defn select
-  ([criteria]         (select criteria {}))
+  ([criteria]
+   (select criteria {}))
   ([criteria options]
    {:pre [(s/valid? ::criteria criteria)
           (s/valid? ::mny/options options)]}
    (map after-read (mny/select (mny/storage)
-                               (mny/model-type criteria :transaction)
+                               (prepare-criteria criteria)
                                (merge default-opts options)))))
 
 (defn- mark-deleted
@@ -380,6 +434,20 @@
          (apply-first-trx-date-change trx prev)
          (into []))))
 
+(defn- bilateralize
+  [trx]
+  (if (unilateral? trx)
+    (bilateral trx)
+    trx))
+
+; TODO: Maybe this should be done in a more central location for all model types?
+(defn- prune
+  [trx]
+  (if (= :transaction
+         (mny/model-type trx))
+    (select-keys trx attributes)
+    trx))
+
 (defn- propagate
   [trx]
   {:pre [(= (:entity-id trx)
@@ -393,9 +461,8 @@
     (->> (rest debit-side)
          (concat credit-side)
          (map (comp ensure-model-type
-                    #(if (unilateral? %)
-                       (bilateral %)
-                       %)))
+                    prune
+                    bilateralize))
          (remove deleted?)
          (into []))))
 

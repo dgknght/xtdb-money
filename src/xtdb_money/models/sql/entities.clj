@@ -2,4 +2,4 @@
   (:require [xtdb-money.sql :as sql]))
 
 (defmethod sql/attributes :entity [_]
-  [:id :name :default-commodity-id])
+  [:id :name :default-commodity-id :user-id])

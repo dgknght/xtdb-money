@@ -1,8 +1,11 @@
 (ns xtdb-money.models.datomic.transactions
-  (:require [xtdb-money.util :refer [->storable-date
+  (:require [clojure.pprint :refer [pprint]]
+            [clojure.walk :refer [prewalk]]
+            [clojure.set :refer [rename-keys]]
+            [xtdb-money.util :refer [->storable-date
                                      <-storable-date]]
-            [xtdb-money.datalog :as dtl]
-            [xtdb-money.datomic :as d])
+            [xtdb-money.datomic :as d]
+            [xtdb-money.models.transactions :as trxs])
   (:import org.joda.time.LocalDate))
 
 (defmulti ->storable type)
@@ -13,33 +16,14 @@
   [v]
   (->storable-date v))
 
-(defn- apply-account-id
-  [query {:keys [account-id]}]
-  (if account-id
-    (-> query
-        (update-in [:query :in] conj '?account-id)
-        (update-in [:args] conj account-id)
-        (update-in [:query :where]
-                   (comp vec concat)
-                   '[(or [?x :transaction/debit-account-id ?account-id]
-                         [?x :transaction/credit-account-id ?account-id])]))
-    query))
+(defmethod d/prepare-criteria :transaction
+  [criteria]
 
-(defmethod d/criteria->query :transaction
-  [criteria options]
-  (-> '{:query {:find [(pull ?x [*])]
-                :in [$]
-                :where []}
-        :args []}
-      (apply-account-id criteria)
-      (d/apply-id criteria)
-      (dtl/apply-criteria (dissoc criteria
-                                  :id
-                                  :account-id)
-                          :model-type :transaction
-                          :query-prefix [:query]
-                          :coerce ->storable)
-      (dtl/apply-options (dissoc options :order-by))))
+  (prewalk (fn [x]
+             (if (map? x)
+               (rename-keys x {:account-id #{:debit-account-id :credit-account-id}})
+               x))
+           criteria))
 
 (defmethod d/before-save :transaction
   [trx]
@@ -61,3 +45,7 @@
 (defmethod d/after-read :transaction
   [trx]
   (update-in trx [:transaction-date] <-storable-date))
+
+(defmethod trxs/apply-account-id :datomic
+  [c]
+  (rename-keys c {:account-id #{:debit-account-id :credit-account-id}}))

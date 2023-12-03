@@ -1,6 +1,7 @@
 (ns xtdb-money.mongodb
   (:require [clojure.tools.logging :as log]
             [clojure.set :refer [rename-keys]]
+            [clojure.pprint :refer [pprint]]
             [clj-time.coerce :refer [to-local-date
                                      to-date]]
             [cheshire.generate :refer [add-encoder]]
@@ -16,6 +17,9 @@
            org.bson.types.Decimal128
            org.bson.types.ObjectId
            com.fasterxml.jackson.core.JsonGenerator))
+
+(derive clojure.lang.PersistentVector ::vector)
+(derive clojure.lang.PersistentArrayMap ::map)
 
 (add-encoder ObjectId
              (fn [^ObjectId id ^JsonGenerator g]
@@ -42,6 +46,8 @@
   [id]
   (when id (coerce-id id)))
 
+(defmulti before-save mny/model-type)
+(defmethod before-save :default [m] m)
 (defmulti after-read mny/model-type)
 (defmethod after-read :default [m] m)
 
@@ -49,17 +55,19 @@
   (comp plural
         mny/model-type))
 
-(defmulti put-model
+(defmulti transact
   (fn [_conn [op _m]]
     op))
 
-(defmethod put-model ::mny/insert
+(defmethod transact ::mny/insert
   [conn [_ m]]
   (m/with-mongo conn
-    (m/insert! (infer-collection-name m)
-               m)))
+    (let [col-name (infer-collection-name m)]
+      ; TODO: redact sensitive data
+      (log/debugf "insert into %s model %s" col-name m)
+      (m/insert! col-name m))))
 
-(defmethod put-model ::mny/update
+(defmethod transact ::mny/update
   [conn [_ m]]
   (m/with-mongo conn
     (m/update! (infer-collection-name m)
@@ -67,7 +75,7 @@
                {:$set (dissoc m :id)})
     (:id m)))
 
-(defmethod put-model ::mny/delete
+(defmethod transact ::mny/delete
   [conn [_ m]]
   (m/with-mongo conn
     (m/destroy! (infer-collection-name m)
@@ -86,8 +94,9 @@
   (mapv (comp #(if (map? %)
                  (rename-keys % {:_id :id})
                  %)
-              #(put-model conn %)
-              wrap-oper)
+              #(transact conn %)
+              wrap-oper
+              before-save)
         models))
 
 (def ^:private oper-map
@@ -96,11 +105,11 @@
    :< :$lt
    :<= :$lte})
 
-(defmulti ^:private adjust-complex-criterion
+(defmulti adjust-complex-criterion
   (fn [[_k v]]
     (when (vector? v)
       (let [[oper] v]
-        (or (#{:and :or} oper)
+        (or (#{:and :or :=} oper)
             (when (oper-map oper) :comparison)
             (first v))))))
 
@@ -109,6 +118,8 @@
   (get-in oper-map
           [op]
           (keyword (str "$" (name op)))))
+
+(declare adjust-complex-criteria)
 
 (defmethod adjust-complex-criterion :default [c] c)
 
@@ -130,19 +141,37 @@
                    {(->mongodb-op op) v})
                  cs)}})
 
+(defmethod adjust-complex-criterion :=
+  [[f [_ v]]]
+  {f (if (map? v)
+       {:$elemMatch (adjust-complex-criteria v)}
+       v)})
+
 (defn- adjust-complex-criteria
   [criteria]
   (->> criteria
        (map adjust-complex-criterion)
        (into {})))
 
+(defmulti ^:private criteria->query type)
+
+(defmethod criteria->query ::map
+  [criteria]
+  (-> criteria
+      (update-in-if [:id] coerce-id)
+      (rename-keys {:id :_id})
+      adjust-complex-criteria))
+
+(defmethod criteria->query ::vector
+  [[oper & cs]]
+  (case oper
+    :or {:$or (mapv criteria->query cs)}
+    :and {:$and (mapv criteria->query cs)}))
+
 (defn apply-criteria
   [query criteria]
   (if (seq criteria)
-    (assoc query :where (-> criteria
-                            (update-in-if [:id] coerce-id)
-                            (rename-keys {:id :_id})
-                            adjust-complex-criteria))
+    (assoc query :where (criteria->query criteria))
     query))
 
 (defn apply-account-id
@@ -175,12 +204,14 @@
     limit (assoc :limit limit)
     order-by (assoc :sort (coerce-ordered-fields (map ->mongodb-sort order-by)))))
 
+(defmulti prepare-criteria mny/model-type)
+(defmethod prepare-criteria :default [c] c)
+
 (defn- select*
   [conn criteria options]
   (m/with-mongo conn
     (let [query (-> {}
-                    (apply-criteria (dissoc criteria :account-id))
-                    (apply-account-id criteria)
+                    (apply-criteria (prepare-criteria criteria))
                     (apply-options options))]
       (log/debugf "fetch %s with options %s -> %s" criteria options query)
       (map (comp after-read
@@ -192,17 +223,18 @@
 (defn- delete*
   [conn models]
   (m/with-mongo conn
-    (let [coll-name (infer-collection-name (first models))]
-      (doseq [query (map (comp #(hash-map :_id %)
-                               :id)
-                         models)]
-        (log/debugf "delete %s" query)
-        (m/destroy! coll-name query)))))
+    (->> models
+         (mapv (comp #(.getN %)
+                     #(apply m/destroy! %)
+                     #(update-in % [1] (fn [{:keys [id]}]
+                                         {:_id id}))
+                     #(vector (infer-collection-name %) %)))
+         (reduce +))))
 
 (defn- reset*
   [conn]
   (m/with-mongo conn
-    (doseq [c [:transactions :accounts :entities]]
+    (doseq [c [:transactions :accounts :entities :users]]
       (m/destroy! c {}))))
 
 (defn connect
@@ -212,9 +244,12 @@
 (defmethod mny/reify-storage :mongodb
   [config]
   (let [conn (connect config)]
-    (reify mny/Storage
+    (reify
+      mny/Storage
       (put [_ models]       (put* conn models))
       (select [_ crit opts] (select* conn crit opts))
       (delete [_ models]    (delete* conn models))
       (close [_])
-      (reset [_]            (reset* conn)))))
+      (reset [_]            (reset* conn))
+      mny/StorageMeta
+      (strategy-id [_] :mongodb))))

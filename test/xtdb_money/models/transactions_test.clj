@@ -1,6 +1,7 @@
 (ns xtdb-money.models.transactions-test
   (:require [clojure.test :refer [deftest is are use-fixtures testing]]
             [clojure.spec.alpha :as s]
+            [clojure.pprint :refer [pprint]]
             [clj-time.core :as t]
             [clj-time.format :as tf]
             [clj-time.coerce :as tc]

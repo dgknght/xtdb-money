@@ -2,8 +2,26 @@
                                                            html-response-with-content?
                                                            http-success?
                                                            http-not-found?
+                                                           http-no-content?
+                                                           http-unauthorized?
+                                                           http-redirect-to?
+                                                           http-response-with-cookie?
                                                            seq-of-maps-like?])
-                                         (secretary.core/defroute weclome-path)
+                                         (secretary.core/defroute)
                                          (xtdb-money.xtdb/query-map)
                                          (xtdb-money.core/dbfn)
-                                         (xtdb-money.helpers/dbtest)]}}}
+                                         (xtdb-money.helpers/dbtest)]}
+           :clojure-lsp/unused-public-var {:exclude #{xtdb-money.util/local-date?
+                                                      xtdb-money.util/<-storable-date
+                                                      xtdb-money.util/qualify-keys
+                                                      xtdb-money.util/+id
+                                                      xtdb-money.util/apply-sort
+                                                      xtdb-money.util/split-nils
+                                                      xtdb-money.util/valid-id?
+                                                      xtdb-money.util/truncate-html
+                                                      xtdb-money.handler/print-routes}}
+           :unresolved-var {:exclude [figwheel.main.testing/run-tests-async]}
+           :unused-referred-var {:exclude {clojure.pprint [pprint]
+                                           cljs.pprint [pprint]}}
+           :unused-namespace {:exclude [clojure.pprint
+                                        cljs.pprint]}}}

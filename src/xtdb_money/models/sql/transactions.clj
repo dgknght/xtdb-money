@@ -1,23 +1,13 @@
 (ns xtdb-money.models.sql.transactions
-  (:require [honey.sql.helpers :refer [where]]
-            [xtdb-money.sql :as sql]
+  (:require [clojure.walk :refer [postwalk]]
+            [clojure.pprint :refer [pprint]]
             [dgknght.app-lib.core :refer [uuid
-                                          update-in-if]]))
+                                          update-in-if]]
+            [xtdb-money.sql.types :refer [->storable
+                                          <-storable]]
+            [xtdb-money.sql :as sql]))
 
-(defn- apply-account-id
-  [s {:keys [account-id]}]
-  (if account-id
-    (where s [:or
-              [:= :debit-account-id account-id]
-              [:= :credit-account-id account-id]])
-    s))
-
-(defmethod sql/apply-criteria :transaction
-  [s criteria]
-  (reduce-kv sql/apply-criterion
-             (apply-account-id s criteria)
-             (dissoc criteria :account-id)))
-
+; TODO: Dedupe this with what is also in mongodb
 (def ^:private attr
   [:id
    :entity-id
@@ -37,11 +27,28 @@
 (defmethod sql/before-save :transaction
   [transaction]
   (-> transaction
-      (update-in [:transaction-date] sql/->storable)
+      (update-in [:transaction-date] ->storable)
       (select-keys attr)))
 
 (defmethod sql/after-read :transaction
   [transaction]
   (-> transaction
       (update-in-if [:correlation-id] uuid)
-      (update-in [:transaction-date] sql/<-storable)))
+      (update-in [:transaction-date] <-storable)))
+
+(defn- extract-account-id
+  [{:keys [account-id] :as c}]
+  (if account-id
+    (with-meta [:and
+                (dissoc c :account-id)
+                [:or
+                 {:debit-account-id account-id}
+                 {:credit-account-id account-id}]]
+               (meta c))
+    c))
+
+(defmethod sql/prepare-criteria :transaction
+  [criteria]
+  (postwalk #(cond-> %
+               (map? %) extract-account-id)
+            criteria))

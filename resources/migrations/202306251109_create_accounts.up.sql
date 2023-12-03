@@ -1,6 +1,6 @@
 CREATE TABLE accounts (
     id serial,
-    entity_id int NOT NULL references entities (id),
+    entity_id int NOT NULL references entities (id) on delete cascade,
     type character varying(20) NOT NULL,
     name character varying(100) NOT NULL,
     balance numeric(12, 4) NOT NULL,

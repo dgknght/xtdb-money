@@ -1,7 +1,10 @@
 (ns xtdb-money.api.entities
   (:refer-clojure :exclude [update])
-  (:require [xtdb-money.models.entities :as ents]
-            [dgknght.app-lib.api :as api]))
+  (:require [dgknght.app-lib.authorization :as auth :refer [+scope
+                                                            authorize]]
+            [dgknght.app-lib.api :as api]
+            [xtdb-money.authorization.entities]
+            [xtdb-money.models.entities :as ents]))
 
 (defn- extract-entity
   [{:keys [body]}]
@@ -9,15 +12,18 @@
       (select-keys [:name])))
 
 (defn- create
-  [req]
+  [{:as req :keys [authenticated]}]
   (-> req
       extract-entity
+      (assoc :user-id (:id authenticated))
       ents/put
       api/creation-response))
 
 (defn- extract-criteria
-  [_req]
-  {})
+  [{:keys [authenticated params]}]
+  (-> params
+      (select-keys [:name :user-id])
+      (+scope :entity authenticated)))
 
 (defn- index
   [req]
@@ -27,26 +33,32 @@
       api/response))
 
 (defn- find-and-authorize
-  [{:keys [path-params]}]
-  ; TODO: Add authorization
-  (ents/find (:id path-params)))
+  [{:keys [path-params authenticated]} action]
+  (some-> (-> path-params
+              (select-keys [:id])
+              (+scope :entity authenticated)
+              ents/find-by)
+          (authorize action authenticated)))
 
 (defn- update
   [req]
-  (if-let [entity (find-and-authorize req)]
-    (-> entity
-        (merge (extract-entity req))
-        ents/put
-        api/response)
-    api/not-found))
+  (or (some-> (find-and-authorize req ::auth/update)
+              (merge (extract-entity req))
+              ents/put
+              api/response)
+      api/not-found))
+
+(defn- no-content
+  [& _]
+  api/no-content)
 
 (defn- delete
   [req]
-  (if-let [entity (find-and-authorize req)]
-    (do (ents/delete entity)
-        api/no-content)
-    api/not-found))
-
+  (or (some-> req
+              (find-and-authorize ::auth/destroy)
+              ents/delete
+              no-content)
+      api/not-found))
 
 (def routes
   ["/entities"

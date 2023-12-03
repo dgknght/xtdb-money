@@ -17,6 +17,10 @@
 ; implementation of the multi method reify-storage, which should
 ; return an implemention of Storage
 
+(defprotocol StorageMeta
+  "Declares additional, information about the storage strategy"
+  (strategy-id [this]))
+
 (defprotocol Storage
   "Defines the functions necessary to provider storage for the application"
   (put [this models] "Saves the models to the database in an atomic transaction")
@@ -30,7 +34,7 @@
 
 (defmulti reify-storage storage-dispatch)
 
-(def ^:dynamic *storage*)
+(def ^:dynamic *storage* nil)
 
 (defn storage []
   (or *storage*
@@ -53,6 +57,10 @@
    (-> m meta :model-type))
   ([m model-or-type]
    (vary-meta m assoc :model-type (extract-model-type model-or-type))))
+
+(defn +model-type
+  [m-type]
+  #(model-type % m-type))
 
 (defn set-meta
   [m model-or-type]

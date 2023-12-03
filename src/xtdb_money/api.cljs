@@ -1,7 +1,9 @@
 (ns xtdb-money.api
   (:refer-clojure :exclude [get])
-  (:require [dgknght.app-lib.api-3 :as api]
-            [xtdb-money.state :refer [db-strategy]]))
+  (:require [cljs.pprint :refer [pprint]]
+            [goog.string :refer [format]]
+            [dgknght.app-lib.api-3 :as api]
+            [xtdb-money.state :as state]))
 
 (defn handle-error
   [error]
@@ -9,10 +11,13 @@
   (.dir js/console error))
 
 (defn- apply-defaults
-  [{:as opts :keys [on-error]}]
-  (-> opts
-      (assoc :on-error (or on-error handle-error))
-      (assoc-in [:headers "db-strategy"] @db-strategy)))
+  [{:as opts
+    :keys [on-error]
+    :or {on-error handle-error}}]
+  (let [{:keys [db-strategy auth-token]} @state/app-state]
+    (cond-> (assoc opts :on-error on-error)
+      db-strategy (assoc-in [:headers "db-strategy"] (name db-strategy))
+      auth-token  (assoc-in [:headers "Authorization"] (format "Bearer %s" auth-token)))))
 
 (defn get
   [url opts]

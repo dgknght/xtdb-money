@@ -6,7 +6,10 @@
             [xtdb-money.mongodb :as mdb]))
 
 (def ^:private all-indexes
-  {:entities {"uk_entity_name" {:fields [:name]
+  {:users {"uk_user_email" {:fields [:email]
+                            :options {:unique true}}
+           "uk_user_oauth_id" {:fields [:identities.oauth-provider :identities.oauth-id]}}
+   :entities {"uk_entity_name" {:fields [:name]
                                 :options {:unique true}}}
    :accounts {"ix_account_entity" {:fields [:entity-id]}}
    :transactions {"ix_transaction_date" {:fields [:transaction-date]}}})

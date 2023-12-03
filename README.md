@@ -6,6 +6,12 @@ Double-entry accounting application with multiple backend storage options
 # ERD
 ```mermaid
 erDiagram
+User ||--|{ Entity : "has one or more"
+User {
+    string given-name
+    string surname
+    string email
+}
 Entity ||--|{ Account  : "consists of"
 Entity {
     string name

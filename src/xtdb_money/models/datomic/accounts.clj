@@ -15,3 +15,7 @@
   (-> account
       (update-in-if [:first-trx-date] <-storable-date)
       (update-in-if [:last-trx-date] <-storable-date)))
+
+(defmethod d/bounding-where-clause :account
+  [_]
+  '[?x :account/name ?name])

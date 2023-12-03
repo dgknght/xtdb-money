@@ -3,11 +3,13 @@
             [reagent.ratom :refer [make-reaction]]
             [xtdb-money.util :as utl]
             [xtdb-money.icons :refer [icon]]
-            [xtdb-money.state :refer [current-entity
-                                      entities
-                                      alerts
-                                      db-strategy
-                                      busy?]]))
+            [xtdb-money.state :as state
+             :refer [current-user
+                     current-entity
+                     entities
+                     alerts
+                     db-strategy
+                     busy?]]))
 
 (def ^:private spinner-size-css
   {:small "spinner-border-sm"})
@@ -130,18 +132,26 @@
          (icon icn)]))))
 
 (defn- build-nav-items
-  [current-db]
-  [{:href "/about"
-    :id :about
-    :caption "About the App"}
-   {:caption [:<>
-              (icon :database :size :small)
-              [:span.ms-1 (or (id->caption current-db) "unknown db strategy")]]
-    :id :db-strategy
-    :children (db-strategy-items current-db)}
-   {:caption (icon :person-circle)
-    :id :sign-out
-    :children ["/sign-out"]}])
+  [current-user current-db]
+  (concat [{:href "/about"
+            :id :about
+            :caption "About the App"}
+           {:caption [:<>
+                      (icon :database :size :small)
+                      [:span.ms-1 (or (id->caption current-db) "unknown db strategy")]]
+            :id :db-strategy
+            :children (db-strategy-items current-db)}]
+          (if current-user
+            [{:caption (icon :person-circle)
+              :id :sign-out
+              :children [{:id :sign-out
+                          :caption "Sign Out"
+                          :on-click state/sign-out}]}]
+            [{:caption [:<>
+                        (icon :box-arrow-in-right :size :small)
+                        [:span.ms-2 "Sign In"]]
+              :id :sign-in
+              :href "/sign-in"}])))
 
 (defn- entity-selector []
   (let [caption (make-reaction #(utl/truncate-html (:name @current-entity)))]
@@ -155,7 +165,7 @@
          (icon :caret-down-fill :size :small)]))))
 
 (defn title-bar []
-  (let [nav-items (make-reaction #(build-nav-items @db-strategy))]
+  (let [nav-items (make-reaction #(build-nav-items @current-user @db-strategy))]
     (fn []
       [:header.p-1.mb-3.border-bottom
        [:div.container

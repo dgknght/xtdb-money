@@ -1,7 +1,12 @@
 (ns xtdb-money.helpers
   (:require [clojure.test :refer [deftest testing]]
             [config.core :refer [env]]
-            [xtdb-money.core :as mny]))
+            [ring.mock.request :as req]
+            [dgknght.app-lib.test :refer [parse-json-body]]
+            [xtdb-money.core :as mny]
+            [xtdb-money.tokens :as tkns]
+            [xtdb-money.models.users :as usrs]
+            [xtdb-money.handler :refer [app]]))
 
 (def ^:dynamic *strategy* nil)
 
@@ -55,3 +60,37 @@
            (testing (format "database strategy %s" name#)
              (mny/with-db [config#]
                ~@bod)))))))
+
+(defn +auth
+  [rq user & [user-agent]]
+  (if user
+    (req/header rq
+                "Authorization"
+                (format "Bearer %s" (-> user
+                                        usrs/tokenize
+                                        (assoc :user-agent (or user-agent
+                                                               "test-user-agent"))
+                                        tkns/encode)))
+    rq))
+
+(defn- +json-body
+  [req json-body]
+  (if json-body
+    (req/json-body req json-body)
+    req))
+
+(defn request
+  [method
+   path
+   & {:keys [header-user-agent
+             tokenized-user-agent
+             json-body
+             user]
+      :or {tokenized-user-agent "test-user-agent"
+           header-user-agent "test-user-agent"}}]
+  (-> (req/request method path)
+      (req/header "user-agent" header-user-agent)
+      (+auth user tokenized-user-agent)
+      (+json-body json-body)
+      app
+      parse-json-body))

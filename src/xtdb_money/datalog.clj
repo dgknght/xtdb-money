@@ -1,5 +1,20 @@
 (ns xtdb-money.datalog
-  (:require [clojure.spec.alpha :as s]))
+  (:require [clojure.spec.alpha :as s]
+            [clojure.pprint :refer [pprint]]))
+
+(derive clojure.lang.PersistentArrayMap ::map)
+(derive clojure.lang.PersistentVector ::vector)
+
+(s/def ::args-key (s/coll-of keyword? :kind vector?))
+(s/def ::query-prefix (s/coll-of keyword :kind vector?))
+(s/def ::qualifier keyword?)
+(s/def ::entity-id keyword?)
+(s/def ::entity-symbol symbol?)
+(s/def ::options (s/keys :req-un [::qualifier]
+                         :opt-un [::args-key
+                                  ::query-prefix
+                                  ::entity-id
+                                  ::entity-symbol]))
 
 (def ^:private concat*
   (fnil (comp vec concat) []))
@@ -9,6 +24,7 @@
 
 (def ^{:private true :dynamic true} *opts*
   {:coerce identity
+   :coerce-id identity
    :args-key [:args]
    :query-prefix []
    :remap {}})
@@ -17,23 +33,23 @@
   [x]
   ((:coerce *opts*) x))
 
+(defn- coerce-id
+  [id]
+  ((:coerce-id *opts*) id))
+
 (defn- args-key []
   (:args-key *opts*))
 
-(defn- model-type []
-  (:model-type *opts*))
+(defn- qualifier []
+  (:qualifier *opts*))
+
+(defn- entity-key?
+  [k]
+  (= k (:entity-key *opts*)))
 
 (defn- query-key
   [& ks]
   (concat (:query-prefix *opts*) ks))
-
-(defmulti apply-criterion
-  (fn [_query [_k v]]
-    (when (vector? v)
-      (case (first v)
-        (:< :<= :> :>=) :comparison
-        :and            :intersection
-        :or             :union))))
 
 (defn- arg-ident
   ([k] (arg-ident k nil))
@@ -41,73 +57,181 @@
   (symbol (str "?" (name k) suffix))))
 
 (defn- field-ref
-  [k]
+  "Given a keyword, returns the qualified reference to a model attribute"
+  [k & {explicit-type :qualifier}]
   (or ((:remap *opts*) k)
-      (keyword (name (model-type))
+      (keyword (name (or explicit-type
+                         (qualifier)))
                (name k))))
 
-(defmethod apply-criterion :default
-  [query [k v]]
-  (let [input (arg-ident k "-in")]
-    (-> query
-        (update-in (query-key :where)
-                   conj*
-                   ['?x
-                    (field-ref k)
-                    input])
-        (update-in (query-key :in) conj* input)
-        (update-in (args-key) conj* (coerce v)))))
+(defn- one?
+  [x]
+  (= 1 (count x)))
 
-(defmethod apply-criterion :comparison
-  [query [k [oper v]]]
+(def ^:private vec-of-one?
+  (every-pred vector? one?))
+
+(defn- extract-singular
+  [x]
+  (if (vec-of-one? x)
+    (first x)
+    x))
+
+(defn- merge-and
+  [w1 w2]
+  (cond
+    (and (vector? w1) (vector? w2))
+    (vec (concat w1 w2))
+
+    (vector? w1)
+    (conj w1 w2)
+
+    :else ; w1 is a list
+    (apply vector w1 w2)))
+
+(defn- merge-or
+  [w1 w2]
+  (list 'or
+        (extract-singular w1)
+        (extract-singular w2)))
+
+(def ^:private merge-where
+  {:and merge-and
+   :or merge-or})
+
+(defn- merge-querylets
+  "Returns a fn for merging querylets. Options are available for
+  :in, :args, and :where and specify the function to use to combine
+  the values in the two maps. The default function is concat."
+  [oper]
+  (fn [target source]
+    (-> target
+        (update-in [:in]    (fnil concat [])   (:in source))
+        (update-in [:args]  (fnil concat [])   (:args source))
+        (update-in [:where] (merge-where oper) (:where source)))))
+
+(declare ->querylets)
+
+(defmulti ->querylet
+  "Accepts a criterion and returns a querylet map containing elements
+  to be merged with :where, :args, and :in in the final
+  datalog query."
+  (fn [c]
+    ; c will always be a vector, either a key-value pair
+    ; or a construction like [:and crit1 crit2]
+    (let [result (if (= 2 (count c)) ; this is a tuple key-value pair
+      (let [[k v] c]
+        (cond
+          (set? k) :attribute-or
+          (map? v) :compound
+          (vector? v) (case (first v)
+                        (:< :<= :> :>=) :comparison
+                        :and            :intersection
+                        :or             :union ; TODO: Do we ever hit this?
+                        :=              :equality)))
+      :conjunction)]
+      result)))
+
+(defmethod ->querylet :default
+  [[k v]]
+  (if (entity-key? k)
+    {:args [(coerce-id v)]
+     :in [(get-in *opts* [:entity-symbol])]}
+    (let [arg-in (arg-ident k "-in")]
+      {:where [['?x
+                (field-ref k)
+                arg-in]]
+       :args [(coerce v)]
+       :in [arg-in]})))
+
+(defmethod ->querylet :attribute-or
+  [[ks v]]
+  {:pre [(not (sequential? v))]}
+  (let [arg '?in]
+    {:args [(coerce v)]
+     :in [arg]
+     :where (apply list 'or (map #(vector '?x (field-ref %) arg)
+                                 ks))}))
+
+(defmethod ->querylet :conjunction
+  [[oper & cs]]
+  (->> cs
+       (map #(reduce (merge-querylets :and)
+                     (->querylets %)))
+       (reduce (merge-querylets oper))))
+
+(defmethod ->querylet :equality
+  [[k [_op v]]]
+  ; note the destructing is different from the default (implicit equality),
+  ; but the rest is the same
+  (let [arg-in (arg-ident k "-in")]
+    {:where [['?x
+              (field-ref k)
+              arg-in]]
+     :args [(coerce v)]
+     :in [arg-in]}))
+
+(defmethod ->querylet :comparison
+  [[k [oper v]]]
   (let [arg (arg-ident k)
-        input (arg-ident k "-in")]
-    (-> query
-        (update-in (args-key) conj* (coerce v))
-        (update-in (query-key :in) conj* input)
-        (update-in (query-key :where)
-                   concat*
-                   [['?x
-                     (keyword (name (model-type))
-                              (name k))
-                     arg]
-                    [(list (symbol (name oper))
-                           arg
-                           input)]]))))
+        arg-in (arg-ident k "-in")]
+    {:where [['?x
+              (field-ref k)
+              arg]
+             [(list (symbol (name oper))
+                    arg
+                    arg-in)]]
+     :in [arg-in]
+     :args [(coerce v)]}))
 
-(defmethod apply-criterion :intersection
-  [query [k [_and & vs]]]
-  ; 1. establish a reference to the model attribute
-  ; 2. apply each comparison to the reference
-  ; 3. decide if we need to wrap with (and ...)
-  (let [attr (name k)
-        input-refs (map (comp symbol
-                              #(str "?" attr "-in-" %)
-                              #(+ 1 %))
-                        (range (count vs)))
-        attr-ref (arg-ident k)
-        field (keyword (name (model-type)) attr)]
-    (-> query
-        (update-in (args-key) concat* (map (comp coerce last) vs))
-        (update-in (query-key :in)      concat* input-refs)
-        (update-in (query-key :where)
-                   concat*
-                   (cons
-                     ['?x field attr-ref]
-                     (->> vs
-                        (interleave input-refs)
-                        (partition 2)
-                        (map (fn [[input-ref [oper]]]
-                               [(list (-> oper name symbol)
-                                       attr-ref
-                                       input-ref)]))))))))
+; {:count [:and [:< 5] [:>= 1]]} -> {:find [?x]
+;                                    :in [?count-1 ?count-2]
+;                                    :args [5 1]
+;                                    :where [[?x :model/count ?count]
+;                                            [(< ?count ?count-1)]]
+;                                            [(>= ?count ?count-2)]}
+(defmethod ->querylet :intersection
+  [[k [_and & vs]]]
+  (let [attr-ref (arg-ident k)
+        input-refs (mapv (comp symbol
+                               #(str "?" (name k) "-in-" %)
+                               #(+ 1 %))
+                         (range (count vs)))]
+    {:where (vec
+              (cons
+                ['?x (field-ref k) attr-ref]
+                (->> vs
+                     (interleave input-refs)
+                     (partition 2)
+                     (map (fn [[input-ref [oper]]]
+                            [(list (-> oper name symbol)
+                                   attr-ref
+                                   input-ref)])))))
+     :args (map (comp coerce last) vs)
+     :in input-refs}))
 
-(s/def ::args-key (s/coll-of keyword? :kind vector?))
-(s/def ::query-prefix (s/coll-of keyword :kind vector?))
-(s/def ::model-type keyword?)
-(s/def ::options (s/keys :req-un [::model-type]
-                         :opt-un [::args-key
-                                  ::query-prefix]))
+(defmulti ^:private ->querylets
+  "Accepts a criteria structure (map or vector) and returns
+  a sequence of querylets"
+  type)
+
+(defmethod ->querylets ::map
+  [c]
+  (mapv ->querylet c))
+
+(defmethod ->querylets ::vector
+  [c]
+  [(->querylet c)])
+
+(defn- apply-querylet
+  "Apply a querylet to a proper datalog query map"
+  [query {:keys [args in where]}]
+  (-> query
+      (update-in (args-key)         concat* args)
+      (update-in (query-key :in)    concat* in)
+      (update-in (query-key :where) #(if %
+                                       (merge-and % where) 
+                                       where))))
 
 (defmacro ^:private with-options
   [opts & body]
@@ -115,19 +239,22 @@
      ~@body))
 
 (defn apply-criteria
-  [query criteria & {:as opts}]
+  [query criteria opts]
   {:pre [(s/valid? ::options opts)]}
-  (with-options opts criteria
-    (reduce apply-criterion
-            query
-            criteria)))
+
+  (if (seq criteria)
+    (with-options opts
+      (->> (->querylets criteria)
+           (reduce (merge-querylets :and))
+           (apply-querylet query)))
+    query))
 
 (defn- ensure-attr
   [{:keys [where] :as query} k arg-ident]
   (if (some #(= arg-ident (last %))
             where)
     query
-    (update-in query [:where] conj* ['?x (field-ref k) arg-ident])))
+    (update-in query (query-key :where) conj* ['?x (field-ref k) arg-ident])))
 
 (defmulti apply-sort-segment
   (fn [_query seg]

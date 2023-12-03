@@ -1,5 +1,6 @@
 (ns xtdb-money.test-context
   (:require [clojure.pprint :refer [pprint]]
+            [xtdb-money.models.users :as usrs]
             [xtdb-money.models.entities :as ents]
             [xtdb-money.models.commodities :as cty]
             [xtdb-money.models.prices :as prcs]
@@ -9,7 +10,11 @@
 (defonce ^:dynamic *context* nil)
 
 (def basic-context
-  {:entities [{:name "Personal"}]
+  {:users [{:email "john@doe.com"
+            :given-name "John"
+            :surname "Doe"}]
+   :entities [{:user-id "john@doe.com"
+               :name "Personal"}]
    :commodities [{:entity-id "Personal"
                   :type :currency
                   :name "United States Dollar"
@@ -39,6 +44,11 @@
        (filter #(= v (get-in % [k])))
        first))
 
+(defn find-user
+  ([email] (find-user email *context*))
+  ([email {:keys [users]}]
+   (find-model users :email email)))
+
 (defn find-entity
   ([entity-name] (find-entity entity-name *context*))
   ([entity-name {:keys [entities]}]
@@ -62,6 +72,11 @@
         (filter #(and (= trx-date (:transaction-date %))
                       (= description (:description %))))
         first)))
+
+(defn- resolve-user
+  ([model ctx] (resolve-user model ctx :user-id))
+  ([model ctx k]
+   (update-in model [k] (comp :id find-user) ctx)))
 
 (defn- resolve-entity
   ([model ctx] (resolve-entity model ctx :entity-id))
@@ -92,9 +107,22 @@
     (or m
         (throw (RuntimeException. (format "Unable to create the %s" model-type))))))
 
+(defn- realize-user
+  [user _ctx]
+  (put-with user usrs/put))
+
+(defn- realize-users
+  [ctx]
+  (update-in ctx [:users] (fn [users]
+                            (mapv (comp (throw-on-failure "user")
+                                        #(realize-user % ctx))
+                                  users))))
+
 (defn- realize-entity
-  [entity _ctx]
-  (ents/put entity))
+  [entity ctx]
+  (-> entity
+      (resolve-user ctx)
+      ents/put))
 
 (defn- realize-entities
   [ctx]
@@ -178,6 +206,7 @@
 (defn realize
   [ctx]
   (-> ctx
+      realize-users
       realize-entities
       realize-commodities
       realize-prices

@@ -10,11 +10,13 @@
                        [cljsjs/react "17.0.2-0"]
                        [cljsjs/react-dom "17.0.2-0"]
                        [reagent "1.1.1" ]
+                       [reagent-utils "0.3.3"]
                        [ring/ring-core "1.8.2"]
                        [ring/ring-jetty-adapter "1.8.2"]
                        [ring/ring-defaults "0.3.4" :exclusions [ring/ring-core ring/ring-codec crypto-equality commons-io]]
                        [ring/ring-json "0.5.1" :exclusions [ring/ring-core ring/ring-codec]]
                        [co.deps/ring-etag-middleware "0.2.1"]
+                       [ring-oauth2 "0.2.2" :exclusions [com.fasterxml.jackson.dataformat/jackson-dataformat-smile ring/ring-core com.fasterxml.jackson.dataformat/jackson-dataformat-cbor ring/ring-codec commons-fileupload crypto-equality cheshire commons-io]]
                        [metosin/reitit "0.7.0-alpha5" :exclusions [com.bhauman/spell-spec
                                                                    com.cognitect/transit-clj
                                                                    com.cognitect/transit-java
@@ -26,6 +28,7 @@
                                                                    org.clojure/tools.reader
                                                                    ring/ring-codec
                                                                    ring/ring-core]]
+                       [buddy/buddy-sign "3.5.351" :exclusions [com.fasterxml.jackson.dataformat/jackson-dataformat-smile com.fasterxml.jackson.dataformat/jackson-dataformat-cbor commons-fileupload crypto-equality cheshire commons-codec]]
                        [venantius/accountant "0.2.5"]
                        [clj-commons/secretary "1.2.4"]
                        [clj-time "0.15.2"]
@@ -52,6 +55,7 @@
                        [dev.weavejester/ragtime "0.9.3"]
                        [com.github.seancorfield/honeysql "2.4.1033"]
                        [congomongo "2.6.0" :exclusions [org.clojure/data.json]]
+                       [stowaway "0.1.16"]
                        [com.github.dgknght/app-lib "0.3.6" :exclusions [args4j
                                                                         commons-logging
                                                                         commons-io
@@ -68,7 +72,7 @@
         :profiles {:uberjar {:aot :all
                              :jvm-opts ["-Dclojure.compiler.direct-linking=true"]}
                    :test [:project/test :profiles/test] ; this performs a deep merge, so it's only necessary to override the specific attributes that need to change in profiles.clj
-                   :project/test {:env {:db {:active "xtdb"
+                   :project/test {:env {:db {:active "mongodb"
                                              :strategies {"datomic"
                                                           {:system "money-test"}
 
@@ -79,7 +83,9 @@
                                                           {:dbname "xtdb_money_test"}
 
                                                           "mongodb"
-                                                          {:database "money_test"}}}}}
+                                                          {:database "money_test"}}}
+                                        :google-oauth-client-id "google-client-id"
+                                        :google-oauth-client-secret "google-client-secret"}}
                    :ci {:env ^:replace {:db {:strategies {"sql" {:xtdb-money.core/provider :sql
                                                                  :host "postgres"
                                                                  :dbname "money_test"
@@ -114,7 +120,8 @@
 
                                                          "mongodb"
                                                          {:xtdb-money.core/provider :mongodb
-                                                          :database "money_development"}}}}
+                                                          :database "money_development"}}}
+                                       :app-secret "this is a weak secret for testing only"}
                                  :dependencies [[org.clojure/data.zip "1.0.0"]
                                                 [org.eclipse.jetty/jetty-server "9.4.36.v20210114"]
                                                 [org.eclipse.jetty.websocket/websocket-servlet "9.4.36.v20210114"]

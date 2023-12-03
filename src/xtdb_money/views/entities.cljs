@@ -11,12 +11,10 @@
                                                 entities
                                                 +busy
                                                 -busy-xf
-                                                busy?]]
+                                                -busy]]
             [xtdb-money.components :refer [icon-button]]
-            [xtdb-money.icons :refer [icon
-                                      icon-with-text]]
-            [xtdb-money.notifications :refer [alert
-                                              toast]]
+            [xtdb-money.icons :refer [icon]]
+            [xtdb-money.notifications :refer [toast]]
             [xtdb-money.api.entities :as ents]))
 
 (defn- receive-entities
@@ -33,8 +31,8 @@
 (def load-entities
   (map (fn [x]
          (+busy)
-         (ents/select :post-xf -busy-xf
-                      :callback receive-entities)
+         (ents/select :callback -busy
+                      :on-success receive-entities)
          x)))
 
 (defn- confirm?

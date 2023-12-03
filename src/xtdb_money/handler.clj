@@ -1,26 +1,35 @@
 (ns xtdb-money.handler
-  (:require [clojure.tools.logging :as log]
-            [clojure.pprint :refer [pprint]]
-            [clojure.string :as string]
-            [config.core :refer [env]]
+  (:require [clojure.pprint :refer [pprint]]
             [hiccup.page :as page]
             [reitit.core :as r]
             [reitit.ring :as ring]
-            [ring.middleware.defaults :refer [wrap-defaults site-defaults api-defaults]]
+            [ring.middleware.defaults :refer [wrap-defaults api-defaults]]
             [ring.middleware.not-modified :refer [wrap-not-modified]]
             [ring.middleware.json :refer [wrap-json-body
                                           wrap-json-response]]
             [ring.middleware.content-type :refer [wrap-content-type]]
             [ring.util.response :as res]
             [co.deps.ring-etag-middleware :refer [wrap-file-etag]]
+            [dgknght.app-lib.authorization :refer [wrap-authorization-config]]
+            [xtdb-money.core :as mny]
+            [xtdb-money.middleware :refer [wrap-no-cache-header
+                                           wrap-api-exception
+                                           wrap-remove-last-modified-header
+                                           wrap-db
+                                           wrap-logging
+                                           wrap-oauth
+                                           wrap-fetch-oauth-profile
+                                           wrap-user-lookup
+                                           wrap-issue-auth-token
+                                           wrap-site
+                                           wrap-authentication]]
             [xtdb-money.models.mongodb.ref]
             [xtdb-money.models.sql.ref]
             [xtdb-money.models.xtdb.ref]
             [xtdb-money.models.datomic.ref]
-            [xtdb-money.core :as mny]
             [xtdb-money.api.entities :as ents]
-            [xtdb-money.icons :refer [icon]])
-  (:import clojure.lang.ExceptionInfo))
+            [xtdb-money.api.users :as usrs]
+            [xtdb-money.icons :refer [icon]]))
 
 (defn- mount-point []
   [:div#app
@@ -73,81 +82,8 @@
               [:script {:type "text/javascript"
                         :src "/assets/cljs-out/dev-main.js"}]]))})
 
-(defn- wrap-logging
-  [handler]
-  (fn [req]
-    (log/debugf "Request %s %s" (:request-method req) (:uri req))
-    (let [res (handler req)]
-      (log/debugf "Response %s %s -> %s (%s) "
-                  (:request-method req)
-                  (:uri req)
-                  (:status res)
-                  (get-in res [:headers "Content-Type"]))
-      res)))
-
-(defn- wrap-no-cache-header
-  [handler]
-  (fn [req]
-    (handler (update-in req [:headers] assoc
-                        "Cache-Control" "no-cache"))))
-
-(defn- wrap-remove-last-modified-header
-  [handler]
-  (fn [req]
-    (handler (update-in req [:headers] dissoc "Last-Modified"))))
-
-(defn- mask-values
-  [m ks]
-  (reduce (fn [res k]
-            (if (contains? res k)
-              (assoc res k "****************")
-              res))
-          m
-          ks))
-
-(defn- wrap-db
-  [handler]
-  (fn [req]
-    (if-let [storage-key (get-in req
-                                 [:headers "db-strategy"]
-                                 (get-in env [:db :active]))]
-      (let [storage-config (get-in env [:db :strategies storage-key])]
-        (log/debugf "Handling request with db strategy %s: %s"
-                    storage-key
-                    (mask-values storage-config [:username :user :password]))
-        (mny/with-db [storage-config]
-          (handler (assoc req :db-strategy storage-key))))
-      (-> (res/response {:message "bad request: must specify a db-strategy header"})
-          (res/status 400)))))
-
-(def error-res
-  {:status 500
-   :body {:message "server error"}})
-
-(defn- wrap-api-exception
-  [handler]
-  (fn [req]
-    (try
-      (handler req)
-      (catch ExceptionInfo e
-        (log/errorf "Unexpected error while handling API request: %s - %s"
-                    (.getMessage e)
-                    (pr-str (ex-data e)))
-        error-res)
-      (catch Exception e
-        (log/errorf "Unexpected error while handling API request: %s - %s"
-                    (.getMessage e)
-                    (->> (.getStackTrace e)
-                         (map #(format "%s.%s at %s:%s"
-                                       (.getClassName %)
-                                       (.getMethodName %)
-                                       (.getFileName %)
-                                       (.getLineNumber %)))
-                         (string/join "\n  ")))
-        error-res))))
-
 (defn- not-found
-  [{:keys [uri] :as req}]
+  [{:keys [uri]}]
   (if (re-find #"^/api" uri)
     {:status 404 :body {:message "not found"}}
     (res/redirect "/#not-found")))
@@ -155,22 +91,36 @@
 (def app
   (ring/ring-handler
     (ring/router
-      [["/" {:get {:handler index}
-             :middleware [#(wrap-defaults % (dissoc site-defaults :static :session))]}]
-       ["/api" {:middleware [#(wrap-defaults % api-defaults)
-                             #(wrap-json-body % {:keywords? true :bigdecimals? true})
+      [["/" {:middleware [(wrap-site)
+                          wrap-content-type
+                          wrap-no-cache-header
+                          wrap-file-etag
+                          wrap-not-modified
+                          wrap-remove-last-modified-header
+                          wrap-logging
+                          wrap-oauth
+                          wrap-db
+                          wrap-fetch-oauth-profile
+                          wrap-user-lookup
+                          wrap-issue-auth-token]}
+        ["" {:get {:handler index}}]
+        ["oauth/*" {:get (wrap-json-response not-found)}]]
+       ["/api" {:middleware [[wrap-defaults api-defaults]
+                             [wrap-json-body {:keywords? true :bigdecimals? true}]
                              wrap-json-response
                              wrap-api-exception
-                             wrap-db]}
+                             wrap-db
+                             wrap-logging
+                             wrap-authentication
+                             [wrap-authorization-config {:type-fn mny/model-type}]
+                             wrap-no-cache-header
+                             wrap-file-etag
+                             wrap-not-modified
+                             wrap-remove-last-modified-header]}
+        usrs/routes
         ents/routes]
        ["/assets/*" (ring/create-resource-handler)]])
-    (ring/create-default-handler {:not-found (wrap-json-response not-found)})
-    {:middleware [wrap-logging
-                  wrap-content-type
-                  wrap-no-cache-header
-                  wrap-file-etag
-                  wrap-not-modified
-                  wrap-remove-last-modified-header]}))
+    (ring/create-default-handler {:not-found (wrap-json-response not-found)})))
 
 (defn print-routes []
   (pprint

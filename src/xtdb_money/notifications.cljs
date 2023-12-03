@@ -63,9 +63,9 @@
                :id id}
    [:div.toast-header
     [:strong.me-auto header]
-    [:buton.btn-close {:type :button
-                       :data-bs-dismiss :toast
-                       :aria-label "Close"}]]
+    [:button.btn-close {:type :button
+                        :data-bs-dismiss :toast
+                        :aria-label "Close"}]]
    [:div.toast-body
     message]])
 
