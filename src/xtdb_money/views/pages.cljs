@@ -1,7 +1,9 @@
 (ns xtdb-money.views.pages
-  (:require [secretary.core :refer-macros [defroute]]
+  (:require [goog.string :refer [format]]
+            [secretary.core :refer-macros [defroute]]
             [dgknght.app-lib.html :as html]
-            [xtdb-money.state :refer [page]]))
+            [xtdb-money.state :refer [page
+                                      current-user]]))
 
 (defn- sign-in-options []
   [:div.list-group {:style {:max-width "264px"}}
@@ -15,10 +17,15 @@
 
 (defn- welcome []
   (fn []
-    [:div.container
-     [:h1 "Welcome!"]
-     [:p "There's lots of cool stuff coming soon."]
-     (sign-in-options)]))
+    (if @current-user
+      [:div.container
+       [:h1 (format "Welcome %s!" (:given-name @current-user))]
+       [:p "Soon we'll put a dashboard here that shows highlights of your finances."]
+       ]
+      [:div.container
+       [:h1 "Welcome!"]
+       [:p "There's lots of cool stuff coming soon."]
+       (sign-in-options)])))
 
 (defn- about []
   (fn []
