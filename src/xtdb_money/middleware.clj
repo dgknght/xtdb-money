@@ -86,9 +86,9 @@
 
 (defn- extract-db-strategy
   [req]
-  (or (some #(:value (get-in req %))
+  (or (some #(get-in req %)
             [[:headers "db-strategy"]
-             [:cookies "db-strategy"]])
+             [:cookies "db-strategy" :value]])
       (get-in env [:db :active])))
 
 (defn wrap-db
