@@ -8,4 +8,7 @@
     (usrs/me :on-success (fn [user]
                            (is (= {:email "john@doe.com"}
                                   user))
-                           (done)))))
+                           (done))
+             :on-error (fn [e]
+                         (is false e)
+                         (done)))))
