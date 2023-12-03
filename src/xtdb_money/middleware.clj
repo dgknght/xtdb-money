@@ -84,20 +84,23 @@
           m
           ks))
 
+(defn- extract-db-strategy
+  [req]
+  (or (some #(:value (get-in req %))
+            [[:headers "db-strategy"]
+             [:cookies "db-strategy"]])
+      (get-in env [:db :active])))
+
 (defn wrap-db
   [handler]
   (fn [req]
-    (if-let [storage-key (get-in req
-                                 [:headers "db-strategy"]
-                                 (get-in env [:db :active]))]
-      (let [storage-config (get-in env [:db :strategies storage-key])]
-        (log/debugf "Handling request with db strategy %s: %s"
-                    storage-key
-                    (mask-values storage-config [:username :user :password]))
-        (mny/with-db [storage-config]
-          (handler (assoc req :db-strategy storage-key))))
-      (-> (res/response {:message "bad request: must specify a db-strategy header"})
-          (res/status 400)))))
+    (let [storage-key (extract-db-strategy req)
+          storage-config (get-in env [:db :strategies storage-key])]
+      (log/debugf "Handling request with db strategy %s -> %s"
+                  storage-key
+                  (mask-values storage-config [:username :user :password]))
+      (mny/with-db [storage-config]
+        (handler (assoc req :db-strategy storage-key))))))
 
 (defn wrap-fetch-oauth-profile
   [handler]

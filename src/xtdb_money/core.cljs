@@ -4,17 +4,14 @@
             [accountant.core :as act]
             [secretary.core :as sct]
             [reagent.dom :as rdom]
-            [reagent.cookies :as cookies]
             [dgknght.app-lib.forms :as forms]
             [dgknght.app-lib.bootstrap-5 :as bs]
-            [dgknght.app-lib.api :as api]
             [dgknght.app-lib.dom :refer [debounce]]
             [xtdb-money.state :as state :refer [page
                                                 current-user
                                                 db-strategy
                                                 +busy
                                                 -busy]]
-            [xtdb-money.api :refer [handle-error]]
             [xtdb-money.components :refer [title-bar
                                            entity-drawer]]
             [xtdb-money.notifications :refer [alerts
@@ -25,10 +22,6 @@
             [xtdb-money.views.entities]))
 
 (swap! forms/defaults assoc-in [::forms/decoration ::forms/framework] ::bs/bootstrap-5)
-(swap! api/defaults assoc
-       :accept :json
-       :extract-body :before
-       :handle-ex handle-error)
 
 (defn get-app-element []
   (gdom/getElement "app"))
@@ -71,10 +64,10 @@
   (debounce load-entities*))
 
 (defn- fetch-user []
-  (when-let [auth-token (cookies/get :auth-token)]
-    (reset! state/auth-token auth-token)
-    (usrs/find-by-auth-token auth-token
-                             :on-success #(reset! current-user %))))
+  (when @state/auth-token
+    (+busy)
+    (usrs/me :on-success #(reset! current-user %)
+             :callback -busy)))
 
 (defn init! []
   (act/configure-navigation!
@@ -89,10 +82,7 @@
                  (when-not (= s @db-strategy)
                    (.log js/console (str "db strategy changed to " (last args)))
                    (load-entities)))))
-  (when-not @db-strategy
-    (.log js/console (str "set initial db strategy to xtdb"))
-    (reset! db-strategy :xtdb))
-  (fetch-user)) ; TODO: get this from config
+  (fetch-user))
 
 (init!)
 

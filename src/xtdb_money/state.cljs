@@ -1,8 +1,14 @@
 (ns xtdb-money.state
-  (:require [reagent.core :as r]
+  (:require [cljs.pprint :refer [pprint]]
+            [secretary.core :as sct]
+            [reagent.core :as r]
+            [reagent.cookies :as cookies]
             [reagent.ratom :refer [make-reaction]]))
 
-(defonce app-state (r/atom {:process-count 0}))
+; TODO: Get the default db strategy from the config
+(defonce app-state (r/atom {:process-count 0
+                            :db-strategy (keyword (cookies/get :db-strategy "xtdb"))
+                            :auth-token (cookies/get :auth-token)}))
 
 (def page (r/cursor app-state [:page]))
 (def auth-token (r/cursor app-state [:auth-token]))
@@ -27,3 +33,20 @@
            ::state
            (fn [& args]
              (.debug js/console (str "process count changed: " (last args)))))
+
+(add-watch db-strategy
+           ::state
+           (fn [_ _ _ strategy]
+             (cookies/set! :db-strategy (name strategy))))
+
+(defn sign-out []
+  (cookies/remove! :auth-token)
+  (cookies/remove! :ring-session)
+  (swap! app-state
+         dissoc
+         :auth-token
+         :current-user
+         :entities
+         :current-entity
+         :alerts)
+  (sct/dispatch! "/"))

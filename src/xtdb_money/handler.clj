@@ -28,6 +28,7 @@
             [xtdb-money.models.xtdb.ref]
             [xtdb-money.models.datomic.ref]
             [xtdb-money.api.entities :as ents]
+            [xtdb-money.api.users :as usrs]
             [xtdb-money.icons :refer [icon]]))
 
 (defn- mount-point []
@@ -98,6 +99,7 @@
                           wrap-remove-last-modified-header
                           wrap-logging
                           wrap-oauth
+                          wrap-db
                           wrap-fetch-oauth-profile
                           wrap-user-lookup
                           wrap-issue-auth-token]}
@@ -115,6 +117,7 @@
                              wrap-file-etag
                              wrap-not-modified
                              wrap-remove-last-modified-header]}
+        usrs/routes
         ents/routes]
        ["/assets/*" (ring/create-resource-handler)]])
     (ring/create-default-handler {:not-found (wrap-json-response not-found)})))

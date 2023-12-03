@@ -1,9 +1,8 @@
 (ns xtdb-money.api.users
-  (:require [cljs.core.async :as a]))
+  (:require [cljs.pprint :refer [pprint]]
+            [dgknght.app-lib.api-3 :refer [path]]
+            [xtdb-money.api :as api]))
 
-(defn find-by-auth-token
-  [_auth-token & {:as _opts}]
-  (.warn js/console "find-by-auth-token is not implemented")
-  (let [c (a/promise-chan)]
-    (a/put! c {})
-    c))
+(defn me
+  [& {:as opts}]
+  (api/get (path :me) opts) )

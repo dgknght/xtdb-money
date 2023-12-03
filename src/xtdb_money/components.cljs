@@ -3,12 +3,13 @@
             [reagent.ratom :refer [make-reaction]]
             [xtdb-money.util :as utl]
             [xtdb-money.icons :refer [icon]]
-            [xtdb-money.state :refer [current-user
-                                      current-entity
-                                      entities
-                                      alerts
-                                      db-strategy
-                                      busy?]]))
+            [xtdb-money.state :as state
+             :refer [current-user
+                     current-entity
+                     entities
+                     alerts
+                     db-strategy
+                     busy?]]))
 
 (def ^:private spinner-size-css
   {:small "spinner-border-sm"})
@@ -143,7 +144,9 @@
           (if current-user
             [{:caption (icon :person-circle)
               :id :sign-out
-              :children ["/sign-out"]}]
+              :children [{:id :sign-out
+                          :caption "Sign Out"
+                          :on-click state/sign-out}]}]
             [{:caption [:<>
                         (icon :box-arrow-in-right :size :small)
                         [:span.ms-2 "Sign In"]]
