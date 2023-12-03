@@ -45,20 +45,19 @@
     (mount el)))
 
 (defn- load-entities* []
-  (when (and @db-strategy @current-user)
-    (+busy)
-    (ents/select
-      :callback -busy
-      :on-success (fn [entities]
-                    (if (coll? entities)
-                      (do
-                        (swap! state/app-state
-                               assoc
-                               :entities entities
-                               :current-entity (first entities))
-                        (when (empty? entities)
-                          (sct/dispatch! "/entities")))
-                      (pprint {::invalid-entities entities}))))))
+  (+busy)
+  (ents/select
+    :callback -busy
+    :on-success (fn [entities]
+                  (if (coll? entities)
+                    (do
+                      (swap! state/app-state
+                             assoc
+                             :entities entities
+                             :current-entity (first entities))
+                      (when (empty? entities)
+                        (sct/dispatch! "/entities")))
+                    (pprint {::invalid-entities entities})))))
 
 (def ^:private load-entities
   (debounce load-entities*))
@@ -82,6 +81,11 @@
                  (when-not (= s @db-strategy)
                    (.log js/console (str "db strategy changed to " (last args)))
                    (load-entities)))))
+  (add-watch current-user
+             ::init
+             (fn [& args]
+               (when (last args)
+                 (load-entities))))
   (fetch-user))
 
 (init!)
