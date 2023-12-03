@@ -110,8 +110,9 @@
   nil)
 
 (defn find-by-oauth
-  [tuple] ; tuple contains provider in 1st pos., profile in the 2nd
-  (find-by {:identities [:= (update-in tuple [1] :id)]}))
+  [[provider id-or-profile]]
+  (find-by {:identities [:= [provider (or (:id id-or-profile)
+                                          id-or-profile)]]}))
 
 (defmethod create-from-oauth :google
   [[provider profile]]
