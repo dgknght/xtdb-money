@@ -6,4 +6,5 @@
                                          (secretary.core/defroute weclome-path)
                                          (xtdb-money.xtdb/query-map)
                                          (xtdb-money.core/dbfn)
-                                         (xtdb-money.helpers/dbtest)]}}}
+                                         (xtdb-money.helpers/dbtest)]}
+           :clojure-lsp/unused-public-var {:exclude #{xtdb-money.datomic/apply-schema}}}}
